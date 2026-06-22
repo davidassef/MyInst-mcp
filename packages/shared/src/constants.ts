@@ -15,6 +15,22 @@ export const CONTENT_TYPES = [
 
 export type ContentType = (typeof CONTENT_TYPES)[number];
 
+export const PROJECT_STATE_TYPES = [
+  'memory',
+  'decision',
+  'session',
+] as const;
+
+export type ProjectStateType = (typeof PROJECT_STATE_TYPES)[number];
+
+export const PROJECT_SESSION_STATUSES = [
+  'draft',
+  'reviewed',
+  'archived',
+] as const;
+
+export type ProjectSessionStatus = (typeof PROJECT_SESSION_STATUSES)[number];
+
 export const TAG_CATEGORIES = ['model', 'provider', 'custom'] as const;
 export type TagCategory = (typeof TAG_CATEGORIES)[number];
 
@@ -36,5 +52,8 @@ export const CLIENT_PROFILE_IDS = [
 
 export type ClientProfileId = (typeof CLIENT_PROFILE_IDS)[number];
 
-export const SEARCH_SCOPES = ['project', 'global', 'all'] as const;
+export const SYNC_SCOPES = ['project', 'global', 'all'] as const;
+export type SyncScope = (typeof SYNC_SCOPES)[number];
+
+export const SEARCH_SCOPES = ['project', 'global', 'state', 'all'] as const;
 export type SearchScope = (typeof SEARCH_SCOPES)[number];

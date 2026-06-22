@@ -32,7 +32,7 @@ export async function searchRoutes(app: FastifyInstance) {
         : await obterWorkspaceDefault(userId)
       : null;
 
-    const resultadosProjeto = (scope === 'global')
+    const resultadosProjeto = (scope === 'global' || scope === 'state')
       ? []
       : await buscarResultadosProjeto({
           userId,
@@ -42,7 +42,7 @@ export async function searchRoutes(app: FastifyInstance) {
           termo,
         });
 
-    const resultadosGlobais = (scope === 'project')
+    const resultadosGlobais = (scope === 'project' || scope === 'state')
       ? []
       : await buscarResultadosGlobais({
           userId,
@@ -51,7 +51,17 @@ export async function searchRoutes(app: FastifyInstance) {
           termo,
         });
 
-    const resultados = [...resultadosProjeto, ...resultadosGlobais]
+    const resultadosState = (scope === 'project' || scope === 'global')
+      ? []
+      : await buscarResultadosState({
+          userId,
+          workspaceId: workspace?.id,
+          project,
+          type,
+          termo,
+        });
+
+    const resultados = [...resultadosProjeto, ...resultadosGlobais, ...resultadosState]
       .sort((a, b) => Number(b.rank) - Number(a.rank))
       .slice(0, 50);
 
@@ -60,6 +70,135 @@ export async function searchRoutes(app: FastifyInstance) {
       meta: { total: resultados.length, query: termo },
     };
   });
+}
+
+async function buscarResultadosState({
+  userId,
+  workspaceId,
+  project,
+  type,
+  termo,
+}: {
+  userId: string;
+  workspaceId?: string;
+  project?: string;
+  type?: string;
+  termo: string;
+}) {
+  if (!workspaceId) {
+    return [];
+  }
+
+  const filtroProjeto = project ? sql`AND p.slug = ${project}` : sql``;
+  const incluirMemorias = !type || type === 'memory';
+  const incluirDecisoes = !type || type === 'decision';
+  const incluirSessoes = !type || type === 'session';
+  const queries = [];
+
+  if (incluirMemorias) {
+    queries.push(sql`
+      SELECT
+        pm.id,
+        pm.user_id,
+        pm.project_id,
+        null::uuid as folder_id,
+        'memory'::text as type,
+        pm.title,
+        pm.slug,
+        null::text as description,
+        pm.body,
+        pm.metadata,
+        true as is_active,
+        1 as version,
+        pm.created_at,
+        pm.updated_at,
+        p.slug as project_slug,
+        w.slug as workspace_slug,
+        'state'::text as source_scope,
+        pm.source_client as client_id,
+        ts_rank(to_tsvector('portuguese', coalesce(pm.title, '') || ' ' || coalesce(pm.body, '')), plainto_tsquery('portuguese', ${termo})) as rank,
+        '[]'::json as tags
+      FROM project_memories pm
+      JOIN projects p ON p.id = pm.project_id
+      JOIN workspaces w ON w.id = pm.workspace_id
+      WHERE pm.user_id = ${userId}
+        AND pm.workspace_id = ${workspaceId}
+        ${filtroProjeto}
+        AND to_tsvector('portuguese', coalesce(pm.title, '') || ' ' || coalesce(pm.body, '')) @@ plainto_tsquery('portuguese', ${termo})
+    `);
+  }
+
+  if (incluirDecisoes) {
+    queries.push(sql`
+      SELECT
+        pd.id,
+        pd.user_id,
+        pd.project_id,
+        null::uuid as folder_id,
+        'decision'::text as type,
+        pd.title,
+        pd.slug,
+        null::text as description,
+        pd.body,
+        pd.metadata,
+        true as is_active,
+        1 as version,
+        pd.created_at,
+        pd.updated_at,
+        p.slug as project_slug,
+        w.slug as workspace_slug,
+        'state'::text as source_scope,
+        pd.source_client as client_id,
+        ts_rank(to_tsvector('portuguese', coalesce(pd.title, '') || ' ' || coalesce(pd.body, '')), plainto_tsquery('portuguese', ${termo})) as rank,
+        '[]'::json as tags
+      FROM project_decisions pd
+      JOIN projects p ON p.id = pd.project_id
+      JOIN workspaces w ON w.id = pd.workspace_id
+      WHERE pd.user_id = ${userId}
+        AND pd.workspace_id = ${workspaceId}
+        ${filtroProjeto}
+        AND to_tsvector('portuguese', coalesce(pd.title, '') || ' ' || coalesce(pd.body, '')) @@ plainto_tsquery('portuguese', ${termo})
+    `);
+  }
+
+  if (incluirSessoes) {
+    queries.push(sql`
+      SELECT
+        ps.id,
+        ps.user_id,
+        ps.project_id,
+        null::uuid as folder_id,
+        'session'::text as type,
+        ps.title,
+        ps.slug,
+        null::text as description,
+        ps.body,
+        ps.metadata,
+        true as is_active,
+        1 as version,
+        ps.created_at,
+        ps.updated_at,
+        p.slug as project_slug,
+        w.slug as workspace_slug,
+        'state'::text as source_scope,
+        ps.source_client as client_id,
+        ts_rank(to_tsvector('portuguese', coalesce(ps.title, '') || ' ' || coalesce(ps.summary, '') || ' ' || coalesce(ps.body, '')), plainto_tsquery('portuguese', ${termo})) as rank,
+        '[]'::json as tags
+      FROM project_sessions ps
+      JOIN projects p ON p.id = ps.project_id
+      JOIN workspaces w ON w.id = ps.workspace_id
+      WHERE ps.user_id = ${userId}
+        AND ps.workspace_id = ${workspaceId}
+        ${filtroProjeto}
+        AND to_tsvector('portuguese', coalesce(ps.title, '') || ' ' || coalesce(ps.summary, '') || ' ' || coalesce(ps.body, '')) @@ plainto_tsquery('portuguese', ${termo})
+    `);
+  }
+
+  if (queries.length === 0) {
+    return [];
+  }
+
+  return await db.execute(sql`${sql.join(queries, sql` UNION ALL `)} ORDER BY rank DESC LIMIT 50`);
 }
 
 async function buscarResultadosProjeto({

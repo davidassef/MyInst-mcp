@@ -10,6 +10,14 @@ import { montarPreviewPull } from './pull-preview.js';
 import { listarMatrizCompatibilidadeReplicacao, planejarReplicacaoClientProfile } from './client-profile-replication.js';
 import { obterCredenciaisAtivas, iniciarFluxoAutenticacao } from './auth.js';
 import {
+  carregarDraftProjectState,
+  criarDraftProjectState,
+  criarSlugState,
+  detectarSegredoProvavel,
+  materializarProjectState,
+  type ProjectStateDraft,
+} from './project-state.js';
+import {
   exportarParaClientesNativos,
   importarTargetsDetectados,
   listarSyncTargets,
@@ -27,6 +35,7 @@ const MYINST_VERSION = '0.1.0-beta.1';
 const SCOPES_SYNC = ['project', 'global', 'all'] as const;
 const FORMATOS_PULL = ['myinst', 'native'] as const;
 const TIPOS_CANONICOS = ['skill', 'instruction', 'mcp_config', 'agent', 'command', 'hook', 'memory', 'output_style', 'setting', 'snippet'] as const;
+const TIPOS_PROJECT_STATE = ['memory', 'decision', 'session'] as const;
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
   console.log([
@@ -106,6 +115,167 @@ server.tool(
     return {
       content: [{ type: 'text', text: JSON.stringify(projetos, null, 2) }],
     };
+  },
+);
+
+server.tool(
+  'myinst_state_capture',
+  'Cria um draft local revisável de memória, decisão ou resumo de sessão em .myinst/state/drafts. Não envia nada ao servidor.',
+  {
+    type: z.enum(TIPOS_PROJECT_STATE).describe('Tipo de Project State: memory, decision ou session'),
+    title: z.string().describe('Título humano do item'),
+    body: z.string().describe('Conteúdo revisável, sem segredos reais'),
+    summary: z.string().describe('Resumo curto para sessões').optional(),
+    targetDir: z.string().describe('Diretório do projeto onde o draft será criado').optional(),
+    slug: z.string().describe('Slug opcional; se omitido será derivado do título').optional(),
+    sourceClient: z.string().describe('Cliente de origem, como codex ou claude').optional(),
+    sourcePath: z.string().describe('Caminho de origem do contexto').optional(),
+    touchedFiles: z.array(z.string()).describe('Arquivos tocados na sessão').optional(),
+    toolsUsed: z.array(z.string()).describe('Ferramentas usadas na sessão').optional(),
+    startedAt: z.string().describe('Data ISO de início da sessão').optional(),
+    endedAt: z.string().describe('Data ISO de fim da sessão').optional(),
+  },
+  async ({ type, title, body, summary, targetDir, slug, sourceClient, sourcePath, touchedFiles, toolsUsed, startedAt, endedAt }) => {
+    const dir = targetDir || process.cwd();
+    const draft: ProjectStateDraft = {
+      type,
+      title,
+      slug: slug || criarSlugState(title),
+      body,
+      summary,
+      metadata: {
+        reviewed: false,
+        myinstDraft: true,
+        myinstSecurityPolicy: 'review-required',
+      },
+      sourceClient,
+      sourcePath,
+      touchedFiles: touchedFiles || [],
+      toolsUsed: toolsUsed || [],
+      status: 'draft',
+      startedAt,
+      endedAt,
+    };
+
+    const caminho = await criarDraftProjectState(dir, draft);
+
+    return respostaTexto([
+      `Draft criado em ${caminho}`,
+      'Revise o arquivo, remova qualquer segredo real e altere metadata.reviewed para true antes de usar myinst_state_push.',
+      'Cache bruto, transcripts completos e arquivos operacionais não devem ser enviados no v1.',
+    ].join('\n'));
+  },
+);
+
+server.tool(
+  'myinst_state_push',
+  'Salva um draft revisado de Project State no vault. Exige metadata.reviewed=true e bloqueia segredos prováveis.',
+  {
+    workspace: z.string().describe('Slug do workspace'),
+    project: z.string().describe('Slug do projeto'),
+    draftPath: z.string().describe('Caminho do draft JSON criado por myinst_state_capture').optional(),
+    type: z.enum(TIPOS_PROJECT_STATE).describe('Tipo quando não usar draftPath').optional(),
+    title: z.string().describe('Título quando não usar draftPath').optional(),
+    body: z.string().describe('Conteúdo quando não usar draftPath').optional(),
+    summary: z.string().describe('Resumo de sessão quando não usar draftPath').optional(),
+    slug: z.string().describe('Slug quando não usar draftPath').optional(),
+    sourceClient: z.string().describe('Cliente de origem').optional(),
+    sourcePath: z.string().describe('Caminho de origem').optional(),
+    touchedFiles: z.array(z.string()).describe('Arquivos tocados').optional(),
+    toolsUsed: z.array(z.string()).describe('Ferramentas usadas').optional(),
+    reviewed: z.boolean().describe('Confirmação explícita de revisão quando não usar draftPath').optional(),
+    dryRun: z.boolean().describe('Valida sem salvar no servidor').optional(),
+  },
+  async ({ workspace, project, draftPath, type, title, body, summary, slug, sourceClient, sourcePath, touchedFiles, toolsUsed, reviewed, dryRun }) => {
+    const draft = draftPath
+      ? await carregarDraftProjectState(process.cwd(), draftPath)
+      : montarDraftProjectStateDireto({ type, title, body, summary, slug, sourceClient, sourcePath, touchedFiles, toolsUsed, reviewed });
+
+    if (draft.metadata.reviewed !== true) {
+      return respostaTexto('Envio bloqueado: Project State exige metadata.reviewed=true após revisão manual.');
+    }
+
+    if (detectarSegredoProvavel(draft)) {
+      return respostaTexto('Envio bloqueado: conteúdo contém padrão provável de segredo. Substitua por placeholders {{...}} antes de enviar.');
+    }
+
+    if (dryRun) {
+      return respostaTexto([
+        '[DRY RUN] Project State validado e pronto para envio.',
+        JSON.stringify({ workspace, project, type: draft.type, slug: draft.slug, title: draft.title }, null, 2),
+      ].join('\n'));
+    }
+
+    const resultado = await (await getClient()).criarProjectState(workspace, project, {
+      ...draft,
+      status: draft.status === 'draft' ? 'reviewed' : draft.status,
+    });
+
+    return respostaTexto([
+      `Project State salvo em ${workspace}/${project}:`,
+      JSON.stringify(resultado, null, 2),
+    ].join('\n'));
+  },
+);
+
+server.tool(
+  'myinst_state_pull',
+  'Materializa memórias, decisões e resumos de sessões revisados em .myinst/state no diretório alvo.',
+  {
+    workspace: z.string().describe('Slug do workspace'),
+    project: z.string().describe('Slug do projeto'),
+    targetDir: z.string().describe('Diretório alvo; padrão é o diretório atual').optional(),
+    dryRun: z.boolean().describe('Mostra o que seria materializado sem escrever arquivos').optional(),
+  },
+  async ({ workspace, project, targetDir, dryRun }) => {
+    const dir = targetDir || process.cwd();
+    const state = await (await getClient()).listarProjectState(workspace, project);
+
+    if (dryRun) {
+      return respostaTexto([
+        `[DRY RUN] Project State seria materializado em ${dir}/.myinst/state`,
+        `Memórias: ${state.memories.length}`,
+        `Decisões: ${state.decisions.length}`,
+        `Sessões: ${state.sessions.length}`,
+      ].join('\n'));
+    }
+
+    const escritos = await materializarProjectState(dir, {
+      memories: state.memories as any,
+      decisions: state.decisions as any,
+      sessions: state.sessions as any,
+    });
+
+    return respostaTexto([
+      `${escritos.length} arquivo(s) de Project State materializado(s):`,
+      ...escritos.map((caminho) => `  - ${caminho}`),
+    ].join('\n'));
+  },
+);
+
+server.tool(
+  'myinst_state_search',
+  'Busca memórias, decisões e sessões revisadas do Project State de um projeto.',
+  {
+    workspace: z.string().describe('Slug do workspace'),
+    project: z.string().describe('Slug do projeto'),
+    query: z.string().describe('Texto de busca'),
+    type: z.enum(TIPOS_PROJECT_STATE).describe('Filtro opcional: memory, decision ou session').optional(),
+  },
+  async ({ workspace, project, query, type }) => {
+    const resultados = await (await getClient()).buscarConteudo({
+      query,
+      workspace,
+      project,
+      type,
+      scope: 'state',
+    });
+
+    return respostaTexto(
+      resultados.length === 0
+        ? `Nenhum Project State encontrado para "${query}"`
+        : `${resultados.length} resultado(s) em Project State:\n${JSON.stringify(resultados, null, 2)}`,
+    );
   },
 );
 
@@ -1147,6 +1317,52 @@ async function preverAcaoGuiaMyInst(dir: string, strategy: ConflictStrategy) {
 function respostaTexto(text: string) {
   return {
     content: [{ type: 'text' as const, text }],
+  };
+}
+
+function montarDraftProjectStateDireto({
+  type,
+  title,
+  body,
+  summary,
+  slug,
+  sourceClient,
+  sourcePath,
+  touchedFiles,
+  toolsUsed,
+  reviewed,
+}: {
+  type?: 'memory' | 'decision' | 'session';
+  title?: string;
+  body?: string;
+  summary?: string;
+  slug?: string;
+  sourceClient?: string;
+  sourcePath?: string;
+  touchedFiles?: string[];
+  toolsUsed?: string[];
+  reviewed?: boolean;
+}): ProjectStateDraft {
+  if (!type || !title || !body) {
+    throw new Error('type, title e body são obrigatórios quando draftPath não é informado.');
+  }
+
+  return {
+    type,
+    title,
+    slug: slug || criarSlugState(title),
+    body,
+    summary,
+    metadata: {
+      reviewed: reviewed === true,
+      myinstDraft: false,
+      myinstSecurityPolicy: 'review-required',
+    },
+    sourceClient,
+    sourcePath,
+    touchedFiles: touchedFiles || [],
+    toolsUsed: toolsUsed || [],
+    status: reviewed ? 'reviewed' : 'draft',
   };
 }
 

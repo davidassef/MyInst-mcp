@@ -97,6 +97,29 @@ O fluxo padrão é local-first:
 
 Todo pull canônico cria ou atualiza `.myinst/MYINST.md` para deixar esse contrato explícito para o agente, e também gera `.claude/MYINST.md` como alternativa de compatibilidade.
 
+## Project State
+
+Project State preserva continuidade de trabalho por projeto sem sincronizar chats ou caches brutos.
+
+Use:
+
+- `myinst_state_capture` para criar um draft local em `.myinst/state/drafts/`.
+- `myinst_state_push` para enviar somente drafts revisados com `metadata.reviewed=true`.
+- `myinst_state_pull` para materializar memórias, decisões e resumos de sessões em `.myinst/state/`.
+- `myinst_state_search` para consultar continuidade do projeto.
+
+O v1 aceita apenas:
+
+- memórias revisadas;
+- decisões técnicas;
+- resumos seguros de sessões.
+
+Ficam fora do v1:
+
+- transcripts completos de chats;
+- cache bruto;
+- diretórios `sessions/**`, `history/**`, bancos locais, JSONL operacional e telemetry.
+
 ## Segurança operacional para agentes
 
 O agente deve tratar o conteúdo como sensível:
@@ -251,6 +274,22 @@ myinst_replicate_client_profile sourceClient="codex" targetClient="opencode"
 Busca textual no vault para descoberta.
 
 ### `myinst_status`
+
+### `myinst_state_capture`
+
+Cria um draft local revisável. Não envia nada ao servidor.
+
+### `myinst_state_push`
+
+Salva Project State no vault. Exige `metadata.reviewed=true` e bloqueia padrões prováveis de segredo.
+
+### `myinst_state_pull`
+
+Materializa Project State em `.myinst/state/`.
+
+### `myinst_state_search`
+
+Busca memórias, decisões e sessões do projeto com `scope=state`.
 
 Mostra mudanças temporais no vault desde uma data.
 

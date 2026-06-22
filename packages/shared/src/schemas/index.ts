@@ -1,5 +1,13 @@
 import { z } from 'zod';
-import { CONTENT_TYPES, TAG_CATEGORIES, API_KEY_SCOPES, CLIENT_PROFILE_IDS, SEARCH_SCOPES } from '../constants.js';
+import {
+  CONTENT_TYPES,
+  TAG_CATEGORIES,
+  API_KEY_SCOPES,
+  CLIENT_PROFILE_IDS,
+  PROJECT_SESSION_STATUSES,
+  PROJECT_STATE_TYPES,
+  SYNC_SCOPES,
+} from '../constants.js';
 
 export const registrarUsuarioSchema = z.object({
   email: z.string().email(),
@@ -55,6 +63,24 @@ export const replicarClientProfileSchema = z.object({
   overwrite: z.boolean().optional(),
 });
 
+export const criarProjectStateSchema = z.object({
+  type: z.enum(PROJECT_STATE_TYPES),
+  title: z.string().min(1).max(200),
+  slug: z.string().min(1).max(200).regex(/^[a-z0-9-]+$/),
+  body: z.string().min(1),
+  summary: z.string().max(2000).optional(),
+  metadata: z.record(z.unknown()).default({}),
+  sourceClient: z.string().max(50).optional(),
+  sourcePath: z.string().max(500).optional(),
+  touchedFiles: z.array(z.string().max(500)).default([]),
+  toolsUsed: z.array(z.string().max(100)).default([]),
+  status: z.enum(PROJECT_SESSION_STATUSES).default('reviewed'),
+  startedAt: z.string().datetime().optional(),
+  endedAt: z.string().datetime().optional(),
+});
+
+export const atualizarProjectStateSchema = criarProjectStateSchema.partial();
+
 export const criarFolderSchema = z.object({
   name: z.string().min(1).max(100),
   slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),
@@ -90,7 +116,7 @@ export const criarPerfilSchema = z.object({
 export const atualizarPerfilSchema = criarPerfilSchema.partial();
 
 export const syncPullSchema = z.object({
-  scope: z.enum(SEARCH_SCOPES).optional(),
+  scope: z.enum(SYNC_SCOPES).optional(),
   workspace: z.string().optional(),
   project: z.string().optional(),
   clientId: clientProfileIdSchema.optional(),
@@ -120,7 +146,7 @@ export const syncPullSchema = z.object({
 });
 
 export const syncPushSchema = z.object({
-  scope: z.enum(SEARCH_SCOPES).optional(),
+  scope: z.enum(SYNC_SCOPES).optional(),
   workspace: z.string().optional(),
   project: z.string().optional(),
   clientId: clientProfileIdSchema.optional(),

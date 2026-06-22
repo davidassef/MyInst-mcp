@@ -11,6 +11,12 @@ export interface AuthUser {
   displayName: string;
 }
 
+declare module 'fastify' {
+  interface FastifyRequest {
+    authMethod?: 'jwt' | 'api_key';
+  }
+}
+
 declare module '@fastify/jwt' {
   interface FastifyJWT {
     payload: AuthUser;
@@ -74,6 +80,7 @@ export async function autenticarApiKey(request: FastifyRequest, reply: FastifyRe
     email: found.email,
     displayName: found.displayName,
   };
+  request.authMethod = 'api_key';
 }
 
 export async function autenticarJwt(request: FastifyRequest, reply: FastifyReply) {
@@ -97,6 +104,7 @@ export async function autenticarJwt(request: FastifyRequest, reply: FastifyReply
     }
 
     request.user = usuario;
+    request.authMethod = 'jwt';
   } catch {
     return reply.status(401).send({
       error: { code: 'UNAUTHORIZED', message: 'Token inválido ou expirado', status: 401 },

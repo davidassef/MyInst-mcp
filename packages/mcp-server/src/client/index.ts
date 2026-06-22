@@ -58,9 +58,25 @@ interface StatusResponse {
 interface SearchResultItem extends ConteudoItem {
   project_slug?: string | null;
   workspace_slug?: string;
-  source_scope?: 'project' | 'global';
+  source_scope?: 'project' | 'global' | 'state';
   client_id?: string | null;
   rank: number;
+}
+
+interface ProjectStateInput {
+  type: 'memory' | 'decision' | 'session';
+  title: string;
+  slug: string;
+  body: string;
+  summary?: string;
+  metadata: Record<string, unknown>;
+  sourceClient?: string;
+  sourcePath?: string;
+  touchedFiles?: string[];
+  toolsUsed?: string[];
+  status?: 'draft' | 'reviewed' | 'archived';
+  startedAt?: string;
+  endedAt?: string;
 }
 
 interface Workspace {
@@ -191,7 +207,7 @@ export class MyInstClient {
     workspace?: string;
     project?: string;
     type?: string;
-    scope?: 'project' | 'global' | 'all';
+    scope?: 'project' | 'global' | 'state' | 'all';
     clientId?: string;
   }): Promise<SearchResultItem[]> {
     const searchParams = new URLSearchParams({ q: params.query });
@@ -202,6 +218,30 @@ export class MyInstClient {
     if (params.clientId) searchParams.set('clientId', params.clientId);
 
     return this.request<SearchResultItem[]>(`/search?${searchParams.toString()}`);
+  }
+
+  async listarProjectState(workspace: string, project: string) {
+    const base = `/workspaces/${encodeURIComponent(workspace)}/projects/${encodeURIComponent(project)}/state`;
+    const [memories, decisions, sessions] = await Promise.all([
+      this.request<Array<Record<string, unknown>>>(`${base}/memories`),
+      this.request<Array<Record<string, unknown>>>(`${base}/decisions`),
+      this.request<Array<Record<string, unknown>>>(`${base}/sessions`),
+    ]);
+
+    return { memories, decisions, sessions };
+  }
+
+  async criarProjectState(workspace: string, project: string, item: ProjectStateInput) {
+    const endpoint = item.type === 'memory'
+      ? 'memories'
+      : item.type === 'decision'
+        ? 'decisions'
+        : 'sessions';
+
+    return this.request(`/workspaces/${encodeURIComponent(workspace)}/projects/${encodeURIComponent(project)}/state/${endpoint}`, {
+      method: 'POST',
+      body: JSON.stringify(item),
+    });
   }
 
   async listarItensClientProfile(clientId: string, params?: { type?: string; active?: boolean }) {

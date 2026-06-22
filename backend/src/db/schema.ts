@@ -216,6 +216,78 @@ export const clientProfileItemVersions = pgTable('client_profile_item_versions',
   uniqueIndex('client_profile_item_versions_item_version_idx').on(table.clientProfileItemId, table.version),
 ]);
 
+export const projectMemories = pgTable('project_memories', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 200 }).notNull(),
+  slug: varchar('slug', { length: 200 }).notNull(),
+  body: text('body').notNull(),
+  metadata: jsonb('metadata').default({}).notNull(),
+  sourceClient: varchar('source_client', { length: 50 }),
+  sourcePath: text('source_path'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('project_memories_project_slug_idx').on(table.projectId, table.slug),
+  index('project_memories_project_idx').on(table.projectId),
+  index('project_memories_search_idx').using(
+    'gin',
+    sql`to_tsvector('portuguese', coalesce(${table.title}, '') || ' ' || coalesce(${table.body}, ''))`,
+  ),
+]);
+
+export const projectDecisions = pgTable('project_decisions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 200 }).notNull(),
+  slug: varchar('slug', { length: 200 }).notNull(),
+  body: text('body').notNull(),
+  metadata: jsonb('metadata').default({}).notNull(),
+  sourceClient: varchar('source_client', { length: 50 }),
+  sourcePath: text('source_path'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('project_decisions_project_slug_idx').on(table.projectId, table.slug),
+  index('project_decisions_project_idx').on(table.projectId),
+  index('project_decisions_search_idx').using(
+    'gin',
+    sql`to_tsvector('portuguese', coalesce(${table.title}, '') || ' ' || coalesce(${table.body}, ''))`,
+  ),
+]);
+
+export const projectSessions = pgTable('project_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 200 }).notNull(),
+  slug: varchar('slug', { length: 200 }).notNull(),
+  body: text('body').notNull(),
+  summary: text('summary').notNull(),
+  metadata: jsonb('metadata').default({}).notNull(),
+  sourceClient: varchar('source_client', { length: 50 }),
+  sourcePath: text('source_path'),
+  touchedFiles: text('touched_files').array().default([]).notNull(),
+  toolsUsed: text('tools_used').array().default([]).notNull(),
+  status: varchar('status', { length: 30 }).default('reviewed').notNull(),
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  endedAt: timestamp('ended_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('project_sessions_project_slug_idx').on(table.projectId, table.slug),
+  index('project_sessions_project_idx').on(table.projectId),
+  index('project_sessions_search_idx').using(
+    'gin',
+    sql`to_tsvector('portuguese', coalesce(${table.title}, '') || ' ' || coalesce(${table.summary}, '') || ' ' || coalesce(${table.body}, ''))`,
+  ),
+]);
+
 export const modelProfiles = pgTable('model_profiles', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),

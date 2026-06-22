@@ -4,6 +4,8 @@ MyInst é um vault open source para armazenar, versionar e sincronizar contexto 
 
 Ele centraliza `skills`, `instructions`, `agents`, `hooks`, `memory`, `snippets` e configurações de clientes em um backend próprio, com interface web, API, CLI e MCP server local.
 
+Também preserva continuidade de trabalho por projeto com Project State: memórias revisadas, decisões técnicas e resumos seguros de sessões.
+
 ## O que o MyInst resolve
 
 Equipes pequenas e usuários avançados costumam espalhar contexto em:
@@ -228,6 +230,10 @@ Se `MYINST_API_KEY` não for informada, o MCP abre o navegador, redireciona para
 | `myinst_replicate_client_profile` | replica configurações globais compatíveis entre clients suportados |
 | `myinst_search` | descoberta pontual por busca |
 | `myinst_status` | mudanças temporais no vault |
+| `myinst_state_capture` | cria draft local revisável de memória, decisão ou resumo de sessão |
+| `myinst_state_push` | salva Project State revisado no vault |
+| `myinst_state_pull` | materializa Project State em `.myinst/state/` |
+| `myinst_state_search` | busca memórias, decisões e sessões do projeto |
 
 ## Fluxos de uso
 
@@ -236,6 +242,14 @@ Se `MYINST_API_KEY` não for informada, o MCP abre o navegador, redireciona para
 ```text
 myinst_pull -> editar arquivos locais -> myinst_push
 ```
+
+Fluxo de continuidade do projeto:
+
+```text
+myinst_state_capture -> revisão local -> myinst_state_push
+```
+
+Project State não sincroniza cache bruto nem transcripts completos por padrão. Chats entram apenas como resumo revisado e sem segredos reais.
 
 ### 2. Descoberta multi-cliente antes do sync
 

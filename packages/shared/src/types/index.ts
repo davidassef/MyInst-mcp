@@ -14,6 +14,8 @@ import type {
   criarClientProfileItemSchema,
   atualizarClientProfileItemSchema,
   replicarClientProfileSchema,
+  criarProjectStateSchema,
+  atualizarProjectStateSchema,
   syncPullSchema,
   syncPushSchema,
 } from '../schemas/index.js';
@@ -32,6 +34,8 @@ export type CriarTagInput = z.infer<typeof criarTagSchema>;
 export type CriarClientProfileItemInput = z.infer<typeof criarClientProfileItemSchema>;
 export type AtualizarClientProfileItemInput = z.infer<typeof atualizarClientProfileItemSchema>;
 export type ReplicarClientProfileInput = z.infer<typeof replicarClientProfileSchema>;
+export type CriarProjectStateInput = z.infer<typeof criarProjectStateSchema>;
+export type AtualizarProjectStateInput = z.infer<typeof atualizarProjectStateSchema>;
 export type SyncPullInput = z.infer<typeof syncPullSchema>;
 export type SyncPushInput = z.infer<typeof syncPushSchema>;
 
@@ -142,6 +146,41 @@ export interface ConteudoItem {
   updatedAt: string;
   tags?: string[];
 }
+
+export interface ProjectStateBase {
+  id: string;
+  userId: string;
+  workspaceId: string;
+  projectId: string;
+  title: string;
+  slug: string;
+  body: string;
+  metadata: Record<string, unknown>;
+  sourceClient: string | null;
+  sourcePath: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectMemory extends ProjectStateBase {
+  type: 'memory';
+}
+
+export interface ProjectDecision extends ProjectStateBase {
+  type: 'decision';
+}
+
+export interface ProjectSession extends ProjectStateBase {
+  type: 'session';
+  summary: string;
+  touchedFiles: string[];
+  toolsUsed: string[];
+  status: string;
+  startedAt: string | null;
+  endedAt: string | null;
+}
+
+export type ProjectStateItem = ProjectMemory | ProjectDecision | ProjectSession;
 
 export interface Tag {
   id: string;

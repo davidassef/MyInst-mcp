@@ -154,6 +154,20 @@ export const api = {
     restaurar: (workspaceSlug: string, projetoSlug: string, contentSlug: string, version: number) =>
       request<any>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/content/${contentSlug}/restore`, { method: 'POST', body: JSON.stringify({ version }) }),
   },
+  state: {
+    listarMemorias: (workspaceSlug: string, projetoSlug: string) =>
+      request<any[]>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/state/memories`),
+    criarMemoria: (workspaceSlug: string, projetoSlug: string, body: any) =>
+      request<any>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/state/memories`, { method: 'POST', body: JSON.stringify(body) }),
+    listarDecisoes: (workspaceSlug: string, projetoSlug: string) =>
+      request<any[]>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/state/decisions`),
+    criarDecisao: (workspaceSlug: string, projetoSlug: string, body: any) =>
+      request<any>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/state/decisions`, { method: 'POST', body: JSON.stringify(body) }),
+    listarSessoes: (workspaceSlug: string, projetoSlug: string) =>
+      request<any[]>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/state/sessions`),
+    criarSessao: (workspaceSlug: string, projetoSlug: string, body: any) =>
+      request<any>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/state/sessions`, { method: 'POST', body: JSON.stringify(body) }),
+  },
   tags: {
     listar: () => request<any[]>('/tags'),
     criar: (body: { name: string; category: string; color?: string }) =>

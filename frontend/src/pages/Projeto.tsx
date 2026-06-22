@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, FileText, Trash2, Save, Search, Folder, FolderPlus, X } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Trash2, Save, Search, Folder, FolderPlus, X, Brain, GitBranch, MessagesSquare } from 'lucide-react';
 import { api } from '@/lib/api';
 
 const TIPOS_LABEL: Record<string, string> = {
@@ -44,6 +44,23 @@ interface ConteudoItem {
   updatedAt: string;
 }
 
+interface ProjectStateItem {
+  id: string;
+  type: 'memory' | 'decision' | 'session';
+  title: string;
+  slug: string;
+  body: string;
+  summary?: string;
+  sourceClient?: string | null;
+  touchedFiles?: string[];
+  toolsUsed?: string[];
+  status?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+type AbaProjeto = 'conteudo' | 'memorias' | 'decisoes' | 'sessoes';
+
 export function ProjetoPage() {
   const { workspaceSlug, slug } = useParams<{ workspaceSlug: string; slug: string }>();
   const [conteudos, setConteudos] = useState<ConteudoItem[]>([]);
@@ -70,6 +87,14 @@ export function ProjetoPage() {
   const [pastaSelecionada, setPastaSelecionada] = useState<string | null>(null);
   const [mostrarFormPasta, setMostrarFormPasta] = useState(false);
   const [novaPastaNome, setNovaPastaNome] = useState('');
+  const [abaAtiva, setAbaAtiva] = useState<AbaProjeto>('conteudo');
+  const [memorias, setMemorias] = useState<ProjectStateItem[]>([]);
+  const [decisoes, setDecisoes] = useState<ProjectStateItem[]>([]);
+  const [sessoes, setSessoes] = useState<ProjectStateItem[]>([]);
+  const [mostrarFormState, setMostrarFormState] = useState(false);
+  const [stateTitulo, setStateTitulo] = useState('');
+  const [stateBody, setStateBody] = useState('');
+  const [stateResumo, setStateResumo] = useState('');
 
   useEffect(() => {
     if (!workspaceSlug || !slug) return;
@@ -79,6 +104,11 @@ export function ProjetoPage() {
   useEffect(() => {
     if (!workspaceSlug || !slug) return;
     api.pastas.listar(workspaceSlug, slug).then(setPastas);
+  }, [workspaceSlug, slug]);
+
+  useEffect(() => {
+    if (!workspaceSlug || !slug) return;
+    carregarProjectState();
   }, [workspaceSlug, slug]);
 
   useEffect(() => {
@@ -173,6 +203,55 @@ export function ProjetoPage() {
     if (itemSelecionado?.slug === contentSlug) setItemSelecionado(null);
   }
 
+  async function carregarProjectState() {
+    if (!workspaceSlug || !slug) return;
+    const [memoriasCarregadas, decisoesCarregadas, sessoesCarregadas] = await Promise.all([
+      api.state.listarMemorias(workspaceSlug, slug),
+      api.state.listarDecisoes(workspaceSlug, slug),
+      api.state.listarSessoes(workspaceSlug, slug),
+    ]);
+
+    setMemorias(memoriasCarregadas);
+    setDecisoes(decisoesCarregadas);
+    setSessoes(sessoesCarregadas);
+  }
+
+  async function criarState(e: React.FormEvent) {
+    e.preventDefault();
+    if (!workspaceSlug || !slug || !stateTitulo.trim() || !stateBody.trim()) return;
+
+    const tipo = abaAtiva === 'memorias' ? 'memory' : abaAtiva === 'decisoes' ? 'decision' : 'session';
+    const body = {
+      type: tipo,
+      title: stateTitulo,
+      slug: stateTitulo.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
+      body: stateBody,
+      summary: tipo === 'session' ? stateResumo || stateBody : undefined,
+      metadata: { reviewed: true, createdFrom: 'web' },
+      touchedFiles: [],
+      toolsUsed: [],
+      status: 'reviewed',
+    };
+
+    if (tipo === 'memory') {
+      const novaMemoria = await api.state.criarMemoria(workspaceSlug, slug, body);
+      setMemorias([...memorias, novaMemoria]);
+    } else if (tipo === 'decision') {
+      const novaDecisao = await api.state.criarDecisao(workspaceSlug, slug, body);
+      setDecisoes([...decisoes, novaDecisao]);
+    } else {
+      const novaSessao = await api.state.criarSessao(workspaceSlug, slug, body);
+      setSessoes([...sessoes, novaSessao]);
+    }
+
+    setStateTitulo('');
+    setStateBody('');
+    setStateResumo('');
+    setMostrarFormState(false);
+  }
+
+  const itensState = abaAtiva === 'memorias' ? memorias : abaAtiva === 'decisoes' ? decisoes : sessoes;
+
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
@@ -181,6 +260,32 @@ export function ProjetoPage() {
         </Link>
         <h2 className="text-2xl font-bold text-zinc-100">{slug}</h2>
       </div>
+
+      <div className="mb-6 flex flex-wrap gap-2">
+        <BotaoAbaProjeto label="Conteúdo" active={abaAtiva === 'conteudo'} onClick={() => setAbaAtiva('conteudo')} icon={<FileText size={14} />} />
+        <BotaoAbaProjeto label="Memórias" active={abaAtiva === 'memorias'} onClick={() => setAbaAtiva('memorias')} icon={<Brain size={14} />} />
+        <BotaoAbaProjeto label="Decisões" active={abaAtiva === 'decisoes'} onClick={() => setAbaAtiva('decisoes')} icon={<GitBranch size={14} />} />
+        <BotaoAbaProjeto label="Sessões" active={abaAtiva === 'sessoes'} onClick={() => setAbaAtiva('sessoes')} icon={<MessagesSquare size={14} />} />
+      </div>
+
+      {abaAtiva !== 'conteudo' && (
+        <ProjectStatePanel
+          aba={abaAtiva}
+          items={itensState}
+          mostrarForm={mostrarFormState}
+          setMostrarForm={setMostrarFormState}
+          titulo={stateTitulo}
+          setTitulo={setStateTitulo}
+          body={stateBody}
+          setBody={setStateBody}
+          resumo={stateResumo}
+          setResumo={setStateResumo}
+          criarState={criarState}
+        />
+      )}
+
+      {abaAtiva === 'conteudo' && (
+        <>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <select
@@ -464,6 +569,126 @@ export function ProjetoPage() {
           )}
         </div>
       </div>
+        </>
+      )}
     </div>
+  );
+}
+
+function BotaoAbaProjeto({ label, active, onClick, icon }: { label: string; active: boolean; onClick: () => void; icon: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+        active
+          ? 'border-blue-500 bg-blue-600/20 text-blue-200'
+          : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function ProjectStatePanel({
+  aba,
+  items,
+  mostrarForm,
+  setMostrarForm,
+  titulo,
+  setTitulo,
+  body,
+  setBody,
+  resumo,
+  setResumo,
+  criarState,
+}: {
+  aba: AbaProjeto;
+  items: ProjectStateItem[];
+  mostrarForm: boolean;
+  setMostrarForm: (value: boolean) => void;
+  titulo: string;
+  setTitulo: (value: string) => void;
+  body: string;
+  setBody: (value: string) => void;
+  resumo: string;
+  setResumo: (value: string) => void;
+  criarState: (e: React.FormEvent) => Promise<void>;
+}) {
+  const tituloAba = aba === 'memorias' ? 'Memórias revisadas' : aba === 'decisoes' ? 'Decisões técnicas' : 'Resumos de sessão';
+  const textoBotao = aba === 'memorias' ? 'Nova memória' : aba === 'decisoes' ? 'Nova decisão' : 'Nova sessão';
+
+  return (
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-xl font-semibold text-zinc-100">{tituloAba}</h3>
+          <p className="mt-1 text-sm text-zinc-500">Project State armazena continuidade revisada do projeto, sem cache bruto ou transcript completo.</p>
+        </div>
+        <button
+          onClick={() => setMostrarForm(!mostrarForm)}
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm text-white transition-colors hover:bg-blue-700"
+        >
+          <Plus size={14} />
+          {textoBotao}
+        </button>
+      </div>
+
+      {mostrarForm && (
+        <form onSubmit={criarState} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-3">
+          <input
+            type="text"
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            placeholder="Título revisado"
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 focus:outline-none focus:border-blue-500"
+            required
+          />
+          {aba === 'sessoes' && (
+            <textarea
+              value={resumo}
+              onChange={(e) => setResumo(e.target.value)}
+              placeholder="Resumo curto da sessão"
+              rows={3}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 focus:outline-none focus:border-blue-500"
+            />
+          )}
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Conteúdo revisado, sem segredos reais"
+            rows={8}
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-blue-500"
+            required
+          />
+          <p className="text-xs text-zinc-500">Ao salvar pela web, o item será marcado como revisado. Não inclua tokens, senhas, cookies, .env ou credenciais reais.</p>
+          <button type="submit" className="rounded-lg bg-green-600 px-4 py-2 text-sm text-white transition-colors hover:bg-green-700">
+            Salvar revisado
+          </button>
+        </form>
+      )}
+
+      <div className="grid gap-3">
+        {items.map((item) => (
+          <article key={item.id} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="font-medium text-zinc-100">{item.title}</h4>
+              <span className="text-xs text-zinc-600">{new Date(item.updatedAt).toLocaleDateString('pt-BR')}</span>
+            </div>
+            {item.summary && <p className="mt-3 text-sm leading-6 text-blue-200">{item.summary}</p>}
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-400">{item.body}</p>
+            <div className="mt-4 flex flex-wrap gap-2 text-xs text-zinc-500">
+              {item.sourceClient && <span className="rounded bg-zinc-800 px-2 py-1">client: {item.sourceClient}</span>}
+              {item.status && <span className="rounded bg-zinc-800 px-2 py-1">status: {item.status}</span>}
+              {item.touchedFiles?.length ? <span className="rounded bg-zinc-800 px-2 py-1">arquivos: {item.touchedFiles.length}</span> : null}
+            </div>
+          </article>
+        ))}
+        {items.length === 0 && (
+          <p className="rounded-xl border border-zinc-800 bg-zinc-900 py-10 text-center text-sm text-zinc-500">Nenhum item de Project State encontrado.</p>
+        )}
+      </div>
+    </section>
   );
 }

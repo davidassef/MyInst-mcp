@@ -41,6 +41,15 @@ Use o MyInst como fluxo local-first para materializar, editar e sincronizar cont
 - Sempre que criar, editar, reescrever ou reorganizar skills, instructions, agents, hooks, memory, snippets ou mcp_config, finalize com myinst_push para sincronizar de volta.
 - O mesmo vale para commands, output styles e settings globais redigidos quando o client suportar esses artefatos.
 
+## Project State
+- Conteudo autoral e configuracao continuam no fluxo myinst_pull -> trabalho local -> myinst_push.
+- Continuidade de projeto usa tools separadas: myinst_state_capture, myinst_state_push, myinst_state_pull e myinst_state_search.
+- Use Project State para memorias revisadas, decisoes tecnicas e resumos seguros de sessao.
+- Nao sincronize cache bruto, transcripts completos, sessions internas, history, bancos locais, JSONL operacional, telemetry ou runtime interno.
+- Chats so podem entrar como resumo revisado, nunca como copia bruta por padrao.
+- myinst_state_capture cria draft local em .myinst/state/drafts e nao envia nada ao servidor.
+- myinst_state_push so deve ser usado depois de revisar o draft e definir metadata.reviewed=true.
+
 ## Regras de uso
 - Se estiver trabalhando no repositorio atual, use scope=project.
 - Se estiver trabalhando em configuracoes da home do usuario, como .codex, .gemini ou .config/opencode, use scope=global.

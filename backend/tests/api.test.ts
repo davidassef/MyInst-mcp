@@ -1047,6 +1047,93 @@ describe('MyInst API', () => {
       );
     });
 
+    it('POST /state/memories rejeita API key sem revisão explícita', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/workspaces/default/projects/default/state/memories',
+        headers: { authorization: `Bearer ${apiKey}` },
+        payload: {
+          type: 'memory',
+          title: 'Stack do projeto',
+          slug: 'stack-do-projeto',
+          body: 'Projeto usa Fastify.',
+          metadata: { reviewed: false },
+        },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error.code).toBe('REVIEW_REQUIRED');
+    });
+
+    it('POST /state/memories cria memória revisada do projeto', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/workspaces/default/projects/default/state/memories',
+        headers: { authorization: `Bearer ${apiKey}` },
+        payload: {
+          type: 'memory',
+          title: 'Stack do projeto',
+          slug: 'stack-do-projeto',
+          body: 'Projeto usa Fastify e Drizzle.',
+          metadata: { reviewed: true },
+          sourceClient: 'codex',
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+      expect(res.json().data).toEqual(expect.objectContaining({
+        type: 'memory',
+        slug: 'stack-do-projeto',
+        sourceClient: 'codex',
+      }));
+    });
+
+    it('POST /state/sessions cria resumo seguro de sessão', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/workspaces/default/projects/default/state/sessions',
+        headers: { authorization: `Bearer ${apiKey}` },
+        payload: {
+          type: 'session',
+          title: 'Sessão inicial',
+          slug: 'sessao-inicial',
+          summary: 'Resumo seguro da sessão.',
+          body: 'Sem transcript bruto.',
+          metadata: { reviewed: true },
+          touchedFiles: ['backend/src/app.ts'],
+          toolsUsed: ['myinst_state_capture'],
+          status: 'reviewed',
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+      expect(res.json().data).toEqual(expect.objectContaining({
+        type: 'session',
+        slug: 'sessao-inicial',
+        summary: 'Resumo seguro da sessão.',
+      }));
+    });
+
+    it('GET /search com scope=state encontra Project State sem conteúdo global', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/search?q=Fastify&scope=state&workspace=default&project=default',
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            slug: 'stack-do-projeto',
+            source_scope: 'state',
+            workspace_slug: 'default',
+            project_slug: 'default',
+          }),
+        ]),
+      );
+    });
+
     it('POST /client-profiles/:sourceClient/replicate/:targetClient faz dry run com itens compatíveis e ignorados', async () => {
       const res = await app.inject({
         method: 'POST',
