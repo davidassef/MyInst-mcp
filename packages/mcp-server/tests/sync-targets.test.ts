@@ -282,7 +282,7 @@ describe('sync targets', () => {
 
       expect(resultado.targets).toHaveLength(1);
       expect(resultado.results[0].written).toHaveLength(2);
-      const conteudo = await import('node:fs/promises').then(({ readFile }) => readFile(join(destino, 'AGENTS.md'), 'utf-8'));
+      const conteudo = await import('node:fs/promises').then(({ readFile }) => readFile(join(destino, '.opencode', 'AGENTS.md'), 'utf-8'));
       expect(conteudo).toContain('Claude');
       expect(conteudo).toContain('Global Guidelines');
       expect(conteudo).toContain('Instrucao base');

@@ -60,12 +60,12 @@ describe('client profile replication', () => {
         type: 'instruction',
         slug: 'agents',
       }),
+      expect.objectContaining({
+        type: 'skill',
+        slug: 'infra-local',
+      }),
     ]);
-    expect(plano.ignoredNoRule).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ type: 'skill', slug: 'infra-local' }),
-      ]),
-    );
+    expect(plano.ignoredNoRule).toHaveLength(0);
     expect(plano.ignoredIncompatible).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ type: 'setting', slug: 'codex-config' }),
