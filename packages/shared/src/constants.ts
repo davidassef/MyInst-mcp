@@ -48,6 +48,7 @@ export const CLIENT_PROFILE_IDS = [
   'qwen',
   'aider',
   'antigravity',
+  'kimi',
 ] as const;
 
 export type ClientProfileId = (typeof CLIENT_PROFILE_IDS)[number];

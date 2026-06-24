@@ -154,6 +154,7 @@ Clientes desta fase:
 | Qwen Code | `partial` | projeto |
 | Aider | `partial` | projeto e global |
 | Antigravity | `experimental` | projeto e global |
+| Kimi Code | `partial` | projeto e global |
 
 Antes de sincronizar, use:
 
@@ -169,9 +170,75 @@ Quando houver múltiplos clientes detectados e `clients` não for informado, o M
 
 Lista workspaces da conta autenticada.
 
+### `myinst_create_workspace`
+
+Cria um workspace e deixa o backend criar o projeto default dentro dele.
+
+Parâmetros:
+
+- `name`
+- `slug`
+- `description?`
+
+### `myinst_update_workspace`
+
+Edita `name`, `slug` ou `description` de um workspace.
+
+Se o `slug` mudar, use o novo slug nas chamadas seguintes. O MCP não cria alias nem redirecionamento de slug antigo.
+
+### `myinst_delete_workspace`
+
+Remove um workspace não padrão.
+
+Parâmetros:
+
+- `workspace`
+- `confirm`
+
+`confirm=true` é obrigatório para evitar exclusão acidental por agente. O backend bloqueia exclusão do workspace default.
+
 ### `myinst_list_projects`
 
 Lista projetos do workspace informado ou do workspace default.
+
+### `myinst_create_project`
+
+Cria um projeto em um workspace.
+
+Parâmetros:
+
+- `name`
+- `slug`
+- `description?`
+- `workspace?`
+
+Se `workspace` for omitido, usa o workspace default.
+
+### `myinst_update_project`
+
+Edita `name`, `slug` ou `description` de um projeto.
+
+Parâmetros:
+
+- `project`
+- `workspace?`
+- `name?`
+- `slug?`
+- `description?`
+
+Se o `slug` mudar, use o novo slug nas chamadas seguintes. O MCP não mantém alias do slug antigo.
+
+### `myinst_delete_project`
+
+Remove um projeto não padrão.
+
+Parâmetros:
+
+- `project`
+- `workspace?`
+- `confirm`
+
+`confirm=true` é obrigatório. O backend bloqueia exclusão do projeto default.
 
 ### `myinst_list_sync_targets`
 
@@ -227,6 +294,7 @@ Importa estruturas locais para o vault, normalmente organizando globais em pasta
 - `codex-global`
 - `cursor-global`
 - `gemini-global`
+- `kimi-global`
 
 Parâmetros principais:
 
@@ -238,6 +306,55 @@ Parâmetros principais:
 - `overwrite?`
 - `clients?`
 - `scope?`
+
+### `myinst_create_client_profile_item`
+
+Cria uma configuração global em `Client Profiles`, fora de workspace e projeto.
+
+Parâmetros:
+
+- `clientId`
+- `type`
+- `title`
+- `slug`
+- `body`
+- `description?`
+- `metadata?`
+- `tags?`
+- `isActive?`
+
+O MCP bloqueia conteúdo com padrão provável de segredo. Use placeholders `{{...}}`.
+
+### `myinst_update_client_profile_item`
+
+Edita uma configuração global de `Client Profiles`.
+
+Parâmetros:
+
+- `clientId`
+- `itemSlug`
+- `type?`
+- `title?`
+- `slug?`
+- `body?`
+- `description?`
+- `metadata?`
+- `tags?`
+- `isActive?`
+
+Se o `slug` mudar, use o novo slug nas chamadas seguintes.
+
+### `myinst_delete_client_profile_item`
+
+Remove uma configuração global de `Client Profiles`.
+
+Parâmetros:
+
+- `clientId`
+- `itemSlug`
+- `confirm`
+
+`confirm=true` é obrigatório para exclusão.
 
 ### `myinst_replicate_client_profile`
 
@@ -305,6 +422,35 @@ Exemplos suportados nesta fase:
 - `.qwen/AGENTS.md`
 - `.aider.conf.yml`, `CONVENTIONS.md`
 - `.antigravity`, `~/.gemini/antigravity-cli/settings.json`
+- `.kimi-code/skills/<slug>/SKILL.md`, `.kimi-code/skills/<slug>.md`, `.kimi-code/mcp.json`
+
+### Kimi Code
+
+O adapter do Kimi Code tem suporte parcial. Ele sincroniza apenas artefatos persistentes com formato conhecido, sem varredura genérica do diretório.
+
+Escopos detectados:
+
+- `project`: `.kimi-code/skills` e `.kimi-code/mcp.json` dentro do repositório atual.
+- `global`: `~/.kimi-code/skills` e `~/.kimi-code/mcp.json` na home do usuário.
+
+Tipos suportados:
+
+- `skill`: arquivos `.md` em `.kimi-code/skills` ou `SKILL.md` dentro de subpastas.
+- `mcp_config`: arquivo `.kimi-code/mcp.json`.
+
+Exemplos:
+
+```text
+myinst_list_sync_targets scope="all" clients=["kimi"]
+myinst_import scope="global" clients=["kimi"] dryRun=true
+myinst_pull targetFormat="native" scope="project" clients=["kimi"]
+```
+
+Limites:
+
+- não sincroniza cache, sessões, histórico, telemetry, runtime interno nem arquivos arbitrários;
+- não replica Kimi para outros clients no v1;
+- se outros clients forem detectados junto com Kimi, informe `clients=["kimi"]` explicitamente para evitar sync ambíguo.
 
 ## Dry run
 
@@ -339,6 +485,7 @@ Pares documentados como futuros:
 | Qwen | OpenCode | `não suportado no v1` |
 | Aider | OpenCode | `não suportado no v1` |
 | Antigravity | OpenCode | `não suportado no v1` |
+| Kimi | OpenCode | `não suportado no v1` |
 
 Limites do v1:
 

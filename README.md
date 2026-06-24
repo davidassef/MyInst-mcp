@@ -13,6 +13,7 @@ Equipes pequenas e usuários avançados costumam espalhar contexto em:
 - `.claude/`
 - `.codex/`
 - `.cursor/`
+- `.kimi-code/`
 - `AGENTS.md`
 - `GEMINI.md`
 - `.mcp.json`
@@ -132,11 +133,37 @@ O MyInst agora trabalha com adapters em camadas de suporte.
 | Qwen Code | `partial` | projeto | `instruction` |
 | Aider | `partial` | projeto e global | `instruction`, `mcp_config` |
 | Antigravity | `experimental` | projeto e global | `instruction`, `mcp_config` |
+| Kimi Code | `partial` | projeto e global | `skill`, `mcp_config` |
 
 Observação:
 - `full` significa preservação direta da estrutura principal do cliente.
 - `partial` significa import/export apenas do que o cliente tem estrutura estável.
 - `experimental` exige cautela e mensagens explícitas de instabilidade.
+
+### Suporte Kimi Code
+
+O suporte ao Kimi Code é parcial e focado em artefatos persistentes com mapeamento estável.
+
+Estruturas detectadas:
+
+- projeto: `.kimi-code/skills` e `.kimi-code/mcp.json`
+- global: `~/.kimi-code/skills` e `~/.kimi-code/mcp.json`
+
+Mapeamento:
+
+- `.kimi-code/skills/<slug>/SKILL.md` vira `skill`
+- `.kimi-code/skills/<slug>.md` vira `skill`
+- `.kimi-code/mcp.json` vira `mcp_config`
+
+Exemplos:
+
+```text
+myinst_list_sync_targets scope="all" clients=["kimi"]
+myinst_import scope="global" clients=["kimi"]
+myinst_pull targetFormat="native" scope="project" clients=["kimi"]
+```
+
+O MyInst não tenta sincronizar cache, histórico, sessões, runtime interno ou arquivos arbitrários do Kimi.
 
 ## Estrutura do repositório
 
@@ -222,11 +249,20 @@ Se `MYINST_API_KEY` não for informada, o MCP abre o navegador, redireciona para
 | Tool | Papel |
 |------|-------|
 | `myinst_list_workspaces` | lista workspaces do usuário |
+| `myinst_create_workspace` | cria workspace |
+| `myinst_update_workspace` | edita nome, slug ou descrição de workspace |
+| `myinst_delete_workspace` | apaga workspace não padrão com confirmação explícita |
 | `myinst_list_projects` | lista projetos do workspace |
+| `myinst_create_project` | cria projeto em um workspace |
+| `myinst_update_project` | edita nome, slug ou descrição de projeto |
+| `myinst_delete_project` | apaga projeto não padrão com confirmação explícita |
 | `myinst_list_sync_targets` | detecta clientes e estruturas sincronizáveis locais |
 | `myinst_pull` | materializa o vault em formato canônico ou nativo |
 | `myinst_push` | envia mudanças locais detectadas para o vault |
 | `myinst_import` | importa estruturas locais para o vault |
+| `myinst_create_client_profile_item` | cria item global em Client Profile |
+| `myinst_update_client_profile_item` | edita item global em Client Profile |
+| `myinst_delete_client_profile_item` | apaga item global com confirmação explícita |
 | `myinst_replicate_client_profile` | replica configurações globais compatíveis entre clients suportados |
 | `myinst_search` | descoberta pontual por busca |
 | `myinst_status` | mudanças temporais no vault |
@@ -295,6 +331,7 @@ Política padrão:
 | Qwen | OpenCode | `não suportado no v1` | feature futura |
 | Aider | OpenCode | `não suportado no v1` | feature futura |
 | Antigravity | OpenCode | `não suportado no v1` | feature futura |
+| Kimi | OpenCode | `não suportado no v1` | feature futura |
 
 ## Workspaces
 

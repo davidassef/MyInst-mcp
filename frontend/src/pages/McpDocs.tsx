@@ -4,13 +4,22 @@ import { useBrand } from '@/components/BrandProvider';
 
 const tools = [
   ['myinst_list_workspaces', 'Lista os workspaces disponiveis na conta.'],
+  ['myinst_create_workspace', 'Cria um workspace e seu projeto default.'],
+  ['myinst_update_workspace', 'Edita nome, slug ou descricao de workspace.'],
+  ['myinst_delete_workspace', 'Apaga workspace nao default com confirmacao explicita.'],
   ['myinst_list_projects', 'Lista projetos de um workspace.'],
+  ['myinst_create_project', 'Cria projeto dentro de um workspace.'],
+  ['myinst_update_project', 'Edita nome, slug ou descricao de projeto.'],
+  ['myinst_delete_project', 'Apaga projeto nao default com confirmacao explicita.'],
   ['myinst_list_sync_targets', 'Detecta clientes locais e mostra escopo global ou projeto antes de sincronizar.'],
   ['myinst_pull', 'Materializa conteudo do vault no diretorio alvo. Cria .myinst/MYINST.md.'],
   ['myinst_push', 'Sincroniza alteracoes locais reconhecidas de volta para o vault.'],
   ['myinst_import', 'Importa estruturas conhecidas de clientes para o vault.'],
   ['myinst_search', 'Busca pontual para descoberta. Nao substitui pull para trabalho recorrente.'],
   ['myinst_status', 'Mostra mudancas temporais no vault.'],
+  ['myinst_create_client_profile_item', 'Cria configuracao global em Client Profiles.'],
+  ['myinst_update_client_profile_item', 'Edita configuracao global em Client Profiles.'],
+  ['myinst_delete_client_profile_item', 'Apaga configuracao global com confirmacao explicita.'],
   ['myinst_replicate_client_profile', 'Replica Client Profiles compativeis, como claude -> opencode e codex -> opencode.'],
 ];
 
@@ -23,6 +32,7 @@ const clients = [
   ['qwen', 'partial', 'project'],
   ['aider', 'partial', 'project e global'],
   ['antigravity', 'experimental', 'project e global'],
+  ['kimi', 'partial', 'project e global'],
 ];
 
 export function McpDocsPage() {
@@ -239,6 +249,32 @@ MYINST_SERVER = "https://api-myinst.lotoscore.com.br"`}
                 <p className="mt-3 text-sm text-slate-300">{escopo}</p>
               </div>
             ))}
+          </div>
+        </Secao>
+
+        <Secao titulo="Kimi Code">
+          <div className="grid gap-4 md:grid-cols-3">
+            <CartaoTexto
+              titulo="Escopo de projeto"
+              texto="O MyInst detecta .kimi-code/skills e .kimi-code/mcp.json dentro do repositorio atual."
+            />
+            <CartaoTexto
+              titulo="Escopo global"
+              texto="Configuracoes globais do Kimi sao lidas em ~/.kimi-code/skills e ~/.kimi-code/mcp.json e salvas em Client Profiles."
+            />
+            <CartaoTexto
+              titulo="Limite do suporte"
+              texto="O suporte e parcial: sincroniza skills e mcp_config. Cache, historico, sessoes e arquivos arbitrarios nao entram no vault."
+            />
+          </div>
+
+          <div className="mt-5">
+            <BlocoCodigo
+              titulo="Exemplos Kimi"
+              codigo={`myinst_list_sync_targets scope="all" clients=["kimi"]
+myinst_import scope="global" clients=["kimi"] dryRun=true
+myinst_pull targetFormat="native" scope="project" clients=["kimi"]`}
+            />
           </div>
         </Secao>
 

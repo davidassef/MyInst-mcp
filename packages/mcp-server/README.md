@@ -51,10 +51,12 @@ MYINST_API_KEY=myinst_xxx MYINST_SERVER=https://api-myinst.lotoscore.com.br myin
 ## O que ele faz
 
 - lista workspaces e projetos
+- cria, edita e remove workspaces e projetos com proteção para deletes
 - materializa o vault em formato canônico
 - exporta para formatos nativos de clientes suportados
 - importa estruturas locais conhecidas
 - sincroniza mudanças locais de volta para o backend
+- cria, edita e remove itens globais de Client Profiles
 - replica client profiles globais compatíveis entre clients suportados
 
 ## Fluxo oficial
@@ -116,6 +118,29 @@ Clientes desta fase:
 - Qwen Code
 - Aider
 - Antigravity
+- Kimi Code
+
+### Kimi Code
+
+O suporte ao Kimi Code é parcial e cobre apenas arquivos com estrutura estável:
+
+- projeto: `.kimi-code/skills` e `.kimi-code/mcp.json`
+- global: `~/.kimi-code/skills` e `~/.kimi-code/mcp.json`
+
+Tipos sincronizados:
+
+- `skill`: `.kimi-code/skills/<slug>/SKILL.md` ou `.kimi-code/skills/<slug>.md`
+- `mcp_config`: `.kimi-code/mcp.json`
+
+Exemplos:
+
+```text
+myinst_list_sync_targets scope="all" clients=["kimi"]
+myinst_import scope="global" clients=["kimi"] dryRun=true
+myinst_pull targetFormat="native" scope="project" clients=["kimi"]
+```
+
+O MCP não sincroniza cache, histórico, sessões, telemetry, runtime interno ou arquivos arbitrários do Kimi.
 
 ## Replicação entre clients
 
@@ -136,6 +161,24 @@ Política padrão:
 - não sobrescrever por padrão
 - ignorar e relatar tipos sem equivalente nativo claro
 
+## Administração via MCP
+
+O MCP também expõe operações explícitas para administrar o vault sem abrir o painel web:
+
+- `myinst_create_workspace`
+- `myinst_update_workspace`
+- `myinst_delete_workspace`
+- `myinst_create_project`
+- `myinst_update_project`
+- `myinst_delete_project`
+- `myinst_create_client_profile_item`
+- `myinst_update_client_profile_item`
+- `myinst_delete_client_profile_item`
+
+Deletes exigem `confirm=true`. O backend continua bloqueando exclusão de workspace default e projeto default.
+
+Itens globais de Client Profiles ficam fora de workspace/projeto. Use essas tools para ajustes pontuais; para sincronização recorrente de arquivos locais, prefira `myinst_pull`, `myinst_push` e `myinst_import`.
+
 ## Tipos sincronizáveis
 
 - `skill`
@@ -145,6 +188,9 @@ Política padrão:
 - `hook`
 - `memory`
 - `snippet`
+- `command`
+- `output_style`
+- `setting`
 
 Nem todo cliente suporta todos os tipos em formato nativo. O MCP informa explicitamente o que foi ignorado.
 

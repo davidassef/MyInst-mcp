@@ -49,6 +49,11 @@ const CLIENTES_SUPORTADOS: Record<ClientProfileId, { name: string; slug: string;
     slug: 'antigravity',
     description: 'Configurações globais do Antigravity válidas para todos os projetos da conta.',
   },
+  kimi: {
+    name: 'Kimi Code',
+    slug: 'kimi',
+    description: 'Configurações globais do Kimi Code CLI válidas para todos os projetos da conta.',
+  },
 };
 
 export function listarClientesProfileSuportados() {

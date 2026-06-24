@@ -119,6 +119,211 @@ server.tool(
 );
 
 server.tool(
+  'myinst_create_workspace',
+  'Cria um workspace no vault MyInst. Também cria o projeto default automaticamente no backend.',
+  {
+    name: z.string().describe('Nome do workspace'),
+    slug: z.string().describe('Slug único do workspace na conta'),
+    description: z.string().describe('Descrição opcional do workspace').optional(),
+  },
+  async ({ name, slug, description }) => {
+    const workspace = await (await getClient()).criarWorkspace({ name, slug, description });
+    return respostaTexto([
+      'Workspace criado:',
+      JSON.stringify(workspace, null, 2),
+    ].join('\n'));
+  },
+);
+
+server.tool(
+  'myinst_update_workspace',
+  'Edita nome, slug ou descrição de um workspace. Se o slug mudar, use o novo slug nas próximas chamadas.',
+  {
+    workspace: z.string().describe('Slug atual do workspace'),
+    name: z.string().describe('Novo nome').optional(),
+    slug: z.string().describe('Novo slug').optional(),
+    description: z.string().describe('Nova descrição').optional(),
+  },
+  async ({ workspace, name, slug, description }) => {
+    const payload = removerIndefinidos({ name, slug, description });
+    if (Object.keys(payload).length === 0) {
+      return respostaTexto('Informe ao menos um campo para atualizar: name, slug ou description.');
+    }
+
+    const atualizado = await (await getClient()).atualizarWorkspace(workspace, payload);
+    return respostaTexto([
+      `Workspace atualizado. Slug atual: ${atualizado.slug}`,
+      JSON.stringify(atualizado, null, 2),
+    ].join('\n'));
+  },
+);
+
+server.tool(
+  'myinst_delete_workspace',
+  'Remove um workspace não padrão e todos os dados vinculados a ele. Exige confirm=true.',
+  {
+    workspace: z.string().describe('Slug do workspace a apagar'),
+    confirm: z.boolean().describe('Confirmação obrigatória. Use true apenas após revisar o alvo.'),
+  },
+  async ({ workspace, confirm }) => {
+    if (!confirm) {
+      return respostaTexto(`Exclusão bloqueada. Repita com confirm=true somente se deseja apagar o workspace "${workspace}".`);
+    }
+
+    await (await getClient()).deletarWorkspace(workspace);
+    return respostaTexto(`Workspace apagado: ${workspace}`);
+  },
+);
+
+server.tool(
+  'myinst_create_project',
+  'Cria um projeto dentro de um workspace. Se workspace for omitido, usa o workspace default.',
+  {
+    name: z.string().describe('Nome do projeto'),
+    slug: z.string().describe('Slug único dentro do workspace'),
+    description: z.string().describe('Descrição opcional do projeto').optional(),
+    workspace: z.string().describe('Slug do workspace; omita para usar o default').optional(),
+  },
+  async ({ name, slug, description, workspace }) => {
+    const projeto = await (await getClient()).criarProjeto({ name, slug, description }, workspace);
+    return respostaTexto([
+      'Projeto criado:',
+      JSON.stringify(projeto, null, 2),
+    ].join('\n'));
+  },
+);
+
+server.tool(
+  'myinst_update_project',
+  'Edita nome, slug ou descrição de um projeto. Se o slug mudar, use o novo slug nas próximas chamadas.',
+  {
+    project: z.string().describe('Slug atual do projeto'),
+    workspace: z.string().describe('Slug do workspace; omita para usar o default').optional(),
+    name: z.string().describe('Novo nome').optional(),
+    slug: z.string().describe('Novo slug').optional(),
+    description: z.string().describe('Nova descrição').optional(),
+  },
+  async ({ project, workspace, name, slug, description }) => {
+    const payload = removerIndefinidos({ name, slug, description });
+    if (Object.keys(payload).length === 0) {
+      return respostaTexto('Informe ao menos um campo para atualizar: name, slug ou description.');
+    }
+
+    const atualizado = await (await getClient()).atualizarProjeto(project, payload, workspace);
+    return respostaTexto([
+      `Projeto atualizado. Slug atual: ${atualizado.slug}`,
+      JSON.stringify(atualizado, null, 2),
+    ].join('\n'));
+  },
+);
+
+server.tool(
+  'myinst_delete_project',
+  'Remove um projeto não padrão do workspace informado. Exige confirm=true.',
+  {
+    project: z.string().describe('Slug do projeto a apagar'),
+    workspace: z.string().describe('Slug do workspace; omita para usar o default').optional(),
+    confirm: z.boolean().describe('Confirmação obrigatória. Use true apenas após revisar o alvo.'),
+  },
+  async ({ project, workspace, confirm }) => {
+    if (!confirm) {
+      return respostaTexto(`Exclusão bloqueada. Repita com confirm=true somente se deseja apagar o projeto "${project}".`);
+    }
+
+    await (await getClient()).deletarProjeto(project, workspace);
+    return respostaTexto(`Projeto apagado: ${workspace ? `${workspace}/` : ''}${project}`);
+  },
+);
+
+server.tool(
+  'myinst_create_client_profile_item',
+  'Cria uma configuração global em um Client Profile, fora de workspace/projeto.',
+  {
+    clientId: z.string().describe('Client profile alvo, como codex, claude, opencode, kimi'),
+    type: z.enum(TIPOS_CANONICOS).describe('Tipo do item global'),
+    title: z.string().describe('Título do item'),
+    slug: z.string().describe('Slug único por tipo dentro do Client Profile'),
+    body: z.string().describe('Conteúdo do item, sem segredos reais'),
+    description: z.string().describe('Descrição opcional').optional(),
+    metadata: z.record(z.unknown()).describe('Metadata opcional').optional(),
+    tags: z.array(z.string()).describe('Tags opcionais').optional(),
+    isActive: z.boolean().describe('Se o item fica ativo').optional(),
+  },
+  async ({ clientId, type, title, slug, body, description, metadata, tags, isActive }) => {
+    if (detectarTextoSensivel(body)) {
+      return respostaTexto('Criação bloqueada: o body contém padrão provável de segredo. Use placeholders {{...}} antes de salvar.');
+    }
+
+    const item = await (await getClient()).criarItemClientProfile(clientId, {
+      type,
+      title,
+      slug,
+      body,
+      description,
+      metadata,
+      tags,
+      isActive,
+    });
+
+    return respostaTexto([
+      `Item global criado em ${clientId}:`,
+      JSON.stringify(item, null, 2),
+    ].join('\n'));
+  },
+);
+
+server.tool(
+  'myinst_update_client_profile_item',
+  'Edita uma configuração global de Client Profile. Se o slug mudar, use o novo slug nas próximas chamadas.',
+  {
+    clientId: z.string().describe('Client profile alvo, como codex, claude, opencode, kimi'),
+    itemSlug: z.string().describe('Slug atual do item global'),
+    type: z.enum(TIPOS_CANONICOS).describe('Novo tipo').optional(),
+    title: z.string().describe('Novo título').optional(),
+    slug: z.string().describe('Novo slug').optional(),
+    body: z.string().describe('Novo conteúdo, sem segredos reais').optional(),
+    description: z.string().describe('Nova descrição').optional(),
+    metadata: z.record(z.unknown()).describe('Nova metadata').optional(),
+    tags: z.array(z.string()).describe('Novas tags').optional(),
+    isActive: z.boolean().describe('Ativa ou desativa o item').optional(),
+  },
+  async ({ clientId, itemSlug, type, title, slug, body, description, metadata, tags, isActive }) => {
+    if (body && detectarTextoSensivel(body)) {
+      return respostaTexto('Atualização bloqueada: o body contém padrão provável de segredo. Use placeholders {{...}} antes de salvar.');
+    }
+
+    const payload = removerIndefinidos({ type, title, slug, body, description, metadata, tags, isActive });
+    if (Object.keys(payload).length === 0) {
+      return respostaTexto('Informe ao menos um campo para atualizar.');
+    }
+
+    const item = await (await getClient()).atualizarItemClientProfile(clientId, itemSlug, payload);
+    return respostaTexto([
+      `Item global atualizado em ${clientId}. Slug atual: ${item.slug}`,
+      JSON.stringify(item, null, 2),
+    ].join('\n'));
+  },
+);
+
+server.tool(
+  'myinst_delete_client_profile_item',
+  'Remove uma configuração global de Client Profile. Exige confirm=true.',
+  {
+    clientId: z.string().describe('Client profile alvo, como codex, claude, opencode, kimi'),
+    itemSlug: z.string().describe('Slug do item global a apagar'),
+    confirm: z.boolean().describe('Confirmação obrigatória. Use true apenas após revisar o alvo.'),
+  },
+  async ({ clientId, itemSlug, confirm }) => {
+    if (!confirm) {
+      return respostaTexto(`Exclusão bloqueada. Repita com confirm=true somente se deseja apagar "${clientId}/${itemSlug}".`);
+    }
+
+    await (await getClient()).deletarItemClientProfile(clientId, itemSlug);
+    return respostaTexto(`Item global apagado: ${clientId}/${itemSlug}`);
+  },
+);
+
+server.tool(
   'myinst_state_capture',
   'Cria um draft local revisável de memória, decisão ou resumo de sessão em .myinst/state/drafts. Não envia nada ao servidor.',
   {
@@ -1318,6 +1523,24 @@ function respostaTexto(text: string) {
   return {
     content: [{ type: 'text' as const, text }],
   };
+}
+
+function removerIndefinidos<T extends Record<string, unknown>>(objeto: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(objeto).filter(([, valor]) => valor !== undefined),
+  ) as Partial<T>;
+}
+
+function detectarTextoSensivel(texto: string) {
+  const textoSemPlaceholders = texto.replace(/\{\{[^}]+\}\}/g, '');
+  const padroes = [
+    /\b(api[_\s-]?key|token|secret|password|senha|cookie|oauth)\b/i,
+    /\bDATABASE_URL\b/i,
+    /\b[A-Za-z0-9_-]{24,}\.[A-Za-z0-9_-]{24,}\.[A-Za-z0-9_-]{24,}\b/,
+    /\bmyinst_[A-Za-z0-9_-]{16,}\b/,
+  ];
+
+  return padroes.some((padrao) => padrao.test(textoSemPlaceholders));
 }
 
 function montarDraftProjectStateDireto({

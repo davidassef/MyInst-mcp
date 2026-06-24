@@ -75,6 +75,7 @@ const TIPOS_CLAUDE_GLOBAL: TipoSincronizavel[] = ['instruction', 'agent', 'comma
 const TIPOS_CURSOR: TipoSincronizavel[] = ['skill', 'instruction', 'mcp_config', 'setting'];
 const TIPOS_QWEN: TipoSincronizavel[] = ['instruction', 'setting'];
 const TIPOS_GEMINI: TipoSincronizavel[] = ['instruction', 'mcp_config'];
+const TIPOS_KIMI: TipoSincronizavel[] = ['skill', 'mcp_config'];
 const CHAVES_SENSIVEIS = [
   'token',
   'secret',
@@ -124,6 +125,7 @@ const ADAPTERS: ClienteAdapter[] = [
   criarAdapterQwen(),
   criarAdapterAider(),
   criarAdapterAntigravity(),
+  criarAdapterKimi(),
 ];
 
 export async function listarSyncTargets(
@@ -850,6 +852,73 @@ function criarAdapterAntigravity(): ClienteAdapter {
   };
 }
 
+function criarAdapterKimi(): ClienteAdapter {
+  return {
+    id: 'kimi',
+    nome: 'Kimi Code',
+    nivelSuporte: 'partial',
+    escopoSuportado: 'all',
+    tiposSuportados: TIPOS_KIMI,
+    detectar: async (ctx, scope) => {
+      const targets: SyncTarget[] = [];
+
+      if (scope !== 'global') {
+        if (!ehRaizGlobalCliente(ctx.projectDir, ctx.userHome, 'kimi')) {
+          const base = join(ctx.projectDir, '.kimi-code');
+          const encontrados = await filtrarExistentes([
+            join(base, 'skills'),
+            join(base, 'mcp.json'),
+          ]);
+
+          if (encontrados.length > 0) {
+            targets.push({
+              clientId: 'kimi',
+              clientName: 'Kimi Code',
+              supportLevel: 'partial',
+              scope: 'project',
+              detectedPaths: encontrados,
+              supportedTypes: TIPOS_KIMI,
+              estimatedItemCount: await contarSkillsKimi(join(base, 'skills'))
+                + (await existe(join(base, 'mcp.json')) ? 1 : 0),
+            });
+          }
+        }
+      }
+
+      if (scope !== 'project') {
+        const base = join(ctx.userHome, '.kimi-code');
+        const encontrados = await filtrarExistentes([
+          join(base, 'skills'),
+          join(base, 'mcp.json'),
+        ]);
+
+        if (encontrados.length > 0) {
+          targets.push({
+            clientId: 'kimi',
+            clientName: 'Kimi Code',
+            supportLevel: 'partial',
+            scope: 'global',
+            detectedPaths: encontrados,
+            supportedTypes: TIPOS_KIMI,
+            estimatedItemCount: await contarSkillsKimi(join(base, 'skills'))
+              + (await existe(join(base, 'mcp.json')) ? 1 : 0),
+          });
+        }
+      }
+
+      return targets;
+    },
+    ler: async (target) => {
+      const base = target.scope === 'global'
+        ? join(homedir(), '.kimi-code')
+        : join(resolverRaizProjetoPorPath(target.detectedPaths[0]), '.kimi-code');
+
+      return lerEstruturaKimi(base);
+    },
+    escrever: async (items, target) => escreverEstruturaKimi(items, target),
+  };
+}
+
 async function lerEstruturaClaude(raizProjeto: string): Promise<ItemSincronizavel[]> {
   const itens = new Map<string, ItemSincronizavel>();
   const base = join(raizProjeto, '.claude');
@@ -1334,6 +1403,94 @@ async function escreverEstruturaAntigravity(items: ItemSincronizavel[], target: 
   });
 }
 
+async function lerEstruturaKimi(base: string): Promise<ItemSincronizavel[]> {
+  const itens = new Map<string, ItemSincronizavel>();
+  await lerSkillsKimi(join(base, 'skills'), itens);
+  await lerArquivoConfig(join(base, 'mcp.json'), 'mcp-config', 'MCP Config', itens);
+  return [...itens.values()];
+}
+
+async function lerSkillsKimi(diretorioSkills: string, itens: Map<string, ItemSincronizavel>): Promise<void> {
+  let entradas: string[];
+  try {
+    entradas = await readdir(diretorioSkills);
+  } catch {
+    return;
+  }
+
+  for (const entrada of entradas) {
+    if (DIRETORIOS_IGNORADOS.has(entrada)) continue;
+    const caminho = join(diretorioSkills, entrada);
+
+    if (await ehDiretorio(caminho)) {
+      const caminhoSkill = join(caminho, 'SKILL.md');
+      if (await existe(caminhoSkill)) {
+        await registrarSkillKimi(caminhoSkill, entrada, itens);
+      }
+      continue;
+    }
+
+    if (entrada.endsWith('.md')) {
+      await registrarSkillKimi(caminho, basename(entrada, '.md'), itens);
+    }
+  }
+}
+
+async function registrarSkillKimi(caminho: string, slug: string, itens: Map<string, ItemSincronizavel>): Promise<void> {
+  const conteudo = await readFile(caminho, 'utf-8');
+  const { frontmatter, corpo } = parsearFrontmatter(conteudo);
+  const titulo = typeof frontmatter.name === 'string' && frontmatter.name
+    ? frontmatter.name
+    : tituloDoSlug(slug);
+
+  itens.set(`skill:${normalizarSlug(slug)}`, {
+    type: 'skill',
+    title: titulo,
+    slug: normalizarSlug(slug),
+    body: corpo || conteudo,
+    metadata: {
+      myinstSourcePath: caminho,
+      myinstFileExtension: extname(caminho),
+    },
+    tags: [],
+  });
+}
+
+async function contarSkillsKimi(diretorioSkills: string): Promise<number> {
+  let entradas: string[];
+  try {
+    entradas = await readdir(diretorioSkills);
+  } catch {
+    return 0;
+  }
+
+  let total = 0;
+  for (const entrada of entradas) {
+    if (DIRETORIOS_IGNORADOS.has(entrada)) continue;
+    const caminho = join(diretorioSkills, entrada);
+
+    if (await ehDiretorio(caminho)) {
+      if (await existe(join(caminho, 'SKILL.md'))) total++;
+      continue;
+    }
+
+    if (entrada.endsWith('.md')) total++;
+  }
+
+  return total;
+}
+
+async function escreverEstruturaKimi(items: ItemSincronizavel[], target: SyncTarget): Promise<EscritaCliente> {
+  const base = target.scope === 'global'
+    ? join(homedir(), '.kimi-code')
+    : join(resolverRaizProjetoPorPath(target.detectedPaths[0]), '.kimi-code');
+
+  return escreverComRegras(items, target, {
+    skill: { dir: join(base, 'skills'), ext: '/SKILL.md' },
+    mcp_config: { file: join(base, 'mcp.json') },
+  });
+}
+
 async function escreverEstruturaGemini(items: ItemSincronizavel[], target: SyncTarget): Promise<EscritaCliente> {
   const base = target.scope === 'global'
     ? (process.env.GEMINI_CLI_HOME ? resolve(process.env.GEMINI_CLI_HOME) : join(homedir(), '.gemini'))
@@ -1481,6 +1638,8 @@ function obterRaizesGlobaisCliente(userHome: string, clientId: string) {
       return [userHome];
     case 'antigravity':
       return [join(userHome, '.gemini', 'antigravity-cli'), join(userHome, '.antigravity')];
+    case 'kimi':
+      return [join(userHome, '.kimi-code')];
     default:
       return [];
   }
@@ -1497,7 +1656,7 @@ function resolverRaizProjetoPorPath(path: string) {
   if (!path) return process.cwd();
 
   const normalizado = resolve(path);
-  const marcadores = ['.claude', '.codex', '.cursor', '.qwen', '.opencode'];
+  const marcadores = ['.claude', '.codex', '.cursor', '.qwen', '.opencode', '.kimi-code'];
   const marcador = marcadores.find((entry) => normalizado.includes(`${entry}\\`) || normalizado.includes(`${entry}/`));
 
   if (!marcador) {

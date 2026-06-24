@@ -112,6 +112,28 @@ interface ClientProfile {
   description: string | null;
 }
 
+interface ClientProfileItemInput {
+  type: string;
+  title: string;
+  slug: string;
+  description?: string;
+  body: string;
+  metadata?: Record<string, unknown>;
+  tags?: string[];
+  isActive?: boolean;
+}
+
+interface ClientProfileItemUpdate {
+  type?: string;
+  title?: string;
+  slug?: string;
+  description?: string;
+  body?: string;
+  metadata?: Record<string, unknown>;
+  tags?: string[];
+  isActive?: boolean;
+}
+
 export class MyInstClient {
   constructor(
     private baseUrl: string,
@@ -134,6 +156,10 @@ export class MyInstClient {
       throw new Error(`MyInst API error (${response.status}): ${error.error?.message || response.statusText}`);
     }
 
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
     const json = await response.json();
     return json.data ?? json;
   }
@@ -144,6 +170,29 @@ export class MyInstClient {
 
   async listarWorkspaces(): Promise<Workspace[]> {
     return this.request<Workspace[]>('/workspaces');
+  }
+
+  async criarWorkspace(body: { name: string; slug: string; description?: string }): Promise<Workspace> {
+    return this.request<Workspace>('/workspaces', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
+  async atualizarWorkspace(
+    workspace: string,
+    body: { name?: string; slug?: string; description?: string },
+  ): Promise<Workspace> {
+    return this.request<Workspace>(`/workspaces/${encodeURIComponent(workspace)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  }
+
+  async deletarWorkspace(workspace: string): Promise<void> {
+    await this.request<void>(`/workspaces/${encodeURIComponent(workspace)}`, {
+      method: 'DELETE',
+    });
   }
 
   async listarProjetosDoWorkspace(workspace?: string): Promise<Projeto[]> {
@@ -172,6 +221,37 @@ export class MyInstClient {
     return this.request<Projeto>('/projects', {
       method: 'POST',
       body: JSON.stringify(body),
+    });
+  }
+
+  async atualizarProjeto(
+    project: string,
+    body: { name?: string; slug?: string; description?: string },
+    workspace?: string,
+  ): Promise<Projeto> {
+    if (workspace) {
+      return this.request<Projeto>(`/workspaces/${encodeURIComponent(workspace)}/projects/${encodeURIComponent(project)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      });
+    }
+
+    return this.request<Projeto>(`/projects/${encodeURIComponent(project)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  }
+
+  async deletarProjeto(project: string, workspace?: string): Promise<void> {
+    if (workspace) {
+      await this.request<void>(`/workspaces/${encodeURIComponent(workspace)}/projects/${encodeURIComponent(project)}`, {
+        method: 'DELETE',
+      });
+      return;
+    }
+
+    await this.request<void>(`/projects/${encodeURIComponent(project)}`, {
+      method: 'DELETE',
     });
   }
 
@@ -250,6 +330,35 @@ export class MyInstClient {
     if (params?.active !== undefined) searchParams.set('active', String(params.active));
     const query = searchParams.toString();
     return this.request<ConteudoItem[]>(`/client-profiles/${encodeURIComponent(clientId)}/items${query ? `?${query}` : ''}`);
+  }
+
+  async criarItemClientProfile(clientId: string, item: ClientProfileItemInput): Promise<ConteudoItem> {
+    return this.request<ConteudoItem>(`/client-profiles/${encodeURIComponent(clientId)}/items`, {
+      method: 'POST',
+      body: JSON.stringify({
+        metadata: {},
+        tags: [],
+        isActive: true,
+        ...item,
+      }),
+    });
+  }
+
+  async atualizarItemClientProfile(
+    clientId: string,
+    itemSlug: string,
+    item: ClientProfileItemUpdate,
+  ): Promise<ConteudoItem> {
+    return this.request<ConteudoItem>(`/client-profiles/${encodeURIComponent(clientId)}/items/${encodeURIComponent(itemSlug)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(item),
+    });
+  }
+
+  async deletarItemClientProfile(clientId: string, itemSlug: string): Promise<void> {
+    await this.request<void>(`/client-profiles/${encodeURIComponent(clientId)}/items/${encodeURIComponent(itemSlug)}`, {
+      method: 'DELETE',
+    });
   }
 
   async matchProfile(model: string, workspace?: string): Promise<PerfilModelo | null> {
