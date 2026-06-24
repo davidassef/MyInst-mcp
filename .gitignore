@@ -11,3 +11,4 @@ backups/
 .DS_Store
 Thumbs.db
 frontend/public/brand.local/
+.myinst/state/drafts/
