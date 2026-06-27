@@ -287,6 +287,15 @@ myinst_state_capture -> revisão local -> myinst_state_push
 
 Project State não sincroniza cache bruto nem transcripts completos por padrão. Chats entram apenas como resumo revisado e sem segredos reais.
 
+Na CLI, o fluxo equivalente é:
+
+```bash
+myinst state capture memory "Contexto do deploy" --body "Deploy ocorre por push e pull na VPS."
+myinst state push .myinst/state/drafts/memory-contexto-do-deploy.json --reviewed
+myinst state pull default
+myinst state search "deploy" --project default
+```
+
 ### 2. Descoberta multi-cliente antes do sync
 
 ```text

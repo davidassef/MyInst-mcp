@@ -5,6 +5,13 @@ import { executarLogin } from './commands/login.js';
 import { executarPull } from './commands/pull.js';
 import { executarPush } from './commands/push.js';
 import { executarList } from './commands/list.js';
+import {
+  executarStateCapture,
+  executarStatePull,
+  executarStatePush,
+  executarStateSearch,
+  type ProjectStateType,
+} from './commands/state.js';
 
 const programa = new Command();
 const MYINST_VERSION = '0.1.0-beta.1';
@@ -36,5 +43,47 @@ programa
   .description('Listar conteudo de um projeto no vault')
   .option('-w, --workspace <slug>', 'Slug do workspace')
   .action((projeto: string = 'default', options: { workspace?: string }) => executarList(projeto, options.workspace));
+
+const state = programa
+  .command('state')
+  .description('Gerenciar Project State revisado do projeto');
+
+state
+  .command('capture <tipo> <titulo>')
+  .description('Criar draft local revisavel de memoria, decisao ou sessao')
+  .option('-b, --body <texto>', 'Conteudo do estado')
+  .option('-f, --body-file <caminho>', 'Arquivo com o conteudo do estado')
+  .option('-s, --slug <slug>', 'Slug do estado')
+  .option('--summary <texto>', 'Resumo para sessoes')
+  .option('--source-client <client>', 'Cliente de origem')
+  .option('--source-path <caminho>', 'Caminho de origem')
+  .option('--touched-file <caminho...>', 'Arquivos tocados na sessao')
+  .option('--tool <nome...>', 'Ferramentas usadas na sessao')
+  .option('--started-at <iso>', 'Inicio da sessao em ISO')
+  .option('--ended-at <iso>', 'Fim da sessao em ISO')
+  .action((tipo: ProjectStateType, titulo: string, options) => executarStateCapture(tipo, titulo, options));
+
+state
+  .command('push <draft>')
+  .description('Enviar draft revisado de Project State para o vault')
+  .option('-w, --workspace <slug>', 'Slug do workspace')
+  .option('-p, --project <slug>', 'Slug do projeto', 'default')
+  .option('--reviewed', 'Marca metadata.reviewed=true antes do envio')
+  .option('--dry-run', 'Valida sem enviar ao servidor')
+  .action((draft: string, options) => executarStatePush(draft, options));
+
+state
+  .command('pull [projeto]')
+  .description('Materializar Project State em .myinst/state/')
+  .option('-w, --workspace <slug>', 'Slug do workspace')
+  .action((projeto: string = 'default', options: { workspace?: string }) => executarStatePull(projeto, options.workspace));
+
+state
+  .command('search <query>')
+  .description('Buscar memorias, decisoes e sessoes do Project State')
+  .option('-w, --workspace <slug>', 'Slug do workspace')
+  .option('-p, --project <slug>', 'Slug do projeto')
+  .option('-t, --type <tipo>', 'Tipo: memory, decision ou session')
+  .action((query: string, options) => executarStateSearch(query, options));
 
 programa.parse();
