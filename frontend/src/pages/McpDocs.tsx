@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, CheckCircle2, KeyRound, LockKeyhole, PackageCheck, TerminalSquare } from 'lucide-react';
+import { ArrowLeft, BookOpen, CheckCircle2, GitCompareArrows, KeyRound, LockKeyhole, PackageCheck, TerminalSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useBrand } from '@/components/BrandProvider';
 
@@ -16,7 +16,7 @@ const tools = [
   ['myinst_push', 'Sincroniza alteracoes locais reconhecidas de volta para o vault.'],
   ['myinst_import', 'Importa estruturas conhecidas de clientes para o vault.'],
   ['myinst_search', 'Busca pontual para descoberta. Nao substitui pull para trabalho recorrente.'],
-  ['myinst_status', 'Mostra mudancas temporais no vault.'],
+  ['myinst_status', 'Mostra mudancas temporais no vault remoto. Nao compara arquivos locais com manifesto.'],
   ['myinst_create_client_profile_item', 'Cria configuracao global em Client Profiles.'],
   ['myinst_update_client_profile_item', 'Edita configuracao global em Client Profiles.'],
   ['myinst_delete_client_profile_item', 'Apaga configuracao global com confirmacao explicita.'],
@@ -59,16 +59,16 @@ export function McpDocsPage() {
           <div>
             <div className="inline-flex items-center gap-3 rounded-full border border-cyan-300/18 bg-cyan-300/8 px-4 py-2 text-xs uppercase tracking-[0.24em] text-cyan-100/85">
               <BookOpen size={14} />
-              Documentacao MCP
+              Documentacao CLI e MCP
             </div>
 
             <h1 className="mt-6 max-w-3xl text-4xl font-semibold tracking-tight text-white md:text-6xl">
-              Como instalar, configurar e operar o MyInst MCP
+              Como operar o MyInst pelo terminal, pelo MCP e pelo vault web
             </h1>
 
             <p className="mt-5 max-w-2xl text-base leading-8 text-slate-400 md:text-lg">
-              Esta pagina e a referencia publica para humanos e agentes. Um agente de IA pode ler este documento para entender
-              o fluxo oficial do MyInst: materializar o vault, trabalhar nos arquivos locais e sincronizar as mudancas revisadas.
+              Esta pagina e a referencia publica para humanos e agentes. A CLI cobre o fluxo de repositorio remoto com pull,
+              status e push; o MCP conecta os clients de IA ao mesmo vault.
             </p>
           </div>
 
@@ -77,8 +77,13 @@ export function McpDocsPage() {
             <div className="relative space-y-4">
               <ResumoItem
                 icon={<PackageCheck size={18} />}
-                titulo="Instalacao"
-                texto="Instale o pacote global @myinst/mcp-server e configure o binario myinst-mcp no cliente MCP."
+                titulo="CLI"
+                texto="Instale @myinst/cli para operar pull, status, push e Project State direto no repositorio."
+              />
+              <ResumoItem
+                icon={<TerminalSquare size={18} />}
+                titulo="MCP"
+                texto="Instale @myinst/mcp-server quando quiser conectar Codex, Claude, Cursor e outros clients ao vault."
               />
               <ResumoItem
                 icon={<KeyRound size={18} />}
@@ -95,20 +100,24 @@ export function McpDocsPage() {
         </section>
 
         <section className="grid gap-5 md:grid-cols-3">
-          <Etapa numero="1" titulo="Instale o pacote" codigo="npm install -g @myinst/mcp-server" />
+          <Etapa
+            numero="1"
+            titulo="Instale a CLI"
+            codigo={`npm install -g @myinst/cli
+myinst login`}
+          />
           <Etapa
             numero="2"
-            titulo="Configure o cliente MCP"
-            codigo={`command: myinst-mcp
-MYINST_SERVER: https://api-myinst.lotoscore.com.br
-MYINST_API_KEY: opcional`}
+            titulo="Sincronize o projeto"
+            codigo={`myinst pull default
+myinst status default
+myinst push default`}
           />
           <Etapa
             numero="3"
-            titulo="Use o fluxo oficial"
-            codigo={`myinst_pull
-trabalho local
-myinst_push`}
+            titulo="Conecte clients MCP"
+            codigo={`npm install -g @myinst/mcp-server
+command: myinst-mcp`}
           />
         </section>
 
@@ -194,11 +203,50 @@ MYINST_SERVER = "https://api-myinst.lotoscore.com.br"`}
           </div>
         </Secao>
 
+        <Secao titulo="CLI standalone e status local">
+          <div className="grid gap-4 md:grid-cols-[0.95fr_1.05fr]">
+            <div className="vault-panel rounded-[24px] border border-white/8 p-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-300/16 bg-cyan-300/8 text-cyan-100">
+                  <GitCompareArrows size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-white">Status tipo repositorio remoto</h3>
+                  <p className="mt-1 text-sm leading-6 text-slate-400">
+                    A CLI mantem .myinst/sync-state.json no repositorio e compara manifesto, arquivos locais de todos os clients detectados e snapshot remoto.
+                    O atalho myinst st executa o mesmo fluxo de myinst status.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 text-sm text-slate-300">
+                <LinhaStatus titulo="Pendente de pull" texto="O vault remoto mudou ou possui item ausente no disco." />
+                <LinhaStatus titulo="Pendente de push" texto="O disco local mudou ou possui item ausente no vault." />
+                <LinhaStatus titulo="Conflitos" texto="Local e remoto mudaram desde o ultimo manifesto; push fica bloqueado." />
+                <LinhaStatus titulo="Sincronizado" texto="Local, remoto e manifesto estao equivalentes." />
+              </div>
+            </div>
+
+            <BlocoCodigo
+              titulo="Fluxo CLI recomendado"
+              codigo={`myinst pull default
+myinst status default
+myinst st
+# editar arquivos locais
+myinst status default
+myinst push default
+
+myinst status default --client codex kimi
+myinst push default --scope project`}
+            />
+          </div>
+        </Secao>
+
         <Secao titulo="Escopos">
           <div className="grid gap-4 md:grid-cols-3">
-            <CartaoTexto titulo="project" texto="Conteudo do repositorio atual. Vai para workspace e projeto no vault." />
-            <CartaoTexto titulo="global" texto="Configuracoes e skills do cliente na home do usuario. Vai para Client Profiles, fora de workspace e projeto." />
-            <CartaoTexto titulo="all" texto="Combina project e global na mesma operacao, separando automaticamente cada item no destino correto." />
+            <CartaoTexto titulo="project" texto="Conteudo do repositorio atual. E o padrao da CLI e le todos os clients detectados no projeto." />
+            <CartaoTexto titulo="global" texto="Configuracoes e skills do cliente na home do usuario. Entra apenas quando solicitado explicitamente." />
+            <CartaoTexto titulo="all" texto="Combina project e global na mesma operacao, separando cada item por client e escopo." />
           </div>
         </Secao>
 
@@ -355,5 +403,14 @@ function CartaoTexto({ titulo, texto }: { titulo: string; texto: string }) {
       <h3 className="text-base font-semibold text-white">{titulo}</h3>
       <p className="mt-3 text-sm leading-7 text-slate-400">{texto}</p>
     </article>
+  );
+}
+
+function LinhaStatus({ titulo, texto }: { titulo: string; texto: string }) {
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3">
+      <p className="font-medium text-cyan-100">{titulo}</p>
+      <p className="mt-1 leading-6 text-slate-400">{texto}</p>
+    </div>
   );
 }
