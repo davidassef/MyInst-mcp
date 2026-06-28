@@ -269,6 +269,8 @@ Verifica o que mudou desde último sync.
 - `project` (obrigatório) — Slug do projeto
 - `since` — Data ISO para verificar mudanças
 
+Observação: o comando `myinst status` da CLI usa `/sync/pull` para buscar o snapshot remoto completo e compara esse snapshot com `.myinst/sync-state.json` e os arquivos locais. A identidade de diff da CLI inclui `{ clientId, scope, workspace, project, type, slug }`, permitindo separar itens equivalentes de clients diferentes. O endpoint `/sync/status` continua sendo uma consulta temporal simples do backend.
+
 ---
 
 ## Erros

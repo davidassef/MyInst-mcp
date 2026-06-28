@@ -115,7 +115,7 @@ Pré-requisito antes de `myinst_push`:
 |------------|-------|
 | `frontend` | Painel web para workspaces, projetos, conteúdo e API keys |
 | `backend` | API Fastify com auth, busca, sync, versionamento e persistência |
-| `packages/cli` | CLI para login, listagem, pull e push fora do fluxo MCP |
+| `packages/cli` | CLI para login, listagem, status, pull e push fora do fluxo MCP |
 | `packages/mcp-server` | Servidor MCP local que conecta o cliente ao vault |
 | `packages/shared` | Schemas Zod, tipos e contratos compartilhados |
 
@@ -276,7 +276,31 @@ Se `MYINST_API_KEY` não for informada, o MCP abre o navegador, redireciona para
 ### 1. Fluxo canônico local-first
 
 ```text
-myinst_pull -> editar arquivos locais -> myinst_push
+myinst pull -> myinst status -> editar arquivos locais -> myinst status -> myinst push
+```
+
+A CLI mantém `.myinst/sync-state.json` como manifesto local do último snapshot remoto conhecido. `myinst status` compara manifesto, arquivos locais e vault remoto para separar pendências de pull, push e conflitos antes do envio.
+
+`myinst st` é apenas um alias curto de `myinst status`. Use o comando completo em scripts e documentação formal; use `st` no terminal quando quiser inspecionar o estado mais rápido.
+
+Por padrão, a CLI lê todos os clients detectados no projeto atual, não apenas `.claude`. O escopo global da home do usuário só entra com `--scope global` ou `--scope all`, para evitar envio acidental de configuração pessoal.
+
+Estados do `myinst status`:
+
+- `Pendente de pull`: o vault remoto mudou ou tem item ausente no disco.
+- `Pendente de push`: o disco local mudou ou tem item ausente no vault.
+- `Conflitos`: local e remoto mudaram desde o último manifesto.
+- `Sincronizado`: local, remoto e manifesto estão equivalentes.
+
+O `myinst push` bloqueia conflitos. O v1 não faz merge automático nem deleção automática.
+
+Exemplos:
+
+```bash
+myinst st
+myinst status default --client codex kimi
+myinst push default --scope project
+myinst status default --scope all --client codex
 ```
 
 Fluxo de continuidade do projeto:

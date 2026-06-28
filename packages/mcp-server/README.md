@@ -179,6 +179,21 @@ Deletes exigem `confirm=true`. O backend continua bloqueando exclusão de worksp
 
 Itens globais de Client Profiles ficam fora de workspace/projeto. Use essas tools para ajustes pontuais; para sincronização recorrente de arquivos locais, prefira `myinst_pull`, `myinst_push` e `myinst_import`.
 
+## CLI standalone e status local
+
+Para operadores humanos fora do fluxo MCP, use `@myinst/cli`. A CLI mantém `.myinst/sync-state.json` no repositório e oferece status de sincronização tipo repositório remoto:
+
+```bash
+myinst pull default
+myinst status default
+myinst push default
+myinst status default --client codex kimi
+```
+
+`myinst status` compara o manifesto local, os arquivos reconhecidos no disco e o snapshot remoto do vault. O resultado mostra pendências de pull, pendências de push e conflitos. Quando há conflito, `myinst push` é bloqueado até revisão manual.
+
+A CLI usa os adapters compartilhados com o MCP. Por padrão, ela lê o escopo `project` de todos os clients detectados no repositório. Use `--client <id...>` para limitar clientes e `--scope global` ou `--scope all` para incluir estruturas globais da home do usuário.
+
 ## Tipos sincronizáveis
 
 - `skill`

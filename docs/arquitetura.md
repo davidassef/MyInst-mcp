@@ -172,6 +172,27 @@ myinst_state_pull
 
 O backend rejeita escrita via API key quando o conteúdo não estiver marcado como revisado.
 
+## Sync Local da CLI
+
+A CLI standalone usa o backend como vault remoto e mantém um manifesto local em `.myinst/sync-state.json`.
+
+Fluxo recomendado:
+
+```text
+myinst pull -> myinst status -> editar arquivos locais -> myinst status -> myinst push
+```
+
+O manifesto registra o último snapshot remoto aplicado no projeto: workspace, projeto, horário do servidor e hashes de body, metadata e tags por `{ clientId, scope, workspace, project, type, slug }`. O comando `myinst status` busca o snapshot remoto atual por `/api/v1/sync/pull`, lê os arquivos locais reconhecidos pelos adapters compartilhados e classifica cada item em:
+
+- **Pendente de pull**: remoto mudou ou existe só no vault.
+- **Pendente de push**: local mudou ou existe só no disco.
+- **Conflitos**: local e remoto mudaram desde o último manifesto.
+- **Sincronizado**: local, remoto e manifesto equivalem.
+
+O v1 não faz merge automático nem aplica deleção automática. Remoções aparecem como pendência manual para evitar perda de conteúdo.
+
+A CLI usa os mesmos adapters multi-cliente do MCP, expostos em `@myinst/shared/sync-targets`. O padrão operacional é `scope=project`, lendo todos os clients detectados dentro do repositório. `scope=global` e `scope=all` precisam ser escolhidos explicitamente para incluir arquivos da home do usuário.
+
 ## Fluxo de Autenticação
 
 1. Usuário instala `@myinst/mcp-server`.

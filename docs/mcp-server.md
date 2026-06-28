@@ -392,6 +392,8 @@ Busca textual no vault para descoberta.
 
 ### `myinst_status`
 
+Mostra mudanças temporais no vault desde uma data. Esta tool consulta o estado remoto do backend; não compara arquivos locais com manifesto.
+
 ### `myinst_state_capture`
 
 Cria um draft local revisável. Não envia nada ao servidor.
@@ -408,7 +410,33 @@ Materializa Project State em `.myinst/state/`.
 
 Busca memórias, decisões e sessões do projeto com `scope=state`.
 
-Mostra mudanças temporais no vault desde uma data.
+## CLI e manifesto local
+
+A CLI standalone tem um fluxo complementar ao MCP para trabalho local-first:
+
+```bash
+myinst pull default
+myinst status default
+myinst push default
+```
+
+Após `myinst pull` ou `myinst push` bem-sucedido, a CLI grava `.myinst/sync-state.json` no repositório. Esse manifesto guarda o último snapshot remoto conhecido e permite que `myinst status` compare três estados:
+
+- manifesto local;
+- arquivos locais reconhecidos pela CLI;
+- snapshot remoto retornado por `/api/v1/sync/pull`.
+
+O resultado separa `Pendente de pull`, `Pendente de push`, `Conflitos` e `Sincronizado`. O `myinst push` bloqueia envio quando há conflito, para evitar sobrescrever mudanças remotas sem revisão.
+
+A CLI usa os mesmos adapters multi-cliente do MCP. Por padrão, `myinst status`, `myinst pull` e `myinst push` varrem o escopo `project` de todos os clients detectados no repositório. Use `--client <id...>` para limitar clientes e `--scope global` ou `--scope all` para incluir estruturas globais da home do usuário.
+
+Exemplos:
+
+```bash
+myinst status default --client codex kimi
+myinst push default --scope project
+myinst pull default --scope all --client codex
+```
 
 ## Estruturas reconhecidas
 

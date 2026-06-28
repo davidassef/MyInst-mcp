@@ -77,9 +77,10 @@
 
 ### 3.3 CLI Standalone ✅
 - [x] Package @myinst/cli com Commander.js
-- [x] Comandos: login, pull, push, list
+- [x] Comandos: login, list, status, pull, push
 - [x] Config em ~/.myinst/config.json
-- [x] 6 testes passando
+- [x] Manifesto local em .myinst/sync-state.json para comparar local, remoto e último sync
+- [x] 22 testes passando no pacote CLI
 
 ### 3.4 Rate Limiting + Planos ✅
 - [x] @fastify/rate-limit integrado
@@ -100,7 +101,7 @@
 | Testes automatizados | 73 |
 | Endpoints API | 25+ |
 | MCP Tools | 6 (list, pull, push, search, status, import) |
-| CLI Commands | 4 (login, pull, push, list) |
+| CLI Commands | 5 (login, list, status, pull, push) |
 | Tabelas no banco | 11 |
 | Documentação | 7 arquivos |
 
