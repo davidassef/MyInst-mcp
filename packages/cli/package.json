@@ -1,6 +1,6 @@
 {
   "name": "@myinst/cli",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "description": "CLI para gerenciar seu vault MyInst",
   "type": "module",
   "license": "AGPL-3.0",
@@ -16,12 +16,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/davidassef/MyInst.git",
+    "url": "git+ssh://git@github.com/davidassef/MyInst-mcp.git",
     "directory": "packages/cli"
   },
-  "homepage": "https://github.com/davidassef/MyInst/tree/main/packages/cli",
+  "homepage": "https://github.com/davidassef/MyInst-mcp/tree/main/packages/cli",
   "bugs": {
-    "url": "https://github.com/davidassef/MyInst/issues"
+    "url": "https://github.com/davidassef/MyInst-mcp/issues"
   },
   "publishConfig": {
     "access": "public"

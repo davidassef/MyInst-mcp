@@ -22,5 +22,5 @@ import { createContentSchema } from '@myinst/shared';
 
 ## Repositorio
 
-- Projeto: <https://github.com/davidassef/MyInst>
-- Issues: <https://github.com/davidassef/MyInst/issues>
+- Projeto: <https://github.com/davidassef/MyInst-mcp>
+- Issues: <https://github.com/davidassef/MyInst-mcp/issues>

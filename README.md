@@ -206,8 +206,8 @@ MyInst/
 ### Instalação
 
 ```bash
-git clone git@github.com:davidassef/MyInst.git
-cd MyInst
+git clone git@github.com:davidassef/MyInst-mcp.git
+cd MyInst-mcp
 cp .env.example .env
 pnpm install
 pnpm db:push

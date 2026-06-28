@@ -4,11 +4,11 @@
   "description": "MyInst - Cofre pessoal de instruções e configurações de IA",
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/davidassef/MyInst.git"
+    "url": "git+ssh://git@github.com/davidassef/MyInst-mcp.git"
   },
-  "homepage": "https://github.com/davidassef/MyInst",
+  "homepage": "https://github.com/davidassef/MyInst-mcp",
   "bugs": {
-    "url": "https://github.com/davidassef/MyInst/issues"
+    "url": "https://github.com/davidassef/MyInst-mcp/issues"
   },
   "scripts": {
     "dev": "turbo dev",
@@ -39,8 +39,5 @@
   "packageManager": "pnpm@10.28.0",
   "engines": {
     "node": ">=22.0.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": ["bcrypt", "esbuild"]
   }
 }

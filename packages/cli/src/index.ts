@@ -16,7 +16,7 @@ import {
 } from './commands/state.js';
 
 const programa = new Command();
-const MYINST_VERSION = '0.1.0-beta.1';
+const MYINST_VERSION = '0.1.0-beta.2';
 
 programa
   .name('myinst')

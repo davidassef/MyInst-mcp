@@ -28,12 +28,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/davidassef/MyInst.git",
+    "url": "git+ssh://git@github.com/davidassef/MyInst-mcp.git",
     "directory": "packages/shared"
   },
-  "homepage": "https://github.com/davidassef/MyInst/tree/main/packages/shared",
+  "homepage": "https://github.com/davidassef/MyInst-mcp/tree/main/packages/shared",
   "bugs": {
-    "url": "https://github.com/davidassef/MyInst/issues"
+    "url": "https://github.com/davidassef/MyInst-mcp/issues"
   },
   "publishConfig": {
     "access": "public"

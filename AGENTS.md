@@ -21,7 +21,7 @@ Componentes principais:
 | MCP Server | `packages/mcp-server/` | Servidor MCP local publicável (`myinst-mcp`) que conecta clientes ao vault |
 | Shared | `packages/shared/` | Schemas Zod, tipos TypeScript e constantes compartilhados |
 
-Repositório: `git@github.com:davidassef/MyInst.git`  
+Repositório: `git@github.com:davidassef/MyInst-mcp.git`
 Licença: **AGPL-3.0**
 
 ---

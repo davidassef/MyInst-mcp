@@ -17,8 +17,8 @@ Deploy sempre via `git pull`, sem cópia manual de arquivos.
 ### 1. Clone o repositório
 
 ```bash
-git clone git@github.com:davidassef/MyInst.git
-cd myinst
+git clone git@github.com:davidassef/MyInst-mcp.git
+cd MyInst-mcp
 ```
 
 ### 2. Configure o ambiente
@@ -74,8 +74,8 @@ Observação: se você precisar da stack web no próprio VPS, use `docker-compos
 ### Setup
 
 ```bash
-git clone git@github.com:davidassef/MyInst.git
-cd myinst
+git clone git@github.com:davidassef/MyInst-mcp.git
+cd MyInst-mcp
 cp .env.example .env
 # Configure DATABASE_URL e JWT_SECRET no .env
 pnpm install

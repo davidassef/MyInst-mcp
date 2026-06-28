@@ -224,6 +224,6 @@ myinst-mcp --version
 
 ## Documentação complementar
 
-- Projeto: <https://github.com/davidassef/MyInst>
-- Guia MCP: <https://github.com/davidassef/MyInst/blob/main/docs/mcp-server.md>
-- Issues: <https://github.com/davidassef/MyInst/issues>
+- Projeto: <https://github.com/davidassef/MyInst-mcp>
+- Guia MCP: <https://github.com/davidassef/MyInst-mcp/blob/main/docs/mcp-server.md>
+- Issues: <https://github.com/davidassef/MyInst-mcp/issues>

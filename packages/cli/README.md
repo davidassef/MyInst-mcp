@@ -2,6 +2,8 @@
 
 CLI oficial do MyInst para login, listagem, status, pull, push e Project State do vault.
 
+Versão atual: `0.1.0-beta.2`.
+
 ## Instalacao
 
 ```bash
@@ -111,5 +113,5 @@ O push exige `metadata.reviewed=true` e bloqueia padrões prováveis de segredos
 
 ## Repositorio
 
-- Projeto: <https://github.com/davidassef/MyInst>
-- Issues: <https://github.com/davidassef/MyInst/issues>
+- Projeto: <https://github.com/davidassef/MyInst-mcp>
+- Issues: <https://github.com/davidassef/MyInst-mcp/issues>
