@@ -341,8 +341,8 @@ function ConteudoRotativoLanding({ brandName }: { brandName: string }) {
               key={slide.id}
               aria-hidden={!slideEstaAtivo}
               className={[
-                'col-start-1 row-start-1 min-w-0 transition-all duration-700 ease-out motion-reduce:transition-none',
-                slideEstaAtivo ? 'opacity-100 blur-0 translate-y-0' : 'pointer-events-none opacity-0 blur-[2px] translate-y-4',
+                'relative col-start-1 row-start-1 min-w-0 transition-all duration-700 ease-out motion-reduce:transition-none',
+                slideEstaAtivo ? 'z-10 opacity-100 blur-0 translate-y-0' : 'pointer-events-none z-0 opacity-0 blur-[2px] translate-y-4',
               ].join(' ')}
             >
               <div className="flex items-center gap-3 text-cyan-100">
@@ -366,7 +366,7 @@ function ConteudoRotativoLanding({ brandName }: { brandName: string }) {
                 </p>
               </div>
 
-              <div className="mt-6 flex flex-wrap gap-2">
+              <div className="relative z-20 mt-6 flex flex-wrap gap-2">
                 {SLIDES_LANDING.map((slideIndicador, indiceIndicador) => (
                   <IndicadorSlide
                     key={slideIndicador.id}
