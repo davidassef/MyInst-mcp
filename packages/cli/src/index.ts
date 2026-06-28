@@ -5,6 +5,8 @@ import { executarLogin } from './commands/login.js';
 import { executarPull } from './commands/pull.js';
 import { executarPush } from './commands/push.js';
 import { executarList } from './commands/list.js';
+import { executarStatus } from './commands/status.js';
+import { normalizarSyncOptions, type SyncCliOptions } from './commands/sync-options.js';
 import {
   executarStateCapture,
   executarStatePull,
@@ -28,21 +30,35 @@ programa
 
 programa
   .command('pull [projeto]')
-  .description('Baixar conteudo do vault para o diretorio atual')
+  .description('Baixar conteudo do vault para estruturas nativas detectadas')
   .option('-w, --workspace <slug>', 'Slug do workspace')
-  .action((projeto: string = 'default', options: { workspace?: string }) => executarPull(projeto, options.workspace));
+  .option('-c, --client <id...>', 'Client(s) a considerar')
+  .option('--scope <scope>', 'Escopo: project, global ou all')
+  .action((projeto: string = 'default', options: SyncCliOptions) => executarPull(projeto, normalizarSyncOptions(options)));
 
 programa
   .command('push [projeto]')
-  .description('Enviar conteudo local (.claude/) para o vault')
+  .description('Enviar conteudo nativo local detectado para o vault')
   .option('-w, --workspace <slug>', 'Slug do workspace')
-  .action((projeto: string = 'default', options: { workspace?: string }) => executarPush(projeto, options.workspace));
+  .option('-c, --client <id...>', 'Client(s) a considerar')
+  .option('--scope <scope>', 'Escopo: project, global ou all')
+  .action((projeto: string = 'default', options: SyncCliOptions) => executarPush(projeto, normalizarSyncOptions(options)));
 
 programa
   .command('list [projeto]')
+  .alias('ls')
   .description('Listar conteudo de um projeto no vault')
   .option('-w, --workspace <slug>', 'Slug do workspace')
   .action((projeto: string = 'default', options: { workspace?: string }) => executarList(projeto, options.workspace));
+
+programa
+  .command('status [projeto]')
+  .alias('st')
+  .description('Mostrar pendencias de pull, push e conflitos do projeto')
+  .option('-w, --workspace <slug>', 'Slug do workspace')
+  .option('-c, --client <id...>', 'Client(s) a considerar')
+  .option('--scope <scope>', 'Escopo: project, global ou all')
+  .action((projeto: string = 'default', options: SyncCliOptions) => executarStatus(projeto, normalizarSyncOptions(options)));
 
 const state = programa
   .command('state')

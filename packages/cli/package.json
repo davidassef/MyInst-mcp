@@ -34,6 +34,7 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
+    "@myinst/shared": "workspace:*",
     "commander": "^13.1.0"
   },
   "devDependencies": {
