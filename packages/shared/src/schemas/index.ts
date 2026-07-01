@@ -101,7 +101,7 @@ export const criarChatSessionSchema = z.object({
 
 export const resumirChatSessionSchema = z.object({
   summary: z.string().max(4000).optional(),
-});
+}).default({});
 
 export const criarFolderSchema = z.object({
   name: z.string().min(1).max(100),
