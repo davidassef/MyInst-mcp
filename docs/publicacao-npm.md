@@ -46,7 +46,7 @@ Publicação:
 
 ```bash
 cd packages/cli
-pnpm publish --access public --tag beta
+pnpm publish --access public
 ```
 
 ## Verificar publicação
@@ -80,7 +80,7 @@ pnpm version patch
 
 - O `workspace:*` no `@myinst/shared` é automaticamente resolvido pelo pnpm para a versão real ao publicar
 - Para a release `@myinst/cli@0.1.0-beta.2`, `@myinst/shared@0.1.0-beta.1` já está publicado e não precisa de novo publish se não houver alteração nele
-- Como `0.1.0-beta.2` é prerelease, publique com dist-tag `beta`, não `latest`
+- A validação `npx @myinst/cli --version` usa o dist-tag padrão `latest`; use outro tag somente se também ajustar o comando de validação
 - O campo `files` no package.json garante que apenas `dist/` é publicado
 - O `prepublishOnly` script garante que o build roda antes de publicar
 - A licença AGPL-3.0 é incluída automaticamente
