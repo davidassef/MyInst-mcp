@@ -1,6 +1,7 @@
 import { access, constants, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, extname, join, resolve } from 'node:path';
+import { redigirSegredosEmTexto } from '../security.js';
 
 export type TipoSincronizavel =
   | 'skill'
@@ -76,17 +77,6 @@ const TIPOS_CURSOR: TipoSincronizavel[] = ['skill', 'instruction', 'mcp_config',
 const TIPOS_QWEN: TipoSincronizavel[] = ['instruction', 'setting'];
 const TIPOS_GEMINI: TipoSincronizavel[] = ['instruction', 'mcp_config'];
 const TIPOS_KIMI: TipoSincronizavel[] = ['skill', 'mcp_config'];
-const CHAVES_SENSIVEIS = [
-  'token',
-  'secret',
-  'password',
-  'api_key',
-  'apikey',
-  'auth',
-  'pat',
-  'credential',
-  'oauth',
-];
 const DIRETORIOS_IGNORADOS = new Set([
   'node_modules',
   '.git',
@@ -395,7 +385,7 @@ function criarAdapterCodex(): ClienteAdapter {
             supportLevel: 'full',
             scope: 'global',
             detectedPaths: encontradosGlobal,
-            supportedTypes: ['skill', 'instruction', 'setting'],
+            supportedTypes: ['skill', 'instruction', 'mcp_config', 'setting'],
             estimatedItemCount: await contarSkillsCodex(join(baseGlobal, 'skills'))
               + (await existe(join(baseGlobal, 'AGENTS.md')) ? 1 : 0)
               + (await existe(join(baseGlobal, 'config.toml')) ? 1 : 0),
@@ -1135,14 +1125,17 @@ async function lerArquivoConfig(
   if (!(await existe(caminhoArquivo))) return;
 
   const conteudo = await readFile(caminhoArquivo, 'utf-8');
+  const redacao = redigirSegredos(caminhoArquivo, conteudo);
   itens.set(`mcp_config:${slug}`, {
     type: 'mcp_config',
     title,
     slug,
-    body: conteudo,
+    body: redacao.body,
     metadata: {
-      myinstSourcePath: caminhoArquivo,
-      myinstFileExtension: extname(caminhoArquivo),
+      myinstSourcePath: redacao.sourcePath,
+      myinstFileExtension: redacao.fileExtension,
+      ...(redacao.requiresLocalSecrets ? { myinstRequiresLocalSecrets: true } : {}),
+      ...(redacao.redactedKeys.length > 0 ? { myinstRedactedSecrets: redacao.redactedKeys } : {}),
     },
     tags: [],
   });
@@ -1298,12 +1291,110 @@ async function escreverEstruturaCodex(items: ItemSincronizavel[], target: SyncTa
     ? join(homedir(), '.codex')
     : join(resolverRaizProjetoPorPath(target.detectedPaths[0]), '.codex');
 
-  return escreverComRegras(items, target, {
-    skill: { dir: join(base, 'skills'), ext: '/SKILL.md' },
-    instruction: { file: join(base, 'AGENTS.md') },
-    mcp_config: target.scope === 'global' ? undefined : { file: join(base, '.mcp.json') },
-    setting: target.scope === 'global' ? { file: join(base, 'config.toml') } : undefined,
-  });
+  const written: EscritaCliente['written'] = [];
+  const ignored: EscritaCliente['ignored'] = [];
+
+  for (const item of items) {
+    if (item.type === 'skill') {
+      const namespace = resolverNamespaceCodex(item);
+      const caminho = join(base, 'skills', namespace, item.slug, 'SKILL.md');
+      const conteudo = montarSkillCodex(item);
+      validarSkillCodex(conteudo, item.slug);
+      await mkdir(dirname(caminho), { recursive: true });
+      await writeFile(caminho, conteudo, 'utf-8');
+      written.push({ path: caminho, type: item.type, slug: item.slug });
+      continue;
+    }
+
+    const caminho = resolverCaminhoCodex(base, target.scope, item);
+    if (!caminho) {
+      ignored.push({ type: item.type, slug: item.slug, reason: 'tipo sem suporte nativo neste cliente' });
+      continue;
+    }
+
+    await mkdir(dirname(caminho), { recursive: true });
+    await writeFile(caminho, item.body, 'utf-8');
+    written.push({ path: caminho, type: item.type, slug: item.slug });
+  }
+
+  return {
+    clientId: target.clientId,
+    clientName: target.clientName,
+    scope: target.scope,
+    written,
+    ignored,
+  };
+}
+
+function resolverCaminhoCodex(base: string, scope: 'project' | 'global', item: ItemSincronizavel): string | null {
+  switch (item.type) {
+    case 'instruction':
+      return join(base, 'AGENTS.md');
+    case 'mcp_config':
+      return scope === 'global' ? join(base, 'config.toml') : join(base, '.mcp.json');
+    case 'setting':
+      return scope === 'global' ? join(base, 'config.toml') : null;
+    default:
+      return null;
+  }
+}
+
+function resolverNamespaceCodex(item: ItemSincronizavel): string {
+  const candidatos = [
+    item.metadata.myinstSourceNamespace,
+    item.metadata.myinstSourceCategory,
+    item.metadata.sourceClient,
+    item.metadata.myinstClientId,
+  ];
+
+  const namespace = candidatos.find((valor): valor is string => typeof valor === 'string' && valor.trim().length > 0);
+  return normalizarSlug(namespace ?? 'myinst') || 'myinst';
+}
+
+function montarSkillCodex(item: ItemSincronizavel): string {
+  const { frontmatter, corpo } = parsearFrontmatter(item.body);
+  const name = limparValorYaml(frontmatter.name) || item.title || tituloDoSlug(item.slug);
+  const description = limparValorYaml(frontmatter.description)
+    || lerStringMetadata(item.metadata, 'description')
+    || item.title
+    || tituloDoSlug(item.slug);
+  const corpoFinal = corpo || item.body;
+
+  return [
+    '---',
+    `name: "${escaparYaml(name)}"`,
+    `description: "${escaparYaml(description)}"`,
+    '---',
+    '',
+    corpoFinal.trim(),
+    '',
+  ].join('\n');
+}
+
+function validarSkillCodex(conteudo: string, slug: string): void {
+  if (!conteudo.startsWith('---\n')) {
+    throw new Error(`Skill Codex inválida (${slug}): frontmatter YAML ausente`);
+  }
+
+  const { frontmatter } = parsearFrontmatter(conteudo);
+  if (!limparValorYaml(frontmatter.name) || !limparValorYaml(frontmatter.description)) {
+    throw new Error(`Skill Codex inválida (${slug}): name e description são obrigatórios`);
+  }
+}
+
+function lerStringMetadata(metadata: Record<string, unknown>, chave: string): string | null {
+  const valor = metadata[chave];
+  return typeof valor === 'string' && valor.trim() ? valor : null;
+}
+
+function limparValorYaml(valor: unknown): string | null {
+  if (typeof valor !== 'string') return null;
+  const limpo = valor.trim().replace(/^["']|["']$/g, '');
+  return limpo || null;
+}
+
+function escaparYaml(valor: string): string {
+  return valor.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
 async function escreverEstruturaCursor(items: ItemSincronizavel[], target: SyncTarget): Promise<EscritaCliente> {
@@ -1916,102 +2007,13 @@ function resolverCaminhoQwenGlobal(base: string, item: ItemSincronizavel) {
 function redigirSegredos(caminhoArquivo: string, conteudo: string) {
   const fileExtension = extname(caminhoArquivo);
   const sourcePath = caminhoArquivo;
-
-  if (fileExtension === '.json') {
-    return redigirJson(caminhoArquivo, conteudo, fileExtension, sourcePath);
-  }
-
-  return redigirTextoChaveValor(caminhoArquivo, conteudo, fileExtension, sourcePath);
-}
-
-function redigirJson(
-  caminhoArquivo: string,
-  conteudo: string,
-  fileExtension: string,
-  sourcePath: string,
-) {
-  try {
-    const original = JSON.parse(conteudo) as unknown;
-    const redactedKeys = new Set<string>();
-    const sanitized = sanitizarValorEstruturado(original, redactedKeys);
-
-    return {
-      body: `${JSON.stringify(sanitized, null, 2)}\n`,
-      requiresLocalSecrets: redactedKeys.size > 0,
-      redactedKeys: [...redactedKeys],
-      fileExtension,
-      sourcePath,
-    };
-  } catch {
-    return redigirTextoChaveValor(caminhoArquivo, conteudo, fileExtension, sourcePath);
-  }
-}
-
-function redigirTextoChaveValor(
-  _caminhoArquivo: string,
-  conteudo: string,
-  fileExtension: string,
-  sourcePath: string,
-) {
-  const redactedKeys = new Set<string>();
-  const linhas = conteudo.split('\n').map((linha) => {
-    const regex = /^(\s*["']?[\w.-]+["']?\s*[:=]\s*)(.+)$/;
-    const match = linha.match(regex);
-    if (!match) {
-      return linha;
-    }
-
-    const chaveBruta = match[1]
-      .replace(/[:=]\s*$/, '')
-      .trim()
-      .replace(/^["']|["']$/g, '');
-
-    if (!ehChaveSensivel(chaveBruta)) {
-      return linha;
-    }
-
-    redactedKeys.add(chaveBruta);
-    return `${match[1]}"[REDACTED]"`;
-  });
+  const redacao = redigirSegredosEmTexto(conteudo);
 
   return {
-    body: linhas.join('\n'),
-    requiresLocalSecrets: redactedKeys.size > 0,
-    redactedKeys: [...redactedKeys],
+    body: redacao.texto,
+    requiresLocalSecrets: redacao.possuiSegredos,
+    redactedKeys: redacao.chavesRedigidas,
     fileExtension,
     sourcePath,
   };
-}
-
-function sanitizarValorEstruturado(valor: unknown, redactedKeys: Set<string>): unknown {
-  if (Array.isArray(valor)) {
-    return valor.map((item) => sanitizarValorEstruturado(item, redactedKeys));
-  }
-
-  if (!valor || typeof valor !== 'object') {
-    return valor;
-  }
-
-  const objeto = valor as Record<string, unknown>;
-  const resultado: Record<string, unknown> = {};
-
-  for (const [chave, valorAtual] of Object.entries(objeto)) {
-    if (ehChaveSensivel(chave)) {
-      redactedKeys.add(chave);
-      resultado[chave] = '[REDACTED]';
-      continue;
-    }
-
-    resultado[chave] = sanitizarValorEstruturado(valorAtual, redactedKeys);
-  }
-
-  return resultado;
-}
-
-function ehChaveSensivel(chave: string) {
-  const normalizada = chave
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
-
-  return CHAVES_SENSIVEIS.some((termo) => normalizada.includes(termo.replace(/[^a-z0-9]/g, '')));
 }

@@ -2,7 +2,7 @@ import { createServer, type Server } from 'node:http';
 import { exec } from 'node:child_process';
 import { platform } from 'node:os';
 import { URL } from 'node:url';
-import { lerCredenciais, salvarCredenciais, limparCredenciais, type Credenciais } from './credentials.js';
+import { lerConfigCli, lerCredenciais, salvarCredenciais, limparCredenciais } from './credentials.js';
 
 const DEFAULT_SERVER_URL = 'https://api-myinst.lotoscore.com.br';
 const DEFAULT_APP_URL = 'https://myinst.lotoscore.com.br';
@@ -17,7 +17,22 @@ export async function obterCredenciaisAtivas(serverUrlEnv?: string): Promise<Aut
   const credenciais = await lerCredenciais();
 
   if (!credenciais) {
-    return null;
+    const configCli = await lerConfigCli();
+    if (!configCli) {
+      return null;
+    }
+
+    const serverUrl = serverUrlEnv || configCli.server || DEFAULT_SERVER_URL;
+    const valido = await validarToken(configCli.apiKey, serverUrl);
+
+    if (!valido) {
+      return null;
+    }
+
+    return {
+      token: configCli.apiKey,
+      serverUrl,
+    };
   }
 
   const serverUrl = serverUrlEnv || credenciais.serverUrl || DEFAULT_SERVER_URL;

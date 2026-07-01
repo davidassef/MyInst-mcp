@@ -81,6 +81,28 @@ export const criarProjectStateSchema = z.object({
 
 export const atualizarProjectStateSchema = criarProjectStateSchema.partial();
 
+export const criarChatSessionSchema = z.object({
+  client: z.string().min(1).max(50),
+  session: z.string().min(1).max(200),
+  title: z.string().min(1).max(200),
+  summary: z.string().max(4000).optional(),
+  startedAt: z.string().datetime().optional(),
+  updatedAt: z.string().datetime().optional(),
+  retentionUntil: z.string().datetime().optional(),
+  metadata: z.record(z.unknown()).default({}),
+  messages: z.array(z.object({
+    role: z.enum(['user', 'assistant', 'system', 'tool']),
+    content: z.string().min(1),
+    tokenCount: z.number().int().nonnegative().optional(),
+    metadata: z.record(z.unknown()).default({}),
+    createdAt: z.string().datetime().optional(),
+  })).min(1),
+});
+
+export const resumirChatSessionSchema = z.object({
+  summary: z.string().max(4000).optional(),
+});
+
 export const criarFolderSchema = z.object({
   name: z.string().min(1).max(100),
   slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),

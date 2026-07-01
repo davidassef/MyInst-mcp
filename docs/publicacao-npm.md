@@ -26,12 +26,18 @@ pnpm publish --access public
 
 Release atual preparada: `@myinst/cli@0.1.0-beta.2`.
 
-Essa release publica o suporte de Project State da CLI:
+Essa release depende também de `@myinst/shared@0.1.0-beta.2` e `@myinst/mcp-server@0.1.0-beta.2`, pois o sync multi-client, a validação de segredos e o login browser compartilham código entre os pacotes.
+
+Essa release publica:
 
 - `myinst state capture` cria drafts locais em `.myinst/state/drafts/`.
 - `myinst state push --reviewed` envia somente conteúdo revisado.
 - `myinst state pull` materializa memórias, decisões e sessões em `.myinst/state/`.
 - `myinst state search` busca Project State com `scope=state`.
+- `myinst chat push/list/show/export/summarize` gerencia histórico de chats por arquivo explícito, sem varredura automática de transcripts.
+- `myinst login` abre o fluxo browser por padrão e mantém `--api-key` para login manual.
+- `myinst pull/push/status` exigem `--client` quando múltiplos clients são detectados.
+- Sync bloqueia segredos prováveis e usa placeholders em configs sensíveis.
 
 Antes de publicar esta release:
 
@@ -79,7 +85,7 @@ pnpm version patch
 ## Notas
 
 - O `workspace:*` no `@myinst/shared` é automaticamente resolvido pelo pnpm para a versão real ao publicar
-- Para a release `@myinst/cli@0.1.0-beta.2`, `@myinst/shared@0.1.0-beta.1` já está publicado e não precisa de novo publish se não houver alteração nele
+- Para esta release, publique `@myinst/shared@0.1.0-beta.2` antes de `@myinst/mcp-server@0.1.0-beta.2` e `@myinst/cli@0.1.0-beta.2`
 - A validação `npx @myinst/cli --version` usa o dist-tag padrão `latest`; use outro tag somente se também ajustar o comando de validação
 - O campo `files` no package.json garante que apenas `dist/` é publicado
 - O `prepublishOnly` script garante que o build roda antes de publicar

@@ -3,6 +3,7 @@ import { and, eq, gte, inArray } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { clientProfileItems, clientProfileItemVersions, contentItems, contentTags, contentVersions, folders, projects, tags } from '../db/schema.js';
 import { syncPullSchema, syncPushSchema } from '@myinst/shared';
+import { detectarSegredoProvavelEmTexto, detectarSegredoProvavelEmValor } from '@myinst/shared/security';
 import type { ClientProfileId, ContentType, SearchScope } from '@myinst/shared';
 import { autenticar } from '../middleware/auth.js';
 import { validar } from '../middleware/validation.js';
@@ -156,6 +157,17 @@ export async function syncRoutes(app: FastifyInstance) {
       folderSlug?: string;
       items: { type: ContentType; title: string; slug: string; body: string; metadata: Record<string, unknown>; tags: string[] }[];
     };
+
+    const itemComSegredo = items.find((item) => detectarSegredoProvavelEmTexto(item.body) || detectarSegredoProvavelEmValor(item.metadata));
+    if (itemComSegredo) {
+      return reply.status(400).send({
+        error: {
+          code: 'SECRET_DETECTED',
+          message: `Item '${itemComSegredo.slug}' contém segredo provável. Substitua por placeholders antes de sincronizar.`,
+          status: 400,
+        },
+      });
+    }
 
     if (request.body && (request.body as { scope?: SearchScope }).scope === 'global') {
       const { clientId } = request.body as { clientId: ClientProfileId };

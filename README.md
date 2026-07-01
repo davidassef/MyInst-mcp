@@ -4,7 +4,7 @@ MyInst é um vault open source para armazenar, versionar e sincronizar contexto 
 
 Ele centraliza `skills`, `instructions`, `agents`, `hooks`, `memory`, `snippets` e configurações de clientes em um backend próprio, com interface web, API, CLI e MCP server local.
 
-Também preserva continuidade de trabalho por projeto com Project State: memórias revisadas, decisões técnicas e resumos seguros de sessões.
+Também preserva continuidade de trabalho por projeto com Project State: memórias revisadas, decisões técnicas, resumos seguros de sessões e histórico de chats importado com opt-in explícito.
 
 ## O que o MyInst resolve
 
@@ -115,7 +115,7 @@ Pré-requisito antes de `myinst_push`:
 |------------|-------|
 | `frontend` | Painel web para workspaces, projetos, conteúdo e API keys |
 | `backend` | API Fastify com auth, busca, sync, versionamento e persistência |
-| `packages/cli` | CLI para login, listagem, status, pull e push fora do fluxo MCP |
+| `packages/cli` | CLI para login, listagem, status, pull, push e chats fora do fluxo MCP |
 | `packages/mcp-server` | Servidor MCP local que conecta o cliente ao vault |
 | `packages/shared` | Schemas Zod, tipos e contratos compartilhados |
 
@@ -126,7 +126,7 @@ O MyInst agora trabalha com adapters em camadas de suporte.
 | Cliente | Suporte | Escopo | Tipos nativos |
 |---------|---------|--------|---------------|
 | Claude Code | `full` | projeto | `skill`, `instruction`, `mcp_config`, `agent`, `hook`, `memory`, `snippet` |
-| Codex | `full` | projeto e global | `skill`, `instruction`, `mcp_config` |
+| Codex | `full` | projeto e global | `skill`, `instruction`, `mcp_config`, `setting` |
 | Cursor | `partial` | projeto e global | `instruction`, `mcp_config` |
 | Gemini CLI | `partial` | projeto e global | `instruction` |
 | OpenCode | `partial` | projeto e global | `instruction`, `mcp_config` |
@@ -309,7 +309,9 @@ Fluxo de continuidade do projeto:
 myinst_state_capture -> revisão local -> myinst_state_push
 ```
 
-Project State não sincroniza cache bruto nem transcripts completos por padrão. Chats entram apenas como resumo revisado e sem segredos reais.
+Project State não sincroniza cache bruto nem transcripts completos por padrão. Chats só entram por import explícito de arquivo JSON/Markdown e nunca são varridos automaticamente.
+
+Quando mais de um client local for detectado, informe `--client` explicitamente nos comandos de sync. Configurações com segredos reais devem usar placeholders como `{{MYINST_API_KEY}}`; o push bloqueia padrões prováveis de segredo antes de gravar no vault.
 
 Na CLI, o fluxo equivalente é:
 
@@ -318,6 +320,16 @@ myinst state capture memory "Contexto do deploy" --body "Deploy ocorre por push 
 myinst state push .myinst/state/drafts/memory-contexto-do-deploy.json --reviewed
 myinst state pull default
 myinst state search "deploy" --project default
+```
+
+Histórico de chats é separado de `project_sessions`, tem retenção padrão de 180 dias e bloqueia padrões prováveis de segredo antes de persistir:
+
+```bash
+myinst chat push --project default --client codex --session sessao-1 --file chat.json
+myinst chat list --project default
+myinst chat show sessao-1 --project default
+myinst chat export sessao-1 --project default --format markdown
+myinst chat summarize sessao-1 --project default
 ```
 
 ### 2. Descoberta multi-cliente antes do sync

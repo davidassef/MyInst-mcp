@@ -56,6 +56,7 @@ describe('sync targets', () => {
     await writeFile(join(tempHome, '.gemini', 'antigravity', 'mcp_config.json'), JSON.stringify({
       mcpServers: {
         github: {
+          args: ['MYINST_API_KEY=myinst_12345678901234567890'],
           env: {
             GITHUB_PERSONAL_ACCESS_TOKEN: 'github_pat_123',
           },
@@ -157,7 +158,7 @@ describe('sync targets', () => {
     expect(claudeSettings).toBeDefined();
     expect(claudeSettings?.type).toBe('setting');
     expect(claudeSettings?.body).not.toContain('sk-test-123');
-    expect(claudeSettings?.body).toContain('[REDACTED]');
+    expect(claudeSettings?.body).toContain('{{ANTHROPIC_API_KEY}}');
     expect(claudeSettings?.metadata).toEqual(
       expect.objectContaining({
         myinstRequiresLocalSecrets: true,
@@ -167,7 +168,41 @@ describe('sync targets', () => {
     expect(geminiConfig).toBeDefined();
     expect(geminiConfig?.type).toBe('mcp_config');
     expect(geminiConfig?.body).not.toContain('github_pat_123');
-    expect(geminiConfig?.body).toContain('[REDACTED]');
+    expect(geminiConfig?.body).not.toContain('myinst_12345678901234567890');
+    expect(geminiConfig?.body).toContain('{{GITHUB_PERSONAL_ACCESS_TOKEN}}');
+    expect(geminiConfig?.body).toContain('MYINST_API_KEY={{MYINST_API_KEY}}');
+  });
+
+  it('exporta skills Codex com namespace e frontmatter obrigatório', async () => {
+    const modulo = await importarModulo();
+    const destino = await mkdtemp(join(tmpdir(), 'myinst-codex-destino-'));
+
+    try {
+      await mkdir(join(destino, '.codex'), { recursive: true });
+      await writeFile(join(destino, '.codex', 'AGENTS.md'), 'Instrucoes antigas', 'utf-8');
+
+      const resultado = await modulo.exportarParaClientesNativos(destino, [
+        {
+          type: 'skill',
+          slug: 'migrations-seguras',
+          title: 'Migrations Seguras',
+          body: '# Migrations Seguras\n\nUse quando precisar criar migrations.',
+          metadata: { description: 'Use quando precisar criar, revisar ou executar migrations.' },
+          tags: [],
+        },
+      ], 'project', ['codex']);
+
+      expect(resultado.targets).toHaveLength(1);
+      const caminhoSkill = join(destino, '.codex', 'skills', 'myinst', 'migrations-seguras', 'SKILL.md');
+      const conteudo = await import('node:fs/promises').then(({ readFile }) => readFile(caminhoSkill, 'utf-8'));
+
+      expect(conteudo).toMatch(/^---\n/);
+      expect(conteudo).toContain('name: "Migrations Seguras"');
+      expect(conteudo).toContain('description: "Use quando precisar criar, revisar ou executar migrations."');
+      expect(conteudo).toContain('# Migrations Seguras');
+    } finally {
+      await rm(destino, { recursive: true, force: true });
+    }
   });
 
   it('não trata ~/.codex como projeto quando a origem já é o diretório global do codex', async () => {

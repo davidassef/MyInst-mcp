@@ -19,7 +19,7 @@ describe('Applier', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('aplica skill como .md em .claude/skills/', async () => {
+  it('aplica skill como conteúdo canônico em .myinst/content/', async () => {
     const items = [{
       id: '1',
       type: 'skill',
@@ -35,13 +35,13 @@ describe('Applier', () => {
     expect(resultado).toHaveLength(3);
     expect(normalizePath(resultado[0].path)).toContain('.myinst/MYINST.md');
     expect(normalizePath(resultado[1].path)).toContain('.claude/MYINST.md');
-    expect(normalizePath(resultado[2].path)).toContain('.claude/skills/tdd.md');
+    expect(normalizePath(resultado[2].path)).toContain('.myinst/content/skills/tdd.md');
 
     const conteudo = await readFile(resultado[2].path, 'utf-8');
     expect(conteudo).toBe('Escreva testes primeiro.');
   });
 
-  it('aplica instruction como CLAUDE.md em .claude/', async () => {
+  it('aplica instruction como conteúdo canônico em .myinst/content/', async () => {
     const items = [{
       id: '2',
       type: 'instruction',
@@ -55,7 +55,7 @@ describe('Applier', () => {
 
     const resultado = await aplicarConteudo(items, tempDir);
     expect(resultado).toHaveLength(3);
-    expect(resultado[2].path).toContain('CLAUDE.md');
+    expect(normalizePath(resultado[2].path)).toContain('.myinst/content/instructions/regras-base.md');
 
     const conteudo = await readFile(resultado[2].path, 'utf-8');
     expect(conteudo).toContain('# Regras Base');
@@ -76,7 +76,7 @@ describe('Applier', () => {
 
     const resultado = await aplicarConteudo(items, tempDir);
     expect(resultado).toHaveLength(3);
-    expect(normalizePath(resultado[2].path)).toContain('.claude/agents/code-reviewer.md');
+    expect(normalizePath(resultado[2].path)).toContain('.myinst/content/agents/code-reviewer.md');
   });
 
   it('materializa tipos globais em arvore previsivel por client', async () => {
@@ -147,6 +147,8 @@ describe('Applier', () => {
     expect(resultado).toHaveLength(4);
     expect(resultado[2].path).toContain('debug.md');
     expect(resultado[3].path).toContain('contexto.md');
+    expect(normalizePath(resultado[2].path)).toContain('.myinst/content/skills');
+    expect(normalizePath(resultado[3].path)).toContain('.myinst/content/memory');
   });
 
   it('materializa guia operacional do MyInst sem sobrescrever CLAUDE.md', async () => {

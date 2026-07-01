@@ -3,9 +3,11 @@ import { join } from 'node:path';
 import {
   exportarParaClientesNativos,
   importarTargetsDetectados,
+  resolverSelecaoSync,
   type EscopoSync,
   type ItemSincronizavel,
 } from '@myinst/shared/sync-targets';
+import { detectarSegredoProvavelEmTexto, detectarSegredoProvavelEmValor } from '@myinst/shared/security';
 import type { MyInstConfig } from '../config.js';
 import {
   calcularSyncStatus,
@@ -69,6 +71,7 @@ const MAPEAMENTO_ARQUIVO: Record<string, (slug: string) => string> = {
 
 export async function executarPullSincronizado(params: OperacaoSyncParams): Promise<ResultadoPullSincronizado> {
   const workspace = params.workspace || WORKSPACE_DEFAULT;
+  await garantirSelecaoCliente(params);
   const locaisAntesDoPull = await lerConteudoLocal(params.diretorio, { scope: params.scope, clients: params.clients });
   const remoto = await buscarSnapshotRemoto(params, locaisAntesDoPull);
   const aplicacao = await aplicarConteudo(remoto.items, params.diretorio);
@@ -88,11 +91,14 @@ export async function executarPullSincronizado(params: OperacaoSyncParams): Prom
 
 export async function executarPushSincronizado(params: OperacaoSyncParams): Promise<ResultadoPushSincronizado> {
   const workspace = params.workspace || WORKSPACE_DEFAULT;
+  await garantirSelecaoCliente(params);
   const locais = await lerConteudoLocal(params.diretorio, { scope: params.scope, clients: params.clients });
 
   if (locais.length === 0) {
     return { created: [], updated: [], serverTime: new Date().toISOString(), manifesto: null };
   }
+
+  validarItensSemSegredos(locais);
 
   const remotoAntes = await buscarSnapshotRemoto(params, locais);
   const manifestoAtual = await lerManifestoSync(params.diretorio, workspace, params.project);
@@ -125,6 +131,7 @@ export async function executarPushSincronizado(params: OperacaoSyncParams): Prom
 
 export async function obterSyncStatus(params: OperacaoSyncParams): Promise<ResultadoSyncStatus> {
   const workspace = params.workspace || WORKSPACE_DEFAULT;
+  await garantirSelecaoCliente(params);
   const locais = await lerConteudoLocal(params.diretorio, { scope: params.scope, clients: params.clients });
   const [remoto, manifesto] = await Promise.all([
     buscarSnapshotRemoto(params, locais),
@@ -138,6 +145,30 @@ export async function obterSyncStatus(params: OperacaoSyncParams): Promise<Resul
     remotos: remoto.items,
     manifesto,
   });
+}
+
+async function garantirSelecaoCliente(params: OperacaoSyncParams): Promise<void> {
+  const resolucao = await resolverSelecaoSync(params.diretorio, params.scope || ESCOPO_DEFAULT, params.clients);
+
+  if (!resolucao.requiresClientSelection) {
+    return;
+  }
+
+  const clients = [...new Set(resolucao.availableTargets.map((target) => target.clientId))].sort();
+  throw new Error(`Informe --client para sincronizar. Clientes detectados: ${clients.join(', ')}`);
+}
+
+function validarItensSemSegredos(conteudos: ConteudoSyncLocal[]): void {
+  const itemComSegredo = conteudos.find((conteudo) => (
+    detectarSegredoProvavelEmTexto(conteudo.body)
+    || detectarSegredoProvavelEmValor(conteudo.metadata)
+  ));
+
+  if (!itemComSegredo) {
+    return;
+  }
+
+  throw new Error(`Envio bloqueado: ${itemComSegredo.clientId}/${itemComSegredo.scope}/${itemComSegredo.type}/${itemComSegredo.slug} contém segredo provável. Use placeholders antes de sincronizar.`);
 }
 
 export async function lerManifestoSync(

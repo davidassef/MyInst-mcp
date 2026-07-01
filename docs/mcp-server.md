@@ -428,7 +428,7 @@ Após `myinst pull` ou `myinst push` bem-sucedido, a CLI grava `.myinst/sync-sta
 
 O resultado separa `Pendente de pull`, `Pendente de push`, `Conflitos` e `Sincronizado`. O `myinst push` bloqueia envio quando há conflito, para evitar sobrescrever mudanças remotas sem revisão.
 
-A CLI usa os mesmos adapters multi-cliente do MCP. Por padrão, `myinst status`, `myinst pull` e `myinst push` varrem o escopo `project` de todos os clients detectados no repositório. Use `--client <id...>` para limitar clientes e `--scope global` ou `--scope all` para incluir estruturas globais da home do usuário.
+A CLI usa os mesmos adapters multi-cliente do MCP. Quando mais de um client for detectado, `myinst status`, `myinst pull` e `myinst push` exigem `--client <id...>` para evitar aplicar conteúdo no layout errado. Use `--scope global` ou `--scope all` para incluir estruturas globais da home do usuário.
 
 Exemplos:
 
@@ -436,6 +436,13 @@ Exemplos:
 myinst status default --client codex kimi
 myinst push default --scope project
 myinst pull default --scope all --client codex
+```
+
+O login da CLI abre o fluxo browser por padrão:
+
+```bash
+myinst login
+myinst login --server http://localhost:3000 --api-key myinst_xxx
 ```
 
 ## Estruturas reconhecidas

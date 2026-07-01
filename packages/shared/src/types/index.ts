@@ -16,6 +16,8 @@ import type {
   replicarClientProfileSchema,
   criarProjectStateSchema,
   atualizarProjectStateSchema,
+  criarChatSessionSchema,
+  resumirChatSessionSchema,
   syncPullSchema,
   syncPushSchema,
 } from '../schemas/index.js';
@@ -36,6 +38,8 @@ export type AtualizarClientProfileItemInput = z.infer<typeof atualizarClientProf
 export type ReplicarClientProfileInput = z.infer<typeof replicarClientProfileSchema>;
 export type CriarProjectStateInput = z.infer<typeof criarProjectStateSchema>;
 export type AtualizarProjectStateInput = z.infer<typeof atualizarProjectStateSchema>;
+export type CriarChatSessionInput = z.infer<typeof criarChatSessionSchema>;
+export type ResumirChatSessionInput = z.infer<typeof resumirChatSessionSchema>;
 export type SyncPullInput = z.infer<typeof syncPullSchema>;
 export type SyncPushInput = z.infer<typeof syncPushSchema>;
 
@@ -181,6 +185,33 @@ export interface ProjectSession extends ProjectStateBase {
 }
 
 export type ProjectStateItem = ProjectMemory | ProjectDecision | ProjectSession;
+
+export interface ChatMessage {
+  id: string;
+  sessionId: string;
+  role: 'user' | 'assistant' | 'system' | 'tool';
+  content: string;
+  tokenCount: number | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface ChatSession {
+  id: string;
+  userId: string;
+  workspaceId: string;
+  projectId: string;
+  client: string;
+  externalSessionId: string;
+  title: string;
+  summary: string | null;
+  startedAt: string;
+  updatedAt: string;
+  retentionUntil: string;
+  metadata: Record<string, unknown>;
+  messageCount?: number;
+  messages?: ChatMessage[];
+}
 
 export interface Tag {
   id: string;

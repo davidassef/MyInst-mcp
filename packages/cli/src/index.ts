@@ -14,6 +14,13 @@ import {
   executarStateSearch,
   type ProjectStateType,
 } from './commands/state.js';
+import {
+  executarChatExport,
+  executarChatList,
+  executarChatPush,
+  executarChatShow,
+  executarChatSummarize,
+} from './commands/chat.js';
 
 const programa = new Command();
 const MYINST_VERSION = '0.1.0-beta.2';
@@ -26,6 +33,8 @@ programa
 programa
   .command('login')
   .description('Autenticar com o servidor MyInst')
+  .option('--server <url>', 'URL do servidor MyInst')
+  .option('--api-key <key>', 'API key para login manual sem navegador')
   .action(executarLogin);
 
 programa
@@ -101,5 +110,50 @@ state
   .option('-p, --project <slug>', 'Slug do projeto')
   .option('-t, --type <tipo>', 'Tipo: memory, decision ou session')
   .action((query: string, options) => executarStateSearch(query, options));
+
+const chat = programa
+  .command('chat')
+  .description('Gerenciar histórico de chats importado explicitamente');
+
+chat
+  .command('push')
+  .description('Importar chat de arquivo JSON ou Markdown explícito')
+  .requiredOption('-p, --project <slug>', 'Slug do projeto')
+  .requiredOption('-c, --client <client>', 'Cliente de origem')
+  .requiredOption('-s, --session <id>', 'ID da sessão no cliente')
+  .requiredOption('-f, --file <path>', 'Arquivo JSON ou Markdown')
+  .option('-w, --workspace <slug>', 'Slug do workspace')
+  .action(executarChatPush);
+
+chat
+  .command('list')
+  .description('Listar chats importados do projeto')
+  .option('-w, --workspace <slug>', 'Slug do workspace')
+  .option('-p, --project <slug>', 'Slug do projeto', 'default')
+  .option('-c, --client <client>', 'Filtrar por cliente')
+  .option('-q, --q <texto>', 'Filtrar por texto')
+  .action(executarChatList);
+
+chat
+  .command('show <sessionId>')
+  .description('Mostrar mensagens de uma sessão de chat')
+  .option('-w, --workspace <slug>', 'Slug do workspace')
+  .option('-p, --project <slug>', 'Slug do projeto', 'default')
+  .action((sessionId: string, options) => executarChatShow(sessionId, options));
+
+chat
+  .command('export <sessionId>')
+  .description('Exportar chat como Markdown em .myinst/chats/')
+  .option('-w, --workspace <slug>', 'Slug do workspace')
+  .option('-p, --project <slug>', 'Slug do projeto', 'default')
+  .option('--format <format>', 'Formato de exportacao', 'markdown')
+  .action((sessionId: string, options) => executarChatExport(sessionId, options));
+
+chat
+  .command('summarize <sessionId>')
+  .description('Gerar ou atualizar resumo do chat')
+  .option('-w, --workspace <slug>', 'Slug do workspace')
+  .option('-p, --project <slug>', 'Slug do projeto', 'default')
+  .action((sessionId: string, options) => executarChatSummarize(sessionId, options));
 
 programa.parse();

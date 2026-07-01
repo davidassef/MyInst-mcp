@@ -288,6 +288,46 @@ export const projectSessions = pgTable('project_sessions', {
   ),
 ]);
 
+export const chatSessions = pgTable('chat_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  client: varchar('client', { length: 50 }).notNull(),
+  externalSessionId: varchar('external_session_id', { length: 200 }).notNull(),
+  title: varchar('title', { length: 200 }).notNull(),
+  summary: text('summary'),
+  startedAt: timestamp('started_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  retentionUntil: timestamp('retention_until', { withTimezone: true }).notNull(),
+  metadata: jsonb('metadata').default({}).notNull(),
+}, (table) => [
+  uniqueIndex('chat_sessions_project_client_external_idx').on(table.projectId, table.client, table.externalSessionId),
+  index('chat_sessions_project_idx').on(table.projectId),
+  index('chat_sessions_client_idx').on(table.client),
+  index('chat_sessions_retention_idx').on(table.retentionUntil),
+  index('chat_sessions_search_idx').using(
+    'gin',
+    sql`to_tsvector('portuguese', coalesce(${table.title}, '') || ' ' || coalesce(${table.summary}, ''))`,
+  ),
+]);
+
+export const chatMessages = pgTable('chat_messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  sessionId: uuid('session_id').notNull().references(() => chatSessions.id, { onDelete: 'cascade' }),
+  role: varchar('role', { length: 20 }).notNull(),
+  content: text('content').notNull(),
+  tokenCount: integer('token_count'),
+  metadata: jsonb('metadata').default({}).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('chat_messages_session_idx').on(table.sessionId),
+  index('chat_messages_search_idx').using(
+    'gin',
+    sql`to_tsvector('portuguese', coalesce(${table.content}, ''))`,
+  ),
+]);
+
 export const modelProfiles = pgTable('model_profiles', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),

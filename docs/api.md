@@ -273,6 +273,49 @@ Observação: o comando `myinst status` da CLI usa `/sync/pull` para buscar o sn
 
 ---
 
+## Chats
+
+Histórico de chats é opt-in e separado de `project_sessions`. Nenhuma rota entra em sync automático.
+
+### POST /workspaces/:workspaceSlug/projects/:projectSlug/chats
+
+Cria ou atualiza uma sessão importada explicitamente.
+
+**Body:**
+```json
+{
+  "client": "codex",
+  "session": "sessao-1",
+  "title": "Correção sync multi-client",
+  "summary": "Resumo opcional",
+  "metadata": { "tags": ["release"] },
+  "messages": [
+    { "role": "user", "content": "Corrija o pull.", "tokenCount": 8 },
+    { "role": "assistant", "content": "Pull corrigido." }
+  ]
+}
+```
+
+`retentionUntil` é opcional; quando omitido, o backend aplica retenção padrão de 180 dias. A API rejeita segredos prováveis em mensagens ou metadata.
+
+### GET /workspaces/:workspaceSlug/projects/:projectSlug/chats
+
+Lista sessões. Filtros opcionais: `client`, `q`, `tag`, `from`, `to`.
+
+### GET /workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId
+
+Retorna a sessão com mensagens. `sessionId` pode ser o UUID interno ou o ID externo informado no push.
+
+### GET /workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId/export?format=markdown
+
+Exporta a sessão como Markdown.
+
+### POST /workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId/summarize
+
+Atualiza o resumo. Se `summary` não for enviado, o backend gera um resumo local simples a partir das mensagens.
+
+---
+
 ## Erros
 
 Formato padrão:

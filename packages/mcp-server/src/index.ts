@@ -2,6 +2,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { detectarSegredoProvavelEmTexto, detectarSegredoProvavelEmValor } from '@myinst/shared/security';
 import { MyInstClient } from './client/index.js';
 import { aplicarConteudo } from './applier/index.js';
 import type { ConflictStrategy } from './applier/index.js';
@@ -31,7 +32,7 @@ import {
   type TipoSincronizavel,
 } from './sync-targets/index.js';
 
-const MYINST_VERSION = '0.1.0-beta.1';
+const MYINST_VERSION = '0.1.0-beta.2';
 const SCOPES_SYNC = ['project', 'global', 'all'] as const;
 const FORMATOS_PULL = ['myinst', 'native'] as const;
 const TIPOS_CANONICOS = ['skill', 'instruction', 'mcp_config', 'agent', 'command', 'hook', 'memory', 'output_style', 'setting', 'snippet'] as const;
@@ -601,7 +602,7 @@ server.tool(
   async ({ workspace, project, types, tags, model, dryRun, targetDir, conflictStrategy, clients, scope, targetFormat }) => {
     const dir = targetDir || process.cwd();
     const strategy: ConflictStrategy = conflictStrategy || 'overwrite';
-    const formato: FormatoPull = targetFormat || 'myinst';
+    const formato: FormatoPull = targetFormat || (clients?.length ? 'native' : 'myinst');
 
     const modelName = model || process.env.MYINST_MODEL;
     let tagsFinais = tags || [];
@@ -793,6 +794,11 @@ server.tool(
       }));
     }
 
+    const erroSegredo = montarErroSegredoSincronizacao(itens);
+    if (erroSegredo) {
+      return respostaTexto(erroSegredo);
+    }
+
     const projetoDestino = gruposEscopo.projectItems.length > 0
       ? await resolverProjetoDestinoSync({
           workspace,
@@ -886,6 +892,11 @@ server.tool(
     }
 
     const gruposEscopo = separarItensPorEscopo(itensTratados.sincronizaveis);
+    const erroSegredo = montarErroSegredoSincronizacao(itensTratados.sincronizaveis);
+    if (erroSegredo) {
+      return respostaTexto(erroSegredo);
+    }
+
     const projetoDestino = gruposEscopo.projectItems.length > 0
       ? await resolverProjetoDestinoSync({
           workspace,
@@ -1238,7 +1249,7 @@ async function carregarItensParaPull({
     tags: string[];
   }> = [];
   const availableTargets = await listarSyncTargets(dir, scopeFinal, clients);
-  const requiresClientSelection = !clients?.length && new Set(availableTargets.map((target) => target.clientId)).size > 1 && scopeFinal !== 'project';
+  const requiresClientSelection = !clients?.length && new Set(availableTargets.map((target) => target.clientId)).size > 1;
 
   if (requiresClientSelection) {
     return {
@@ -1532,15 +1543,24 @@ function removerIndefinidos<T extends Record<string, unknown>>(objeto: T): Parti
 }
 
 function detectarTextoSensivel(texto: string) {
-  const textoSemPlaceholders = texto.replace(/\{\{[^}]+\}\}/g, '');
-  const padroes = [
-    /\b(api[_\s-]?key|token|secret|password|senha|cookie|oauth)\b/i,
-    /\bDATABASE_URL\b/i,
-    /\b[A-Za-z0-9_-]{24,}\.[A-Za-z0-9_-]{24,}\.[A-Za-z0-9_-]{24,}\b/,
-    /\bmyinst_[A-Za-z0-9_-]{16,}\b/,
-  ];
+  return detectarSegredoProvavelEmTexto(texto);
+}
 
-  return padroes.some((padrao) => padrao.test(textoSemPlaceholders));
+function montarErroSegredoSincronizacao(items: ItemSincronizavel[]): string | null {
+  const itemComSegredo = items.find((item) => (
+    detectarSegredoProvavelEmTexto(item.body)
+    || detectarSegredoProvavelEmValor(item.metadata)
+  ));
+
+  if (!itemComSegredo) {
+    return null;
+  }
+
+  return [
+    'Sincronização bloqueada: item contém segredo provável.',
+    `Item: ${itemComSegredo.type}/${itemComSegredo.slug}`,
+    'Substitua valores sensíveis por placeholders como {{MYINST_API_KEY}} antes de enviar ao vault.',
+  ].join('\n');
 }
 
 function montarDraftProjectStateDireto({

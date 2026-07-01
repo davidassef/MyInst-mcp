@@ -93,6 +93,30 @@ describe('sync operations', () => {
     expect(conteudo).toBe('Instrucoes novas');
   });
 
+  it('pull exige --client quando múltiplos clients de projeto são detectados', async () => {
+    const dir = await criarDirTemp(temporarios);
+    await criarSkillLocal(dir, 'deploy', 'Skill Claude');
+    await mkdir(join(dir, '.codex'), { recursive: true });
+    await writeFile(join(dir, '.codex', 'AGENTS.md'), 'Instrucoes Codex', 'utf-8');
+
+    const fetchMock = vi.fn().mockResolvedValue(respostaJson({
+      data: {
+        items: [],
+        serverTime: '2026-06-27T00:00:00.000Z',
+      },
+    }));
+
+    await expect(executarPullSincronizado({
+      config,
+      diretorio: dir,
+      project: 'default',
+      workspace: 'default',
+      fetchImpl: fetchMock,
+    })).rejects.toThrow('Informe --client');
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('pull nao marca item como aplicado quando a estrutura nativa do client nao existe', async () => {
     const dir = await criarDirTemp(temporarios);
     const fetchMock = vi.fn().mockResolvedValue(respostaJson({
@@ -117,6 +141,24 @@ describe('sync operations', () => {
 
     expect(resultado.aplicados).toHaveLength(0);
     expect(manifesto?.items).toHaveLength(0);
+    await expect(readFile(join(dir, '.claude', 'CLAUDE.md'), 'utf-8')).rejects.toThrow();
+  });
+
+  it('push bloqueia envio local quando conteúdo contém segredo provável', async () => {
+    const dir = await criarDirTemp(temporarios);
+    await criarSkillLocal(dir, 'leak', 'Use MYINST_API_KEY=myinst_12345678901234567890');
+
+    const fetchMock = vi.fn();
+
+    await expect(executarPushSincronizado({
+      config,
+      diretorio: dir,
+      project: 'default',
+      workspace: 'default',
+      fetchImpl: fetchMock,
+    })).rejects.toThrow('segredo');
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('push bloqueia envio quando existe conflito', async () => {

@@ -749,6 +749,51 @@ describe('MyInst API', () => {
         ]),
       );
     });
+
+    it('POST /sync/push rejeita segredo provável em item de projeto', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/sync/push',
+        headers: { authorization: `Bearer ${apiKey}` },
+        payload: {
+          project: 'default',
+          items: [{
+            type: 'skill',
+            title: 'Leak',
+            slug: 'leak',
+            body: 'Use MYINST_API_KEY=myinst_12345678901234567890',
+            metadata: {},
+            tags: [],
+          }],
+        },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error.code).toBe('SECRET_DETECTED');
+    });
+
+    it('POST /sync/push rejeita segredo provável em item global', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/sync/push',
+        headers: { authorization: `Bearer ${apiKey}` },
+        payload: {
+          scope: 'global',
+          clientId: 'codex',
+          items: [{
+            type: 'mcp_config',
+            title: 'Codex Config',
+            slug: 'codex-config',
+            body: 'MYINST_API_KEY=myinst_12345678901234567890',
+            metadata: {},
+            tags: [],
+          }],
+        },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error.code).toBe('SECRET_DETECTED');
+    });
   });
 
   describe('Search', () => {
@@ -1215,6 +1260,117 @@ describe('MyInst API', () => {
 
       expect(res.statusCode).toBe(400);
       expect(res.json().error.code).toBe('REPLICATION_NOT_SUPPORTED');
+    });
+  });
+
+  describe('Chats', () => {
+    let chatId: string;
+
+    it('POST /workspaces/:workspaceSlug/projects/:projectSlug/chats cria sessão com retenção padrão', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/workspaces/default/projects/default/chats',
+        headers: { authorization: `Bearer ${apiKey}` },
+        payload: {
+          client: 'codex',
+          session: 'codex-session-1',
+          title: 'Correção sync multi-client',
+          summary: 'Sessão validou pull nativo do Codex.',
+          messages: [
+            { role: 'user', content: 'Corrija o pull do Codex.', tokenCount: 8, metadata: { source: 'test' } },
+            { role: 'assistant', content: 'Ajustei o adapter nativo.', tokenCount: 10 },
+          ],
+          metadata: { importedFrom: 'arquivo-json' },
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+      expect(body.data.client).toBe('codex');
+      expect(body.data.externalSessionId).toBe('codex-session-1');
+      expect(body.data.messageCount).toBe(2);
+      expect(body.data.retentionUntil).toBeDefined();
+      chatId = body.data.id;
+    });
+
+    it('GET /workspaces/:workspaceSlug/projects/:projectSlug/chats lista sessões filtrando por client', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/workspaces/default/projects/default/chats?client=codex&q=sync',
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: chatId,
+            client: 'codex',
+            messageCount: 2,
+          }),
+        ]),
+      );
+    });
+
+    it('GET /workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId retorna mensagens', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/api/v1/workspaces/default/projects/default/chats/${chatId}`,
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().data.messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            role: 'user',
+            content: 'Corrija o pull do Codex.',
+          }),
+        ]),
+      );
+    });
+
+    it('GET /workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId/export retorna markdown', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/api/v1/workspaces/default/projects/default/chats/${chatId}/export?format=markdown`,
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.headers['content-type']).toContain('text/markdown');
+      expect(res.body).toContain('# Correção sync multi-client');
+      expect(res.body).toContain('## user');
+    });
+
+    it('POST /workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId/summarize atualiza resumo', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/v1/workspaces/default/projects/default/chats/${chatId}/summarize`,
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().data.summary).toContain('Corrija o pull do Codex.');
+    });
+
+    it('POST /workspaces/:workspaceSlug/projects/:projectSlug/chats rejeita segredo provável antes de persistir', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/workspaces/default/projects/default/chats',
+        headers: { authorization: `Bearer ${apiKey}` },
+        payload: {
+          client: 'codex',
+          session: 'codex-session-leak',
+          title: 'Sessão com segredo',
+          messages: [
+            { role: 'user', content: 'MYINST_API_KEY=myinst_12345678901234567890' },
+          ],
+        },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error.code).toBe('SECRET_DETECTED');
     });
   });
 

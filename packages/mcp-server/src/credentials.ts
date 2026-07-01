@@ -4,11 +4,17 @@ import { join } from 'node:path';
 
 const MYINST_DIR = '.myinst';
 const CREDENTIALS_FILE = 'credentials.json';
+const CONFIG_FILE = 'config.json';
 
 export interface Credenciais {
   token: string;
   serverUrl: string;
   connectedAt: string;
+}
+
+export interface ConfigCli {
+  apiKey: string;
+  server: string;
 }
 
 function obterCaminhoCredenciais(): string {
@@ -26,6 +32,22 @@ export async function lerCredenciais(): Promise<Credenciais | null> {
     const dados = JSON.parse(conteudo) as Credenciais;
 
     if (!dados.token || !dados.serverUrl) {
+      return null;
+    }
+
+    return dados;
+  } catch {
+    return null;
+  }
+}
+
+export async function lerConfigCli(): Promise<ConfigCli | null> {
+  try {
+    const caminho = join(obterDiretorioMyInst(), CONFIG_FILE);
+    const conteudo = await readFile(caminho, 'utf-8');
+    const dados = JSON.parse(conteudo) as ConfigCli;
+
+    if (!dados.apiKey || !dados.server) {
       return null;
     }
 

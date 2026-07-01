@@ -1,6 +1,6 @@
 {
   "name": "@myinst/shared",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "description": "Tipos e schemas compartilhados do MyInst",
   "type": "module",
   "license": "AGPL-3.0",
@@ -19,6 +19,10 @@
     "./sync-targets": {
       "types": "./dist/sync-targets/index.d.ts",
       "import": "./dist/sync-targets/index.js"
+    },
+    "./security": {
+      "types": "./dist/security.d.ts",
+      "import": "./dist/security.js"
     }
   },
   "scripts": {

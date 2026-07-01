@@ -1,6 +1,6 @@
 # @myinst/cli
 
-CLI oficial do MyInst para login, listagem, status, pull, push e Project State do vault.
+CLI oficial do MyInst para login, listagem, status, pull, push, Project State e histórico de chats do vault.
 
 Versão atual: `0.1.0-beta.2`.
 
@@ -15,6 +15,8 @@ npm install -g @myinst/cli
 ```bash
 myinst --help
 myinst login
+myinst login --server https://api-myinst.lotoscore.com.br
+myinst login --server http://localhost:3000 --api-key myinst_xxx
 myinst status
 myinst pull
 myinst push
@@ -26,13 +28,18 @@ myinst state capture memory "Contexto do deploy" --body "Deploy ocorre por push 
 myinst state push .myinst/state/drafts/memory-contexto-do-deploy.json --reviewed
 myinst state pull
 myinst state search "deploy"
+myinst chat push --project default --client codex --session sessao-1 --file chat.json
+myinst chat list --project default --client codex
+myinst chat show sessao-1 --project default
+myinst chat export sessao-1 --project default --format markdown
+myinst chat summarize sessao-1 --project default
 ```
 
 ## Sync tipo repositorio remoto
 
 `myinst status [projeto]` compara arquivos locais, vault remoto e `.myinst/sync-state.json`, mostrando pendências de pull, push e conflitos.
 
-Por padrão, a CLI lê todas as estruturas de clientes detectadas no projeto atual. Isso inclui, por exemplo, `.claude`, `.codex`, `.cursor`, `.kimi-code`, `GEMINI.md`, `.qwen`, `.aider` e `.antigravity` quando existirem no repositório. Configurações globais da home do usuário só entram quando você usa `--scope global` ou `--scope all`.
+Por padrão, a CLI lê estruturas de clientes detectadas no projeto atual. Quando mais de um client for detectado, informe `--client` explicitamente para evitar aplicar conteúdo no layout errado. Isso inclui, por exemplo, `.claude`, `.codex`, `.cursor`, `.kimi-code`, `GEMINI.md`, `.qwen`, `.aider` e `.antigravity` quando existirem no repositório. Configurações globais da home do usuário só entram quando você usa `--scope global` ou `--scope all`.
 
 Opções de sync:
 
@@ -41,6 +48,8 @@ Opções de sync:
 - `--scope <project|global|all>` seleciona o escopo. O padrão é `project`.
 
 O manifesto é atualizado automaticamente após `myinst pull` e após `myinst push` bem-sucedido. Se houver conflito, `myinst push` é bloqueado até revisão manual.
+
+O sync bloqueia envio de segredos prováveis. Em `mcp_config` e settings, substitua valores reais por placeholders como `{{MYINST_API_KEY}}` e `{{DATABASE_URL}}`.
 
 Fluxo recomendado:
 
@@ -105,6 +114,20 @@ Comandos disponíveis:
 - `myinst state search <query>` busca Project State com `scope=state`.
 
 O push exige `metadata.reviewed=true` e bloqueia padrões prováveis de segredos como tokens, senhas, `.env` e connection strings.
+
+## Histórico de chats
+
+`myinst chat` importa histórico apenas por arquivo explícito. A CLI não varre transcripts locais automaticamente.
+
+Comandos disponíveis:
+
+- `myinst chat push --project <slug> --client <client> --session <id> --file <json|md>` importa uma sessão.
+- `myinst chat list --project <slug>` lista sessões importadas.
+- `myinst chat show <session-id>` mostra mensagens.
+- `myinst chat export <session-id> --format markdown` grava `.myinst/chats/<session-id>.md`.
+- `myinst chat summarize <session-id>` atualiza o resumo no servidor.
+
+Arquivos JSON devem conter `messages`; Markdown entra como uma mensagem única revisada. O backend bloqueia padrões prováveis de segredo antes de persistir.
 
 ## Requisitos
 

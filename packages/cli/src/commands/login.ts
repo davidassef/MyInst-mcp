@@ -1,5 +1,4 @@
-import { createInterface } from 'node:readline/promises';
-import { stdin, stdout } from 'node:process';
+import { iniciarLoginBrowser, validarServidor } from '../auth-browser.js';
 import { salvarConfig } from '../config.js';
 
 const VERDE = '\x1b[32m';
@@ -7,42 +6,49 @@ const VERMELHO = '\x1b[31m';
 const CINZA = '\x1b[90m';
 const RESET = '\x1b[0m';
 
-async function validarServidor(server: string, apiKey: string): Promise<boolean> {
+interface LoginOptions {
+  server?: string;
+  apiKey?: string;
+}
+
+export async function executarLogin(options: LoginOptions = {}): Promise<void> {
   try {
-    const resposta = await fetch(`${server}/api/v1/workspaces`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-    return resposta.ok;
-  } catch {
-    return false;
+    if (options.apiKey) {
+      await executarLoginManual(options);
+      return;
+    }
+
+    console.log(`${CINZA}[INFO] Abrindo navegador para conectar o MyInst...${RESET}`);
+    const config = await iniciarLoginBrowser({ server: options.server });
+    salvarConfig(config);
+    console.log(`${VERDE}[SUCCESS] Autenticado com sucesso. Configuracao salva.${RESET}`);
+  } catch (erro) {
+    if (erro instanceof Error) {
+      console.error(`${VERMELHO}[ERROR] ${erro.message}${RESET}`);
+      process.exit(1);
+    }
+
+    throw erro;
   }
 }
 
-export async function executarLogin(): Promise<void> {
-  const rl = createInterface({ input: stdin, output: stdout });
+async function executarLoginManual(options: LoginOptions): Promise<void> {
+  const server = (options.server || 'https://api-myinst.lotoscore.com.br').replace(/\/$/, '');
+  const apiKey = options.apiKey;
 
-  try {
-    const server = (await rl.question(`${CINZA}URL do servidor (http://localhost:3000):${RESET} `)) || 'http://localhost:3000';
-    const apiKey = await rl.question(`${CINZA}API Key:${RESET} `);
-
-    if (!apiKey) {
-      console.error(`${VERMELHO}[ERROR] API Key obrigatoria${RESET}`);
-      process.exit(1);
-    }
-
-    const serverNormalizado = server.replace(/\/$/, '');
-
-    process.stdout.write(`${CINZA}Validando credenciais...${RESET}`);
-    const valido = await validarServidor(serverNormalizado, apiKey);
-
-    if (!valido) {
-      console.error(`\n${VERMELHO}[ERROR] Nao foi possivel conectar ao servidor ou API Key invalida${RESET}`);
-      process.exit(1);
-    }
-
-    salvarConfig({ server: serverNormalizado, apiKey });
-    console.log(`\n${VERDE}[SUCCESS] Autenticado com sucesso. Configuracao salva.${RESET}`);
-  } finally {
-    rl.close();
+  if (!apiKey) {
+    console.error(`${VERMELHO}[ERROR] API Key obrigatoria${RESET}`);
+    process.exit(1);
   }
+
+  process.stdout.write(`${CINZA}Validando credenciais...${RESET}`);
+  const valido = await validarServidor(server, apiKey);
+
+  if (!valido) {
+    console.error(`\n${VERMELHO}[ERROR] Nao foi possivel conectar ao servidor ou API Key invalida${RESET}`);
+    process.exit(1);
+  }
+
+  salvarConfig({ server, apiKey });
+  console.log(`\n${VERDE}[SUCCESS] Autenticado com sucesso. Configuracao salva.${RESET}`);
 }

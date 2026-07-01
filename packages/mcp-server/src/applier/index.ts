@@ -82,16 +82,9 @@ Use o MyInst como fluxo local-first para materializar, editar e sincronizar cont
 - Busca de projeto: myinst_search com workspace e project quando o contexto nao for o default.
 
 ## Arquivos materializados
-- Skills: .claude/skills/{slug}.md
-- Instructions: .claude/CLAUDE.md
-- Agents: .claude/agents/{slug}.md
-- Commands: .claude/commands/{slug}.md
-- Hooks: .claude/hook-{slug}.md
-- Memory: .claude/memory/{slug}.md
-- Output Styles: .claude/output-styles/{slug}.md
-- Snippets: .claude/snippets/{slug}.md
-- MCP Config: .mcp.json
+- Conteudo canonico de projeto: .myinst/content/{tipo}/{slug}
 - Settings globais: .myinst/client-profiles/{clientId}/settings/{slug}.json
+- Layouts nativos de clientes: use myinst_pull com targetFormat="native" e clients explicitos
 
 ## Regra final
 O ciclo correto e sempre:
@@ -99,22 +92,22 @@ myinst_pull -> trabalho local -> myinst_push
 `;
 
 const MAPEAMENTO_DIRETORIO: Record<string, string> = {
-  skill: '.claude/skills',
-  instruction: '.claude',
-  mcp_config: '.',
-  agent: '.claude/agents',
-  command: '.claude/commands',
-  hook: '.claude',
-  memory: '.claude/memory',
-  output_style: '.claude/output-styles',
-  setting: '.myinst/settings',
-  snippet: '.claude/snippets',
+  skill: '.myinst/content/skills',
+  instruction: '.myinst/content/instructions',
+  mcp_config: '.myinst/content/mcp-config',
+  agent: '.myinst/content/agents',
+  command: '.myinst/content/commands',
+  hook: '.myinst/content/hooks',
+  memory: '.myinst/content/memory',
+  output_style: '.myinst/content/output-styles',
+  setting: '.myinst/content/settings',
+  snippet: '.myinst/content/snippets',
 };
 
 const MAPEAMENTO_ARQUIVO: Record<string, (slug: string) => string> = {
   skill: (slug) => `${slug}.md`,
-  instruction: (_slug) => 'CLAUDE.md',
-  mcp_config: (_slug) => '.mcp.json',
+  instruction: (slug) => `${slug}.md`,
+  mcp_config: (slug) => `${slug}.json`,
   agent: (slug) => `${slug}.md`,
   command: (slug) => `${slug}.md`,
   hook: (slug) => `hook-${slug}.md`,
