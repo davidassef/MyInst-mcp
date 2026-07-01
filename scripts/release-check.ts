@@ -90,6 +90,8 @@ function validarPacks(versao: string) {
       throw new Error(`${pacote.nome} pack não declara dist em files`);
     }
 
+    validarManifestSemWorkspaceProtocol(pacote.nome, manifest);
+
     const distIndex = pacote.nome === '@myinst/shared'
       ? 'package/dist/index.js'
       : 'package/dist/index.js';
@@ -98,6 +100,23 @@ function validarPacks(versao: string) {
   }
 
   console.log('[SUCCESS] Tarballs npm contêm manifests e dist válidos');
+}
+
+function validarManifestSemWorkspaceProtocol(nomePacote: string, manifest: Record<string, unknown>) {
+  const gruposDependencias = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
+
+  for (const grupo of gruposDependencias) {
+    const dependencias = manifest[grupo];
+    if (!dependencias || typeof dependencias !== 'object' || Array.isArray(dependencias)) {
+      continue;
+    }
+
+    for (const [nome, versao] of Object.entries(dependencias as Record<string, unknown>)) {
+      if (typeof versao === 'string' && versao.startsWith('workspace:')) {
+        throw new Error(`${nomePacote} pack contém dependência ${grupo}.${nome}=${versao}; publique com versão npm explícita`);
+      }
+    }
+  }
 }
 
 function validarRegistryNpm(versao: string) {

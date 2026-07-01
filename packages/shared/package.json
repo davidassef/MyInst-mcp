@@ -1,6 +1,6 @@
 {
   "name": "@myinst/shared",
-  "version": "0.1.0-beta.5",
+  "version": "0.1.0-beta.6",
   "description": "Tipos e schemas compartilhados do MyInst",
   "type": "module",
   "license": "AGPL-3.0",

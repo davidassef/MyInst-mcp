@@ -1,6 +1,6 @@
 {
   "name": "@myinst/cli",
-  "version": "0.1.0-beta.5",
+  "version": "0.1.0-beta.6",
   "description": "CLI para gerenciar seu vault MyInst",
   "type": "module",
   "license": "AGPL-3.0",
@@ -34,7 +34,7 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@myinst/shared": "workspace:*",
+    "@myinst/shared": "0.1.0-beta.6",
     "commander": "^13.1.0"
   },
   "devDependencies": {

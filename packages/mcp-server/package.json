@@ -1,6 +1,6 @@
 {
   "name": "@myinst/mcp-server",
-  "version": "0.1.0-beta.5",
+  "version": "0.1.0-beta.6",
   "description": "MCP server para sincronizar instruções e configurações de IA do vault MyInst",
   "type": "module",
   "license": "AGPL-3.0",
@@ -44,7 +44,7 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@myinst/shared": "workspace:*",
+    "@myinst/shared": "0.1.0-beta.6",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "zod": "^3.24.0"
   },
