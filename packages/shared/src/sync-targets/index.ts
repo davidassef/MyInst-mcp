@@ -203,7 +203,8 @@ export async function exportarParaClientesNativos(
   scope: EscopoSync = 'all',
   clients?: string[],
 ): Promise<{ targets: SyncTarget[]; results: EscritaCliente[] }> {
-  const targets = await listarSyncTargets(projectDir, scope, clients);
+  const targetsDetectados = await listarSyncTargets(projectDir, scope, clients);
+  const targets = adicionarTargetCodexExplicito(projectDir, scope, clients, targetsDetectados);
   const itemsValidos = items
     .filter((item): item is ItemSincronizavel => TIPOS_FULL.includes(item.type as TipoSincronizavel))
     .map((item) => ({ ...item, type: item.type as TipoSincronizavel }));
@@ -216,6 +217,30 @@ export async function exportarParaClientesNativos(
   }
 
   return { targets, results };
+}
+
+function adicionarTargetCodexExplicito(
+  projectDir: string,
+  scope: EscopoSync,
+  clients: string[] | undefined,
+  targets: SyncTarget[],
+): SyncTarget[] {
+  if (!clients?.includes('codex')) return targets;
+  if (scope === 'global') return targets;
+  if (targets.some((target) => target.clientId === 'codex' && target.scope === 'project')) return targets;
+
+  return [
+    ...targets,
+    {
+      clientId: 'codex',
+      clientName: 'Codex',
+      supportLevel: 'full',
+      scope: 'project',
+      detectedPaths: [join(resolve(projectDir), '.codex', 'AGENTS.md')],
+      supportedTypes: TIPOS_FULL,
+      estimatedItemCount: 0,
+    },
+  ];
 }
 
 export function obterClientesSuportados() {

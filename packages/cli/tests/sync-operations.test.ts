@@ -71,10 +71,7 @@ describe('sync operations', () => {
 
     const fetchMock = vi.fn().mockResolvedValue(respostaJson({
       data: {
-        items: [{
-          ...itemRemoto('instruction', 'agents', 'Instrucoes novas'),
-          clientId: 'codex',
-        }],
+        items: [itemRemoto('instruction', 'agents', 'Instrucoes novas', { clientId: undefined })],
         serverTime: '2026-06-27T00:00:00.000Z',
       },
     }));
@@ -117,14 +114,11 @@ describe('sync operations', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('pull nao marca item como aplicado quando a estrutura nativa do client nao existe', async () => {
+  it('pull com client Codex explicito cria layout nativo mesmo sem estrutura previa', async () => {
     const dir = await criarDirTemp(temporarios);
     const fetchMock = vi.fn().mockResolvedValue(respostaJson({
       data: {
-        items: [{
-          ...itemRemoto('instruction', 'agents', 'Instrucoes novas'),
-          clientId: 'codex',
-        }],
+        items: [itemRemoto('instruction', 'agents', 'Instrucoes novas', { clientId: undefined })],
         serverTime: '2026-06-27T00:00:00.000Z',
       },
     }));
@@ -138,9 +132,11 @@ describe('sync operations', () => {
       fetchImpl: fetchMock,
     });
     const manifesto = await lerManifestoSync(dir, 'default', 'default');
+    const conteudo = await readFile(join(dir, '.codex', 'AGENTS.md'), 'utf-8');
 
-    expect(resultado.aplicados).toHaveLength(0);
-    expect(manifesto?.items).toHaveLength(0);
+    expect(conteudo).toBe('Instrucoes novas');
+    expect(resultado.aplicados).toHaveLength(1);
+    expect(manifesto?.items).toHaveLength(1);
     await expect(readFile(join(dir, '.claude', 'CLAUDE.md'), 'utf-8')).rejects.toThrow();
   });
 
@@ -246,7 +242,7 @@ async function criarSkillLocal(dir: string, slug: string, body: string): Promise
   await writeFile(join(pasta, `${slug}.md`), body, 'utf-8');
 }
 
-function itemRemoto(type: string, slug: string, body: string) {
+function itemRemoto(type: string, slug: string, body: string, overrides: Record<string, unknown> = {}) {
   return {
     id: slug,
     clientId: 'claude',
@@ -259,6 +255,7 @@ function itemRemoto(type: string, slug: string, body: string) {
     tags: [],
     version: 1,
     updatedAt: '2026-06-27T00:00:00.000Z',
+    ...overrides,
   };
 }
 

@@ -32,7 +32,7 @@ import {
   type TipoSincronizavel,
 } from './sync-targets/index.js';
 
-const MYINST_VERSION = '0.1.0-beta.4';
+const MYINST_VERSION = '0.1.0-beta.5';
 const SCOPES_SYNC = ['project', 'global', 'all'] as const;
 const FORMATOS_PULL = ['myinst', 'native'] as const;
 const TIPOS_CANONICOS = ['skill', 'instruction', 'mcp_config', 'agent', 'command', 'hook', 'memory', 'output_style', 'setting', 'snippet'] as const;
@@ -663,18 +663,18 @@ server.tool(
       return respostaTexto(linhas.join('\n'));
     }
 
-    if (carregamento.targets.length === 0) {
+    if (carregamento.targets.length === 0 && !clients?.length) {
       return respostaTexto(montarMensagemSemClientes(dir, scope, clients));
     }
 
     const exportacao = await exportarParaClientesNativos(
       dir,
       normalizarItensVault(carregamento.items),
-      scope,
-      [...new Set(carregamento.targets.map((target) => target.clientId))],
+      scope || 'project',
+      clients?.length ? clients : [...new Set(carregamento.targets.map((target) => target.clientId))],
     );
 
-      if (dryRun) {
+    if (dryRun) {
       return respostaTexto([
         `[DRY RUN] Exportação nativa para ${dir}`,
         montarResumoPullOrigem(carregamento),

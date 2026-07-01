@@ -325,7 +325,10 @@ async function buscarSnapshotProjeto(
     body: JSON.stringify({ scope: 'project', workspace, project: params.project }),
   });
 
-  return lerRespostaSnapshot(resposta, { scope: 'project' });
+  return lerRespostaSnapshot(resposta, {
+    scope: 'project',
+    clientId: resolverClientProjetoExplicito(params),
+  });
 }
 
 async function buscarSnapshotGlobal(
@@ -436,6 +439,13 @@ function normalizarConteudoRemoto(conteudo: ConteudoSyncRemoto): ConteudoSyncRem
   const scope = conteudo.scope || lerScopeMetadata(conteudo.metadata);
 
   return { ...conteudo, clientId, scope };
+}
+
+function resolverClientProjetoExplicito(params: OperacaoSyncParams): string | undefined {
+  const clients = params.clients ?? [];
+  if (clients.length !== 1) return undefined;
+
+  return clients[0];
 }
 
 function listarClientsGlobais(params: OperacaoSyncParams, locais: ConteudoSyncLocal[]): string[] {
