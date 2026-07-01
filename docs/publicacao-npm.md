@@ -12,16 +12,14 @@ O pacote shared é dependência do mcp-server, então precisa ser publicado prim
 
 ```bash
 cd packages/shared
-pnpm build
-npm publish --access public
+pnpm publish --access public
 ```
 
 ## Publicar @myinst/mcp-server
 
 ```bash
 cd packages/mcp-server
-pnpm build
-npm publish --access public
+pnpm publish --access public
 ```
 
 ## Publicar @myinst/cli
@@ -48,8 +46,7 @@ Publicação:
 
 ```bash
 cd packages/cli
-pnpm build
-npm publish --access public
+pnpm publish --access public --tag beta
 ```
 
 ## Verificar publicação
@@ -83,6 +80,7 @@ pnpm version patch
 
 - O `workspace:*` no `@myinst/shared` é automaticamente resolvido pelo pnpm para a versão real ao publicar
 - Para a release `@myinst/cli@0.1.0-beta.2`, `@myinst/shared@0.1.0-beta.1` já está publicado e não precisa de novo publish se não houver alteração nele
+- Como `0.1.0-beta.2` é prerelease, publique com dist-tag `beta`, não `latest`
 - O campo `files` no package.json garante que apenas `dist/` é publicado
 - O `prepublishOnly` script garante que o build roda antes de publicar
 - A licença AGPL-3.0 é incluída automaticamente

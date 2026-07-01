@@ -24,7 +24,8 @@
     "url": "https://github.com/davidassef/MyInst-mcp/issues"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "tag": "beta"
   },
   "scripts": {
     "build": "tsc",
