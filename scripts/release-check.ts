@@ -28,9 +28,11 @@ async function main() {
 
   console.log(`[SUCCESS] Versões alinhadas em ${versao}`);
 
-  executar('pnpm', ['--filter', '@myinst/shared', 'build']);
-  executar('pnpm', ['--filter', '@myinst/mcp-server', 'build']);
-  executar('pnpm', ['--filter', '@myinst/cli', 'build']);
+  validarLockfileCongelado();
+
+  executarPnpm(['--filter', '@myinst/shared', 'build']);
+  executarPnpm(['--filter', '@myinst/mcp-server', 'build']);
+  executarPnpm(['--filter', '@myinst/cli', 'build']);
 
   validarBinariosLocais(versao);
   validarLiteralsDeVersao(versao);
@@ -49,6 +51,11 @@ function carregarVersoes(): Record<string, string> {
     const manifest = JSON.parse(readFileSync(join(process.cwd(), pacote.dir, 'package.json'), 'utf-8'));
     return [pacote.nome, manifest.version];
   }));
+}
+
+function validarLockfileCongelado() {
+  executarPnpm(['install', '--frozen-lockfile', '--lockfile-only', '--config.minimumReleaseAge=0']);
+  console.log('[SUCCESS] Lockfile está alinhado com os manifests');
 }
 
 function validarBinariosLocais(versao: string) {
@@ -78,7 +85,7 @@ function validarPacks(versao: string) {
   mkdirSync(destinoPack, { recursive: true });
 
   for (const pacote of pacotes) {
-    executar('pnpm', ['--filter', pacote.nome, 'pack', '--pack-destination', destinoPack]);
+    executarPnpm(['--filter', pacote.nome, 'pack', '--pack-destination', destinoPack]);
     const tarball = encontrarTarball(pacote, versao);
     const manifest = JSON.parse(executar('tar', ['-xOf', tarball, 'package/package.json'], { capture: true }));
 
@@ -160,6 +167,10 @@ function encontrarTarball(pacote: PacotePublicavel, versao: string): string {
   }
 
   return join(destinoPack, arquivo);
+}
+
+function executarPnpm(args: string[], options: { capture?: boolean } = {}): string {
+  return executar('corepack', ['pnpm', ...args], options);
 }
 
 function executar(
