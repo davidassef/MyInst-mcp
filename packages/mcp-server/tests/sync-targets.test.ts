@@ -6,10 +6,20 @@ import { join } from 'node:path';
 describe('sync targets', () => {
   let tempDir: string;
   let tempHome: string;
+  let homeOriginal: string | undefined;
+  let userProfileOriginal: string | undefined;
+  let geminiHomeOriginal: string | undefined;
 
   beforeAll(async () => {
+    homeOriginal = process.env.HOME;
+    userProfileOriginal = process.env.USERPROFILE;
+    geminiHomeOriginal = process.env.GEMINI_CLI_HOME;
+
     tempDir = await mkdtemp(join(tmpdir(), 'myinst-sync-project-'));
     tempHome = await mkdtemp(join(tmpdir(), 'myinst-sync-home-'));
+    process.env.HOME = tempHome;
+    process.env.USERPROFILE = tempHome;
+    process.env.GEMINI_CLI_HOME = join(tempHome, '.gemini');
 
     await mkdir(join(tempDir, '.claude', 'skills'), { recursive: true });
     await mkdir(join(tempDir, '.cursor', 'rules'), { recursive: true });
@@ -95,6 +105,9 @@ describe('sync targets', () => {
   afterAll(async () => {
     vi.resetModules();
     vi.doUnmock('node:os');
+    restaurarEnv('HOME', homeOriginal);
+    restaurarEnv('USERPROFILE', userProfileOriginal);
+    restaurarEnv('GEMINI_CLI_HOME', geminiHomeOriginal);
     await rm(tempDir, { recursive: true, force: true });
     await rm(tempHome, { recursive: true, force: true });
   });
@@ -330,4 +343,13 @@ describe('sync targets', () => {
 
 async function importarModulo() {
   return await import('../src/sync-targets/index.js');
+}
+
+function restaurarEnv(nome: string, valor: string | undefined) {
+  if (valor === undefined) {
+    delete process.env[nome];
+    return;
+  }
+
+  process.env[nome] = valor;
 }
