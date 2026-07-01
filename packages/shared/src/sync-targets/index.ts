@@ -226,7 +226,22 @@ function adicionarTargetCodexExplicito(
   targets: SyncTarget[],
 ): SyncTarget[] {
   if (!clients?.includes('codex')) return targets;
-  if (scope === 'global') return targets;
+
+  if (scope === 'global') {
+    return [
+      ...targets.filter((target) => target.clientId !== 'codex' || target.scope !== 'global'),
+      {
+        clientId: 'codex',
+        clientName: 'Codex',
+        supportLevel: 'full',
+        scope: 'global',
+        detectedPaths: [join(resolve(projectDir), '.codex', 'config.toml')],
+        supportedTypes: ['skill', 'instruction', 'mcp_config', 'setting'],
+        estimatedItemCount: 0,
+      },
+    ];
+  }
+
   if (targets.some((target) => target.clientId === 'codex' && target.scope === 'project')) return targets;
 
   return [
@@ -1312,9 +1327,7 @@ async function escreverEstruturaClaudeGlobal(items: ItemSincronizavel[], target:
 }
 
 async function escreverEstruturaCodex(items: ItemSincronizavel[], target: SyncTarget): Promise<EscritaCliente> {
-  const base = target.scope === 'global'
-    ? join(homedir(), '.codex')
-    : join(resolverRaizProjetoPorPath(target.detectedPaths[0]), '.codex');
+  const base = join(resolverRaizProjetoPorPath(target.detectedPaths[0]), '.codex');
 
   const written: EscritaCliente['written'] = [];
   const ignored: EscritaCliente['ignored'] = [];

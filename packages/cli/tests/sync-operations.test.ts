@@ -140,6 +140,32 @@ describe('sync operations', () => {
     await expect(readFile(join(dir, '.claude', 'CLAUDE.md'), 'utf-8')).rejects.toThrow();
   });
 
+  it('pull global com client Codex explicito cria layout nativo mesmo sem estrutura previa', async () => {
+    const dir = await criarDirTemp(temporarios);
+    const fetchMock = vi.fn().mockResolvedValue(respostaJson({
+      data: {
+        items: [itemRemoto('setting', 'codex-config', 'sandbox_mode = "workspace-write"', { clientId: 'codex', scope: 'global' })],
+        serverTime: '2026-06-27T00:00:00.000Z',
+      },
+    }));
+
+    const resultado = await executarPullSincronizado({
+      config,
+      diretorio: dir,
+      project: 'default',
+      workspace: 'default',
+      scope: 'global',
+      clients: ['codex'],
+      fetchImpl: fetchMock,
+      homeDir: dir,
+    });
+    const conteudo = await readFile(join(dir, '.codex', 'config.toml'), 'utf-8');
+
+    expect(conteudo).toBe('sandbox_mode = "workspace-write"');
+    expect(resultado.aplicados).toHaveLength(1);
+    await expect(readFile(join(dir, '.claude', 'settings.json'), 'utf-8')).rejects.toThrow();
+  });
+
   it('push bloqueia envio local quando conteúdo contém segredo provável', async () => {
     const dir = await criarDirTemp(temporarios);
     await criarSkillLocal(dir, 'leak', 'Use MYINST_API_KEY=myinst_12345678901234567890');

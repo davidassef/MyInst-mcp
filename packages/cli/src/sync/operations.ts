@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import {
   exportarParaClientesNativos,
@@ -26,6 +27,7 @@ export interface OperacaoSyncParams {
   scope?: EscopoSync;
   clients?: string[];
   fetchImpl?: typeof fetch;
+  homeDir?: string;
 }
 
 export interface ResultadoPullSincronizado {
@@ -74,7 +76,7 @@ export async function executarPullSincronizado(params: OperacaoSyncParams): Prom
   await garantirSelecaoCliente(params);
   const locaisAntesDoPull = await lerConteudoLocal(params.diretorio, { scope: params.scope, clients: params.clients });
   const remoto = await buscarSnapshotRemoto(params, locaisAntesDoPull);
-  const aplicacao = await aplicarConteudo(remoto.items, params.diretorio);
+  const aplicacao = await aplicarConteudo(remoto.items, params.diretorio, params.homeDir);
   const locais = await lerConteudoLocal(params.diretorio, { scope: params.scope, clients: params.clients });
   const manifesto = criarSnapshotManifesto({
     workspace,
@@ -220,14 +222,19 @@ export async function lerConteudoLocal(
   });
 }
 
-async function aplicarConteudo(conteudos: ConteudoSyncRemoto[], targetDir: string): Promise<ResultadoAplicacaoConteudo> {
+async function aplicarConteudo(
+  conteudos: ConteudoSyncRemoto[],
+  targetDir: string,
+  homeDir = homedir(),
+): Promise<ResultadoAplicacaoConteudo> {
   const aplicados: string[] = [];
   const itensAplicados: ConteudoSyncRemoto[] = [];
   const grupos = agruparPorClientEscopo(conteudos);
 
   for (const grupo of grupos.values()) {
+    const diretorioExportacao = grupo.scope === 'global' ? homeDir : targetDir;
     const exportacao = await exportarParaClientesNativos(
-      targetDir,
+      diretorioExportacao,
       grupo.conteudos.map(converterRemotoParaItemSincronizavel),
       grupo.scope,
       [grupo.clientId],

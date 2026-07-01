@@ -140,8 +140,8 @@ importers:
   packages/cli:
     dependencies:
       '@myinst/shared':
-        specifier: 0.1.0-beta.6
-        version: 0.1.0-beta.6
+        specifier: workspace:*
+        version: link:../shared
       commander:
         specifier: ^13.1.0
         version: 13.1.0
@@ -165,8 +165,8 @@ importers:
         specifier: ^1.12.0
         version: 1.29.0(zod@3.25.76)
       '@myinst/shared':
-        specifier: 0.1.0-beta.6
-        version: 0.1.0-beta.6
+        specifier: workspace:*
+        version: link:../shared
       zod:
         specifier: ^3.24.0
         version: 3.25.76
@@ -829,9 +829,6 @@ packages:
     peerDependenciesMeta:
       '@cfworker/json-schema':
         optional: true
-
-  '@myinst/shared@0.1.0-beta.6':
-    resolution: {integrity: sha512-TiUWsx3eo5BllFEZC/S5XJwz5jbIPPooCg5tCZt2q3R/HYSsNXlek/QP1vyhPfPHRFLoAjJv3vyc0r7w5nuWYA==}
 
   '@noble/hashes@1.8.0':
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
@@ -2839,10 +2836,6 @@ snapshots:
       zod-to-json-schema: 3.25.2(zod@3.25.76)
     transitivePeerDependencies:
       - supports-color
-
-  '@myinst/shared@0.1.0-beta.6':
-    dependencies:
-      zod: 3.25.76
 
   '@noble/hashes@1.8.0': {}
 
