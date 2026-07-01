@@ -278,7 +278,8 @@ function montarFiltrosListagemChat(
   const textoBusca = query.q?.trim();
   if (textoBusca) {
     filtros.push(sql`(
-      to_tsvector('portuguese', coalesce(${chatSessions.title}, '') || ' ' || coalesce(${chatSessions.summary}, ''))
+      ${chatSessions.externalSessionId} = ${textoBusca}
+      OR to_tsvector('portuguese', coalesce(${chatSessions.title}, '') || ' ' || coalesce(${chatSessions.summary}, ''))
         @@ plainto_tsquery('portuguese', ${textoBusca})
       OR EXISTS (
         SELECT 1

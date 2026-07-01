@@ -30,7 +30,7 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --config.minimumReleaseAge=0
 
       - name: Lint
         run: pnpm lint
@@ -40,3 +40,9 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      - name: Compose check
+        run: pnpm compose:check
+
+      - name: Release check local
+        run: pnpm release:check --skip-npm

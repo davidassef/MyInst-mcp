@@ -1,0 +1,88 @@
+name: release-smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      package-version:
+        description: npm version, dist-tag or range to validate
+        required: true
+        default: latest
+      api-base-url:
+        description: Public API base URL for optional production smoke
+        required: true
+        default: https://api-myinst.lotoscore.com.br
+      run-production-smoke:
+        description: Run production API smoke that creates temporary test data
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  published-packages:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate published CLI
+        run: npx --yes @myinst/cli@${{ inputs['package-version'] }} --version
+
+      - name: Validate published MCP server
+        run: npx --yes @myinst/mcp-server@${{ inputs['package-version'] }} --version
+
+  release-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --config.minimumReleaseAge=0
+
+      - name: Validate release against npm
+        run: pnpm release:check
+
+  production-smoke:
+    runs-on: ubuntu-latest
+    if: ${{ inputs['run-production-smoke'] }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --config.minimumReleaseAge=0
+
+      - name: Run production API smoke
+        run: pnpm smoke
+        env:
+          MYINST_SMOKE_BASE_URL: ${{ inputs['api-base-url'] }}

@@ -1333,6 +1333,24 @@ describe('MyInst API', () => {
       );
     });
 
+    it('GET /workspaces/:workspaceSlug/projects/:projectSlug/chats filtra por id externo da sessão', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/workspaces/default/projects/default/chats?q=codex-session-1',
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: chatId,
+            externalSessionId: 'codex-session-1',
+          }),
+        ]),
+      );
+    });
+
     it('GET /workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId retorna mensagens', async () => {
       const res = await app.inject({
         method: 'GET',
