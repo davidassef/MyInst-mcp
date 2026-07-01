@@ -1010,6 +1010,21 @@ describe('MyInst API', () => {
       );
     });
 
+    it('GET /client-profiles/:clientId/items com active=true não vaza itens de outro cliente', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/client-profiles/codex/items?active=true',
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const slugs = res.json().data.map((perfilItem: { slug: string }) => perfilItem.slug);
+
+      expect(slugs).toContain('infra-local-global');
+      expect(slugs).not.toContain('commit-global');
+      expect(slugs).not.toContain('claude-base');
+    });
+
     it('GET /client-profiles reflete quantidade de itens por cliente', async () => {
       const res = await app.inject({
         method: 'GET',

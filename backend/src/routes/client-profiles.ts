@@ -36,21 +36,21 @@ export async function clientProfileRoutes(app: FastifyInstance) {
     const { type, active } = request.query as { type?: string; active?: string };
     const perfil = await obterOuCriarClientProfile(request.user.id, clientProfileIdSchema.parse(clientId));
 
-    let query = db
-      .select()
-      .from(clientProfileItems)
-      .where(eq(clientProfileItems.clientProfileId, perfil.id))
-      .$dynamic();
+    const filtros = [eq(clientProfileItems.clientProfileId, perfil.id)];
 
     if (type) {
-      query = query.where(eq(clientProfileItems.type, type as any));
+      filtros.push(eq(clientProfileItems.type, type as any));
     }
 
     if (active !== undefined) {
-      query = query.where(eq(clientProfileItems.isActive, active === 'true'));
+      filtros.push(eq(clientProfileItems.isActive, active === 'true'));
     }
 
-    const itens = await query;
+    const itens = await db
+      .select()
+      .from(clientProfileItems)
+      .where(and(...filtros));
+
     return {
       data: itens.map(normalizarItemClientProfile),
       meta: { total: itens.length, page: 1, perPage: 100 },
