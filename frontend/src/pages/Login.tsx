@@ -36,7 +36,7 @@ const SLIDES_LANDING: SlideLanding[] = [
       titulo: 'Instalação rápida',
       codigo: `npm install -g @myinst/cli
 myinst login
-myinst pull default`,
+myinst pull default --client codex`,
     },
     destaques: [
       {
@@ -58,9 +58,9 @@ myinst pull default`,
     icone: GitCompareArrows,
     comando: {
       titulo: 'Fluxo tipo repositório remoto',
-      codigo: `myinst pull default
-myinst status default
-myinst push default`,
+      codigo: `myinst pull default --client codex
+myinst status default --client codex
+myinst push default --client codex`,
     },
     destaques: [
       {

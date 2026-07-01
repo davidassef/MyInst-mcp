@@ -29,7 +29,7 @@ myinst state push .myinst/state/drafts/memory-contexto-do-deploy.json --reviewed
 myinst state pull
 myinst state search "deploy"
 myinst chat push --project default --client codex --session sessao-1 --file chat.json
-myinst chat list --project default --client codex
+myinst chat list --project default --client codex --tag release
 myinst chat show sessao-1 --project default
 myinst chat export sessao-1 --project default --format markdown
 myinst chat summarize sessao-1 --project default
@@ -122,7 +122,7 @@ O push exige `metadata.reviewed=true` e bloqueia padrões prováveis de segredos
 Comandos disponíveis:
 
 - `myinst chat push --project <slug> --client <client> --session <id> --file <json|md>` importa uma sessão.
-- `myinst chat list --project <slug>` lista sessões importadas.
+- `myinst chat list --project <slug> [--client <client>] [--q <texto>] [--tag <tag>] [--from <iso>] [--to <iso>]` lista sessões importadas.
 - `myinst chat show <session-id>` mostra mensagens.
 - `myinst chat export <session-id> --format markdown` grava `.myinst/chats/<session-id>.md`.
 - `myinst chat summarize <session-id>` atualiza o resumo no servidor.

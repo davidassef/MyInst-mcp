@@ -1276,11 +1276,13 @@ describe('MyInst API', () => {
           session: 'codex-session-1',
           title: 'Correção sync multi-client',
           summary: 'Sessão validou pull nativo do Codex.',
+          startedAt: '2026-07-01T10:00:00.000Z',
+          updatedAt: '2026-07-01T10:05:00.000Z',
           messages: [
             { role: 'user', content: 'Corrija o pull do Codex.', tokenCount: 8, metadata: { source: 'test' } },
             { role: 'assistant', content: 'Ajustei o adapter nativo.', tokenCount: 10 },
           ],
-          metadata: { importedFrom: 'arquivo-json' },
+          metadata: { importedFrom: 'arquivo-json', tags: ['release'] },
         },
       });
 
@@ -1312,6 +1314,25 @@ describe('MyInst API', () => {
       );
     });
 
+    it('GET /workspaces/:workspaceSlug/projects/:projectSlug/chats filtra por texto da mensagem, tag e data', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/workspaces/default/projects/default/chats?q=adapter&tag=release&from=2026-07-01T00%3A00%3A00.000Z&to=2026-07-02T00%3A00%3A00.000Z',
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: chatId,
+            externalSessionId: 'codex-session-1',
+            messageCount: 2,
+          }),
+        ]),
+      );
+    });
+
     it('GET /workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId retorna mensagens', async () => {
       const res = await app.inject({
         method: 'GET',
@@ -1330,6 +1351,18 @@ describe('MyInst API', () => {
       );
     });
 
+    it('GET /workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId aceita id externo', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/workspaces/default/projects/default/chats/codex-session-1',
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().data.id).toBe(chatId);
+      expect(res.json().data.messageCount).toBe(2);
+    });
+
     it('GET /workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId/export retorna markdown', async () => {
       const res = await app.inject({
         method: 'GET',
@@ -1346,7 +1379,7 @@ describe('MyInst API', () => {
     it('POST /workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId/summarize atualiza resumo', async () => {
       const res = await app.inject({
         method: 'POST',
-        url: `/api/v1/workspaces/default/projects/default/chats/${chatId}/summarize`,
+        url: '/api/v1/workspaces/default/projects/default/chats/codex-session-1/summarize',
         headers: { authorization: `Bearer ${apiKey}` },
       });
 

@@ -185,9 +185,9 @@ Para operadores humanos fora do fluxo MCP, use `@myinst/cli`. A CLI mantém `.my
 
 ```bash
 myinst login
-myinst pull default
-myinst status default
-myinst push default
+myinst pull default --client codex
+myinst status default --client codex
+myinst push default --client codex
 myinst status default --client codex kimi
 ```
 

@@ -299,7 +299,7 @@ Exemplos:
 ```bash
 myinst st
 myinst status default --client codex kimi
-myinst push default --scope project
+myinst push default --scope project --client codex
 myinst status default --scope all --client codex
 ```
 
@@ -326,7 +326,7 @@ Histórico de chats é separado de `project_sessions`, tem retenção padrão de
 
 ```bash
 myinst chat push --project default --client codex --session sessao-1 --file chat.json
-myinst chat list --project default
+myinst chat list --project default --client codex --tag release
 myinst chat show sessao-1 --project default
 myinst chat export sessao-1 --project default --format markdown
 myinst chat summarize sessao-1 --project default

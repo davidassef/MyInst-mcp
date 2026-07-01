@@ -132,6 +132,11 @@ chat
   .option('-p, --project <slug>', 'Slug do projeto', 'default')
   .option('-c, --client <client>', 'Filtrar por cliente')
   .option('-q, --q <texto>', 'Filtrar por texto')
+  .option('--tag <tag>', 'Filtrar por tag em metadata.tags')
+  .option('--from <iso>', 'Filtrar sessões iniciadas a partir desta data')
+  .option('--to <iso>', 'Filtrar sessões iniciadas até esta data')
+  .option('--limit <numero>', 'Limite de sessões retornadas')
+  .option('--offset <numero>', 'Deslocamento da listagem')
   .action(executarChatList);
 
 chat

@@ -46,6 +46,11 @@ interface ChatListOptions {
   project?: string;
   client?: string;
   q?: string;
+  tag?: string;
+  from?: string;
+  to?: string;
+  limit?: string;
+  offset?: string;
 }
 
 interface ChatShowOptions {
@@ -95,6 +100,11 @@ export async function executarChatList(options: ChatListOptions): Promise<void> 
 
   if (options.client) params.set('client', options.client);
   if (options.q) params.set('q', options.q);
+  if (options.tag) params.set('tag', options.tag);
+  if (options.from) params.set('from', options.from);
+  if (options.to) params.set('to', options.to);
+  if (options.limit) params.set('limit', options.limit);
+  if (options.offset) params.set('offset', options.offset);
 
   const resposta = await fetch(`${endpointChats(config, workspace, project)}?${params.toString()}`, {
     headers: headersJson(config),

@@ -300,7 +300,12 @@ Cria ou atualiza uma sessão importada explicitamente.
 
 ### GET /workspaces/:workspaceSlug/projects/:projectSlug/chats
 
-Lista sessões. Filtros opcionais: `client`, `q`, `tag`, `from`, `to`.
+Lista sessões. Filtros opcionais: `client`, `q`, `tag`, `from`, `to`, `limit`, `offset`.
+
+- `q` busca em título, resumo e conteúdo das mensagens.
+- `tag` consulta `metadata.tags`.
+- `from` e `to` filtram por `startedAt`.
+- `limit` vai de 1 a 200; o padrão é 100.
 
 ### GET /workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId
 

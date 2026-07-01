@@ -115,7 +115,7 @@ describe('Applier', () => {
         title: 'Claude Settings',
         slug: 'claude-settings',
         description: null,
-        body: '{\n  "env": {\n    "ANTHROPIC_API_KEY": "[REDACTED]"\n  }\n}',
+        body: '{\n  "env": {\n    "ANTHROPIC_API_KEY": "{{ANTHROPIC_API_KEY}}"\n  }\n}',
         metadata: {
           myinstSourceScope: 'global',
           myinstClientId: 'claude',
@@ -134,7 +134,7 @@ describe('Applier', () => {
     expect(normalizePath(resultado[4].path)).toContain('.myinst/client-profiles/claude/settings/claude-settings.json');
 
     const conteudoSetting = await readFile(resultado[4].path, 'utf-8');
-    expect(conteudoSetting).toContain('[REDACTED]');
+    expect(conteudoSetting).toContain('{{ANTHROPIC_API_KEY}}');
   });
 
   it('aplica múltiplos itens de uma vez', async () => {

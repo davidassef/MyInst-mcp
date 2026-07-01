@@ -13,8 +13,8 @@ describe('sync targets', () => {
 
     await mkdir(join(tempDir, '.claude', 'skills'), { recursive: true });
     await mkdir(join(tempDir, '.cursor', 'rules'), { recursive: true });
-    await mkdir(join(tempDir, '.codex', 'skills', 'infra-local'), { recursive: true });
-    await mkdir(join(tempHome, '.codex', 'skills', 'global-skill'), { recursive: true });
+    await mkdir(join(tempDir, '.codex', 'skills', 'myinst', 'infra-local'), { recursive: true });
+    await mkdir(join(tempHome, '.codex', 'skills', 'myinst', 'global-skill'), { recursive: true });
     await mkdir(join(tempHome, '.claude', 'agents'), { recursive: true });
     await mkdir(join(tempHome, '.claude', 'commands'), { recursive: true });
     await mkdir(join(tempHome, '.claude', 'output-styles'), { recursive: true });
@@ -29,12 +29,12 @@ describe('sync targets', () => {
     await writeFile(join(tempDir, '.claude', 'skills', 'time-a', 'deploy.md'), 'Deploy time A');
     await writeFile(join(tempDir, '.cursor', 'rules', 'backend.mdc'), 'Regra Cursor');
     await writeFile(join(tempDir, '.cursor', 'mcp.json'), '{"servers":{}}');
-    await writeFile(join(tempDir, '.codex', 'skills', 'infra-local', 'SKILL.md'), 'Skill Codex');
+    await writeFile(join(tempDir, '.codex', 'skills', 'myinst', 'infra-local', 'SKILL.md'), 'Skill Codex');
     await writeFile(join(tempDir, '.codex', 'AGENTS.md'), 'Agentes Codex');
 
     await writeFile(join(tempHome, '.codex', 'AGENTS.md'), 'Global Codex');
     await writeFile(join(tempHome, '.codex', 'config.toml'), '[mcp_servers]');
-    await writeFile(join(tempHome, '.codex', 'skills', 'global-skill', 'SKILL.md'), 'Skill Global');
+    await writeFile(join(tempHome, '.codex', 'skills', 'myinst', 'global-skill', 'SKILL.md'), 'Skill Global');
     await writeFile(join(tempHome, '.claude', 'CLAUDE.md'), 'Claude Global');
     await writeFile(join(tempHome, '.claude', 'GLOBAL_GUIDELINES.md'), 'Guidelines Globais');
     await writeFile(join(tempHome, '.claude', 'agents', 'reviewer.md'), 'Agente Revisor');

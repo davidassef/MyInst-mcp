@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { and, eq } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, lte, or, sql, type SQL } from 'drizzle-orm';
 import { criarChatSessionSchema, resumirChatSessionSchema } from '@myinst/shared';
 import { detectarSegredoProvavelEmTexto, detectarSegredoProvavelEmValor } from '@myinst/shared/security';
 import type { CriarChatSessionInput, ResumirChatSessionInput } from '@myinst/shared';
@@ -18,7 +18,15 @@ export async function chatRoutes(app: FastifyInstance) {
     const contexto = await resolverContextoProjeto(request);
     if (!contexto) return responderProjetoNaoEncontrado(reply);
 
-    const query = request.query as { client?: string; q?: string; tag?: string; from?: string; to?: string };
+    const query = request.query as {
+      client?: string;
+      q?: string;
+      tag?: string;
+      from?: string;
+      to?: string;
+      limit?: string;
+      offset?: string;
+    };
     const sessoes = await listarSessoesChat(contexto.projectId, query);
 
     return { data: sessoes };
@@ -143,40 +151,49 @@ async function resumirChat(request: FastifyRequest, reply: FastifyReply) {
 
 async function listarSessoesChat(
   projectId: string,
-  query: { client?: string; q?: string; tag?: string; from?: string; to?: string },
+  query: { client?: string; q?: string; tag?: string; from?: string; to?: string; limit?: string; offset?: string },
 ) {
+  const limite = limitarInteiro(query.limit, 100, 1, 200);
+  const deslocamento = limitarInteiro(query.offset, 0, 0, 10_000);
+  const filtros = montarFiltrosListagemChat(projectId, query);
   const sessoes = await db
     .select()
     .from(chatSessions)
-    .where(eq(chatSessions.projectId, projectId));
+    .where(and(...filtros))
+    .orderBy(desc(chatSessions.updatedAt), desc(chatSessions.startedAt))
+    .limit(limite)
+    .offset(deslocamento);
 
-  const filtradas = sessoes.filter((sessao) => {
-    if (query.client && sessao.client !== query.client) return false;
-    if (query.from && sessao.startedAt < new Date(query.from)) return false;
-    if (query.to && sessao.startedAt > new Date(query.to)) return false;
-    if (query.q && !textoSessao(sessao).includes(query.q.toLowerCase())) return false;
-    if (query.tag && !tagsDaSessao(sessao.metadata).includes(query.tag)) return false;
-    return true;
-  });
+  const contagensPorSessao = await contarMensagensPorSessao(sessoes.map((sessao) => sessao.id));
 
-  return Promise.all(filtradas.map(async (sessao) => ({
+  return sessoes.map((sessao) => ({
     ...sessao,
-    messageCount: await contarMensagens(sessao.id),
-  })));
+    messageCount: contagensPorSessao.get(sessao.id) ?? 0,
+  }));
 }
 
 async function buscarChatComMensagens(projectId: string, sessionId: string) {
+  const filtroIdInterno = ehUuid(sessionId) ? eq(chatSessions.id, sessionId) : undefined;
+  const filtroSessaoExterna = eq(chatSessions.externalSessionId, sessionId);
+  const filtroIdentificador = filtroIdInterno
+    ? or(filtroIdInterno, filtroSessaoExterna)
+    : filtroSessaoExterna;
+
+  if (!filtroIdentificador) return null;
+
   const sessoes = await db
     .select()
     .from(chatSessions)
-    .where(eq(chatSessions.projectId, projectId));
-  const sessao = sessoes.find((chat) => chat.id === sessionId || chat.externalSessionId === sessionId);
+    .where(and(eq(chatSessions.projectId, projectId), filtroIdentificador))
+    .limit(1);
+  const sessao = sessoes[0];
   if (!sessao) return null;
 
   const mensagens = await db
     .select()
     .from(chatMessages)
-    .where(eq(chatMessages.sessionId, sessao.id));
+    .where(eq(chatMessages.sessionId, sessao.id))
+    .orderBy(asc(chatMessages.createdAt));
 
   return {
     ...sessao,
@@ -185,13 +202,19 @@ async function buscarChatComMensagens(projectId: string, sessionId: string) {
   };
 }
 
-async function contarMensagens(sessionId: string): Promise<number> {
-  const mensagens = await db
-    .select({ id: chatMessages.id })
-    .from(chatMessages)
-    .where(eq(chatMessages.sessionId, sessionId));
+async function contarMensagensPorSessao(sessionIds: string[]): Promise<Map<string, number>> {
+  if (sessionIds.length === 0) return new Map();
 
-  return mensagens.length;
+  const contagens = await db
+    .select({
+      sessionId: chatMessages.sessionId,
+      total: count(chatMessages.id),
+    })
+    .from(chatMessages)
+    .where(inArray(chatMessages.sessionId, sessionIds))
+    .groupBy(chatMessages.sessionId);
+
+  return new Map(contagens.map((contagem) => [contagem.sessionId, Number(contagem.total)]));
 }
 
 async function resolverContextoProjeto(request: FastifyRequest) {
@@ -232,15 +255,69 @@ function calcularRetencaoPadrao(): Date {
   return retentionUntil;
 }
 
-function textoSessao(sessao: { title: string; summary: string | null }): string {
-  return `${sessao.title} ${sessao.summary ?? ''}`.toLowerCase();
+function montarFiltrosListagemChat(
+  projectId: string,
+  query: { client?: string; q?: string; tag?: string; from?: string; to?: string },
+): SQL[] {
+  const filtros: SQL[] = [eq(chatSessions.projectId, projectId)];
+
+  if (query.client) {
+    filtros.push(eq(chatSessions.client, query.client));
+  }
+
+  const inicio = converterDataFiltro(query.from);
+  if (inicio) {
+    filtros.push(gte(chatSessions.startedAt, inicio));
+  }
+
+  const fim = converterDataFiltro(query.to);
+  if (fim) {
+    filtros.push(lte(chatSessions.startedAt, fim));
+  }
+
+  const textoBusca = query.q?.trim();
+  if (textoBusca) {
+    filtros.push(sql`(
+      to_tsvector('portuguese', coalesce(${chatSessions.title}, '') || ' ' || coalesce(${chatSessions.summary}, ''))
+        @@ plainto_tsquery('portuguese', ${textoBusca})
+      OR EXISTS (
+        SELECT 1
+        FROM chat_messages mensagem_busca
+        WHERE mensagem_busca.session_id = ${chatSessions.id}
+          AND to_tsvector('portuguese', coalesce(mensagem_busca.content, ''))
+            @@ plainto_tsquery('portuguese', ${textoBusca})
+      )
+    )`);
+  }
+
+  const tag = query.tag?.trim();
+  if (tag) {
+    filtros.push(sql`${chatSessions.metadata}->'tags' ? ${tag}`);
+  }
+
+  return filtros;
 }
 
-function tagsDaSessao(metadata: unknown): string[] {
-  if (!metadata || typeof metadata !== 'object') return [];
-  const tags = (metadata as { tags?: unknown }).tags;
-  if (!Array.isArray(tags)) return [];
-  return tags.filter((tag): tag is string => typeof tag === 'string');
+function converterDataFiltro(valor?: string): Date | null {
+  if (!valor) return null;
+
+  const dataFiltro = new Date(valor);
+  if (Number.isNaN(dataFiltro.getTime())) return null;
+
+  return dataFiltro;
+}
+
+function limitarInteiro(valor: string | undefined, padrao: number, minimo: number, maximo: number): number {
+  if (!valor) return padrao;
+
+  const numero = Number.parseInt(valor, 10);
+  if (Number.isNaN(numero)) return padrao;
+
+  return Math.min(Math.max(numero, minimo), maximo);
+}
+
+function ehUuid(valor: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(valor);
 }
 
 function sessionIdParam(request: FastifyRequest): string {

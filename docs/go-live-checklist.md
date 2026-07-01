@@ -75,9 +75,12 @@ Nunca copie arquivos manualmente para a VPS. Use apenas `git pull`.
 cd ~/MyInst
 git pull origin main
 docker compose --env-file .env -f deploy/docker-compose.shared-infra.yml up -d
-MYINST_COMPOSE_FILE=deploy/docker-compose.vps-api.yml MYINST_ENV_FILE=.env pnpm db:deploy:schema
-docker compose --env-file .env -f deploy/docker-compose.vps-api.yml up -d --build
+MYINST_COMPOSE_FILE=deploy/docker-compose.vps-api-traefik.yml MYINST_ENV_FILE=.env pnpm db:deploy:schema
+docker compose --env-file .env -f deploy/docker-compose.vps-api-traefik.yml up -d --build
 ```
+
+Use `deploy/docker-compose.vps-api.yml` apenas quando a API for publicada por outro reverse proxy local na porta `127.0.0.1:3010`. O deploy público validado para `api-myinst.lotoscore.com.br` usa `deploy/docker-compose.vps-api-traefik.yml`.
+
 No Vercel, configure `VITE_MYINST_API_BASE=https://api-myinst.lotoscore.com.br` para o projeto frontend (Root Directory: `frontend`).
 
 ## 5. Validação pós-deploy
@@ -85,6 +88,7 @@ No Vercel, configure `VITE_MYINST_API_BASE=https://api-myinst.lotoscore.com.br` 
 ```bash
 curl https://api.seudominio.com/health
 MYINST_SMOKE_BASE_URL=https://api.seudominio.com pnpm smoke
+npx --yes @myinst/cli --version
 ```
 
 Valide também:
@@ -95,6 +99,7 @@ Valide também:
 - `myinst_pull`;
 - `myinst_push`;
 - `myinst_search`;
+- `myinst chat list --project default --client codex`;
 - versionamento no web.
 
 ## 6. Backup inicial

@@ -15,7 +15,7 @@ describe('Reader', () => {
     await mkdir(join(tempDir, '.claude', 'memory'), { recursive: true });
     await mkdir(join(tempDir, '.claude', 'snippets'), { recursive: true });
     await mkdir(join(tempDir, '.claude', 'hooks'), { recursive: true });
-    await mkdir(join(tempDir, '.codex', 'skills', 'infra-local'), { recursive: true });
+    await mkdir(join(tempDir, '.codex', 'skills', 'myinst', 'infra-local'), { recursive: true });
 
     await writeFile(join(tempDir, '.claude', 'skills', 'tdd.md'), 'Escreva testes primeiro.');
     await writeFile(join(tempDir, '.claude', 'skills', 'clean-code.md'), 'Mantenha funções pequenas.');
@@ -29,7 +29,7 @@ describe('Reader', () => {
     await writeFile(join(tempDir, 'AGENTS.md'), 'Instruções globais do projeto.');
     await writeFile(join(tempDir, '.codex', 'AGENTS.md'), 'Instruções globais do Codex.');
     await writeFile(
-      join(tempDir, '.codex', 'skills', 'infra-local', 'SKILL.md'),
+      join(tempDir, '.codex', 'skills', 'myinst', 'infra-local', 'SKILL.md'),
       '---\nname: Infra Local\n---\nUse compose compartilhado.',
     );
   });

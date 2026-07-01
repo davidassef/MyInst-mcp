@@ -58,12 +58,22 @@ pnpm publish --access public
 ## Verificar publicação
 
 ```bash
-npm info @myinst/mcp-server
+npm view @myinst/shared version dist-tags
+npm view @myinst/mcp-server version dist-tags
+npm view @myinst/cli version dist-tags
 npx @myinst/mcp-server --version
-npm info @myinst/cli
 npx @myinst/cli --help
 npx @myinst/cli --version
 npx @myinst/cli state --help
+npx @myinst/cli chat --help
+```
+
+Se a release beta atual também deve ficar disponível pelo dist-tag `beta`, alinhe os três pacotes depois da publicação:
+
+```bash
+npm dist-tag add @myinst/shared@0.1.0-beta.2 beta
+npm dist-tag add @myinst/mcp-server@0.1.0-beta.2 beta
+npm dist-tag add @myinst/cli@0.1.0-beta.2 beta
 ```
 
 ## Atualizar versão
@@ -87,6 +97,7 @@ pnpm version patch
 - O `workspace:*` no `@myinst/shared` é automaticamente resolvido pelo pnpm para a versão real ao publicar
 - Para esta release, publique `@myinst/shared@0.1.0-beta.2` antes de `@myinst/mcp-server@0.1.0-beta.2` e `@myinst/cli@0.1.0-beta.2`
 - A validação `npx @myinst/cli --version` usa o dist-tag padrão `latest`; use outro tag somente se também ajustar o comando de validação
+- A release `0.1.0-beta.2` já foi publicada em `latest`; revise `dist-tags` para evitar que `beta` continue apontando para uma versão anterior
 - O campo `files` no package.json garante que apenas `dist/` é publicado
 - O `prepublishOnly` script garante que o build roda antes de publicar
 - A licença AGPL-3.0 é incluída automaticamente

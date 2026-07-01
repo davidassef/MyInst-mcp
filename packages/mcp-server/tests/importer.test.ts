@@ -16,7 +16,7 @@ describe('Importer', () => {
     await mkdir(join(tempDir, '.claude', 'snippets'), { recursive: true });
     await mkdir(join(tempDir, '.claude', 'hooks'), { recursive: true });
     await mkdir(join(tempDir, 'subprojeto', '.claude', 'skills'), { recursive: true });
-    await mkdir(join(tempDir, '.codex', 'skills', 'infra-local'), { recursive: true });
+    await mkdir(join(tempDir, '.codex', 'skills', 'myinst', 'infra-local'), { recursive: true });
 
     await writeFile(
       join(tempDir, '.claude', 'skills', 'tdd.md'),
@@ -68,7 +68,7 @@ describe('Importer', () => {
     );
 
     await writeFile(
-      join(tempDir, '.codex', 'skills', 'infra-local', 'SKILL.md'),
+      join(tempDir, '.codex', 'skills', 'myinst', 'infra-local', 'SKILL.md'),
       '---\nname: Infra Local\n---\nConteúdo da skill global.',
     );
   });
@@ -194,7 +194,7 @@ describe('Importer', () => {
     expect(agents!.type).toBe('instruction');
   });
 
-  it('detecta skills no formato .codex/skills/<slug>/SKILL.md', async () => {
+  it('detecta skills no formato .codex/skills/<namespace>/<slug>/SKILL.md', async () => {
     const itens = await importarDiretorio(tempDir);
     const skillCodex = itens.find((i) => i.slug === 'infra-local');
 

@@ -27,6 +27,7 @@
 │  │ /api/v1/client-profiles/*   configs globais           │  │
 │  │ /api/v1/sync/*              pull/push MCP             │  │
 │  │ /api/v1/search              busca project/global/state│  │
+│  │ /api/v1/.../chats           historico opt-in          │  │
 │  └────────────────────────────┬──────────────────────────┘  │
 │                               │                             │
 │  ┌────────────────────────────▼──────────────────────────┐  │
@@ -86,6 +87,7 @@ myinst/
 - **ClientProfile**: configurações globais de um cliente, fora de workspace/projeto.
 - **ClientProfileItem**: item global de cliente, como skill global, config ou instrução.
 - **ProjectMemory / ProjectDecision / ProjectSession**: Project State revisado por projeto.
+- **ChatSession / ChatMessage**: histórico de chats importado por arquivo explícito, separado do Project State.
 - **Tag**: labels de modelo/provider para filtro.
 - **ContentVersion**: histórico de versões de conteúdo.
 
@@ -97,7 +99,8 @@ User (1) ──► (N) Workspace (1) ──► (N) Project (1) ──► (N) Fol
                                              ├──► (N) ContentItem ──► (N) ContentVersion
                                              ├──► (N) ProjectMemory
                                              ├──► (N) ProjectDecision
-                                             └──► (N) ProjectSession
+                                             ├──► (N) ProjectSession
+                                             └──► (N) ChatSession ──► (N) ChatMessage
 
 User (1) ──► (N) ClientProfile (1) ──► (N) ClientProfileItem
 User (1) ──► (N) ApiKey
@@ -108,16 +111,18 @@ User (1) ──► (N) Tag
 
 | Tipo | Descrição | Destino local canônico |
 |------|-----------|------------------------|
-| `skill` | Skill ou capacidade reutilizável | `.claude/skills/{slug}.md` |
-| `instruction` | Regras e instruções de agente | `.claude/CLAUDE.md` |
-| `mcp_config` | Configuração MCP persistente | `.mcp.json` |
-| `agent` | Definições de agentes | `.claude/agents/{slug}.md` |
-| `command` | Comandos persistentes de clients compatíveis | `.claude/commands/{slug}.md` |
-| `hook` | Definições de hooks | `.claude/hook-{slug}.md` |
-| `memory` | Memória materializável de client | `.claude/memory/{slug}.md` |
-| `output_style` | Estilos de saída persistentes | `.claude/output-styles/{slug}.md` |
+| `skill` | Skill ou capacidade reutilizável | `.myinst/content/skills/{slug}.md` |
+| `instruction` | Regras e instruções de agente | `.myinst/content/instructions/{slug}.md` |
+| `mcp_config` | Configuração MCP persistente | `.myinst/content/mcp-config/{slug}.json` |
+| `agent` | Definições de agentes | `.myinst/content/agents/{slug}.md` |
+| `command` | Comandos persistentes de clients compatíveis | `.myinst/content/commands/{slug}.md` |
+| `hook` | Definições de hooks | `.myinst/content/hooks/hook-{slug}.md` |
+| `memory` | Memória materializável de client | `.myinst/content/memory/{slug}.md` |
+| `output_style` | Estilos de saída persistentes | `.myinst/content/output-styles/{slug}.md` |
 | `setting` | Configuração persistente redigida | `.myinst/client-profiles/{clientId}/settings/{slug}.json` |
-| `snippet` | Blocos de texto reutilizáveis | `.claude/snippets/{slug}.md` |
+| `snippet` | Blocos de texto reutilizáveis | `.myinst/content/snippets/{slug}.md` |
+
+Use `targetFormat="native"` com `clients` explícitos quando quiser materializar no layout real do cliente, como `.codex/AGENTS.md` ou `.codex/skills/<namespace>/<slug>/SKILL.md`.
 
 ## Client Profiles
 
@@ -172,6 +177,20 @@ myinst_state_pull
 
 O backend rejeita escrita via API key quando o conteúdo não estiver marcado como revisado.
 
+## Histórico de Chats
+
+Chats ficam em tabelas próprias e não entram em sync automático. A origem inicial é arquivo explícito via CLI:
+
+```text
+myinst chat push --project default --client codex --session sessao-1 --file chat.json
+myinst chat list --project default --client codex --q sync --tag release
+myinst chat show sessao-1 --project default
+myinst chat export sessao-1 --project default --format markdown
+myinst chat summarize sessao-1 --project default
+```
+
+A retenção padrão é de 180 dias. A API rejeita padrões prováveis de segredo em mensagens e metadata antes de persistir.
+
 ## Sync Local da CLI
 
 A CLI standalone usa o backend como vault remoto e mantém um manifesto local em `.myinst/sync-state.json`.
@@ -192,6 +211,8 @@ O manifesto registra o último snapshot remoto aplicado no projeto: workspace, p
 O v1 não faz merge automático nem aplica deleção automática. Remoções aparecem como pendência manual para evitar perda de conteúdo.
 
 A CLI usa os mesmos adapters multi-cliente do MCP, expostos em `@myinst/shared/sync-targets`. O padrão operacional é `scope=project`, lendo todos os clients detectados dentro do repositório. `scope=global` e `scope=all` precisam ser escolhidos explicitamente para incluir arquivos da home do usuário.
+
+Quando mais de um client for detectado, informe `--client` explicitamente também em `scope=project`. O objetivo é impedir que conteúdo de Codex, Claude, Cursor ou Kimi seja aplicado no layout errado.
 
 ## Fluxo de Autenticação
 

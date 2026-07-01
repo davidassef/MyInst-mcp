@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
+import { detectarSegredoProvavelEmValor } from '@myinst/shared/security';
 
 export type ProjectStateType = 'memory' | 'decision' | 'session';
 
@@ -18,20 +19,6 @@ export interface ProjectStateDraft {
   startedAt?: string;
   endedAt?: string;
 }
-
-const PADROES_SEGREDO = [
-  /api[_-]?key/i,
-  /token/i,
-  /secret/i,
-  /password/i,
-  /senha/i,
-  /\.env/i,
-  /oauth/i,
-  /cookie/i,
-  /DATABASE_URL/i,
-  /myinst_[A-Za-z0-9_-]{12,}/,
-  /(sk|pk)_(live|test)_[A-Za-z0-9]+/,
-];
 
 export function criarSlugState(texto: string) {
   const slug = texto
@@ -61,8 +48,7 @@ export async function carregarDraftProjectState(baseDir: string, draftPath: stri
 }
 
 export function detectarSegredoProvavel(draft: ProjectStateDraft) {
-  const conteudo = JSON.stringify(draft);
-  return PADROES_SEGREDO.some((padrao) => padrao.test(conteudo));
+  return detectarSegredoProvavelEmValor(draft);
 }
 
 export async function materializarProjectState(

@@ -415,9 +415,9 @@ Busca memórias, decisões e sessões do projeto com `scope=state`.
 A CLI standalone tem um fluxo complementar ao MCP para trabalho local-first:
 
 ```bash
-myinst pull default
-myinst status default
-myinst push default
+myinst pull default --client codex
+myinst status default --client codex
+myinst push default --client codex
 ```
 
 Após `myinst pull` ou `myinst push` bem-sucedido, a CLI grava `.myinst/sync-state.json` no repositório. Esse manifesto guarda o último snapshot remoto conhecido e permite que `myinst status` compare três estados:
@@ -434,7 +434,7 @@ Exemplos:
 
 ```bash
 myinst status default --client codex kimi
-myinst push default --scope project
+myinst push default --scope project --client codex
 myinst pull default --scope all --client codex
 ```
 
@@ -450,7 +450,7 @@ myinst login --server http://localhost:3000 --api-key myinst_xxx
 Exemplos suportados nesta fase:
 
 - `.claude/skills`, `.claude/agents`, `.claude/memory`, `.claude/snippets`, `.claude/hooks`, `.claude/CLAUDE.md`, `.claude/.mcp.json`
-- `.codex/skills/<slug>/SKILL.md`, `.codex/AGENTS.md`, `.codex/.mcp.json`, `AGENTS.md`, `.mcp.json`
+- `.codex/skills/<namespace>/<slug>/SKILL.md`, `.codex/AGENTS.md`, `.codex/.mcp.json`, `AGENTS.md`, `.mcp.json`
 - `.cursor/rules/*.mdc`, `.cursor/rules/*.md`, `.cursor/mcp.json`
 - `GEMINI.md`
 - `opencode.json`

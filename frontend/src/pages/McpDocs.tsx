@@ -12,7 +12,7 @@ const tools = [
   ['myinst_update_project', 'Edita nome, slug ou descricao de projeto.'],
   ['myinst_delete_project', 'Apaga projeto nao default com confirmacao explicita.'],
   ['myinst_list_sync_targets', 'Detecta clientes locais e mostra escopo global ou projeto antes de sincronizar.'],
-  ['myinst_pull', 'Materializa conteudo do vault no diretorio alvo. Cria .myinst/MYINST.md.'],
+  ['myinst_pull', 'Materializa conteudo do vault no formato canonico ou nativo. Use targetFormat="native" com clients explicitos para layouts de cliente.'],
   ['myinst_push', 'Sincroniza alteracoes locais reconhecidas de volta para o vault.'],
   ['myinst_import', 'Importa estruturas conhecidas de clientes para o vault.'],
   ['myinst_search', 'Busca pontual para descoberta. Nao substitui pull para trabalho recorrente.'],
@@ -29,7 +29,7 @@ const clients = [
   ['cursor', 'partial', 'project e global'],
   ['gemini', 'partial', 'project e global'],
   ['opencode', 'partial', 'project e global'],
-  ['qwen', 'partial', 'project'],
+  ['qwen', 'partial', 'project e global'],
   ['aider', 'partial', 'project e global'],
   ['antigravity', 'experimental', 'project e global'],
   ['kimi', 'partial', 'project e global'],
@@ -78,7 +78,7 @@ export function McpDocsPage() {
               <ResumoItem
                 icon={<PackageCheck size={18} />}
                 titulo="CLI"
-                texto="Instale @myinst/cli para operar pull, status, push e Project State direto no repositorio."
+              texto="Instale @myinst/cli para operar pull, status, push, Project State e chats importados por arquivo explicito direto no repositorio."
               />
               <ResumoItem
                 icon={<TerminalSquare size={18} />}
@@ -109,9 +109,9 @@ myinst login`}
           <Etapa
             numero="2"
             titulo="Sincronize o projeto"
-            codigo={`myinst pull default
-myinst status default
-myinst push default`}
+            codigo={`myinst pull default --client codex
+myinst status default --client codex
+myinst push default --client codex`}
           />
           <Etapa
             numero="3"
@@ -186,7 +186,7 @@ MYINST_SERVER = "https://api-myinst.lotoscore.com.br"`}
           <div className="grid gap-4 md:grid-cols-2">
             <CartaoTexto
               titulo="Ao iniciar trabalho"
-              texto="Use myinst_pull no diretorio do repositorio ou informe targetDir. O pull cria .myinst/MYINST.md com as regras operacionais que o agente deve ler antes de editar conteudo."
+              texto="Use myinst_pull no diretorio do repositorio ou informe targetDir. O formato canonico cria .myinst/MYINST.md; layouts nativos exigem targetFormat native e clients explicitos."
             />
             <CartaoTexto
               titulo="Durante o trabalho"
@@ -198,7 +198,7 @@ MYINST_SERVER = "https://api-myinst.lotoscore.com.br"`}
             />
             <CartaoTexto
               titulo="Ao detectar varios clientes"
-              texto="Quando houver mais de um client detectado, informe clients explicitamente. Nao sincronize automaticamente uma origem ambigua."
+              texto="Quando houver mais de um client detectado, informe clients explicitamente, inclusive em scope project. Nao sincronize automaticamente uma origem ambigua."
             />
           </div>
         </Secao>
@@ -229,15 +229,15 @@ MYINST_SERVER = "https://api-myinst.lotoscore.com.br"`}
 
             <BlocoCodigo
               titulo="Fluxo CLI recomendado"
-              codigo={`myinst pull default
-myinst status default
+              codigo={`myinst pull default --client codex
+myinst status default --client codex
 myinst st
 # editar arquivos locais
-myinst status default
-myinst push default
+myinst status default --client codex
+myinst push default --client codex
 
 myinst status default --client codex kimi
-myinst push default --scope project`}
+myinst push default --scope project --client codex`}
             />
           </div>
         </Secao>
@@ -247,6 +247,23 @@ myinst push default --scope project`}
             <CartaoTexto titulo="project" texto="Conteudo do repositorio atual. E o padrao da CLI e le todos os clients detectados no projeto." />
             <CartaoTexto titulo="global" texto="Configuracoes e skills do cliente na home do usuario. Entra apenas quando solicitado explicitamente." />
             <CartaoTexto titulo="all" texto="Combina project e global na mesma operacao, separando cada item por client e escopo." />
+          </div>
+        </Secao>
+
+        <Secao titulo="Historico de chats">
+          <div className="grid gap-4 md:grid-cols-[0.95fr_1.05fr]">
+            <CartaoTexto
+              titulo="Opt-in explicito"
+              texto="Chats entram apenas por arquivo JSON ou Markdown informado pelo usuario. A CLI nao varre transcripts locais automaticamente."
+            />
+            <BlocoCodigo
+              titulo="Fluxo CLI"
+              codigo={`myinst chat push --project default --client codex --session sessao-1 --file chat.json
+myinst chat list --project default --client codex --tag release
+myinst chat show sessao-1 --project default
+myinst chat export sessao-1 --project default --format markdown
+myinst chat summarize sessao-1 --project default`}
+            />
           </div>
         </Secao>
 
