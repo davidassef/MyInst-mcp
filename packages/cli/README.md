@@ -2,7 +2,7 @@
 
 CLI oficial do MyInst para login, listagem, status, pull, push, Project State e histórico de chats do vault.
 
-Versão atual: `0.1.0-beta.2`.
+Versão atual: `0.1.0-beta.4`.
 
 ## Instalacao
 

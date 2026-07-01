@@ -24,9 +24,9 @@ pnpm publish --access public
 
 ## Publicar @myinst/cli
 
-Release atual preparada: `@myinst/cli@0.1.0-beta.2`.
+Release atual preparada: `@myinst/cli@0.1.0-beta.4`.
 
-Essa release depende também de `@myinst/shared@0.1.0-beta.2` e `@myinst/mcp-server@0.1.0-beta.2`, pois o sync multi-client, a validação de segredos e o login browser compartilham código entre os pacotes.
+Essa release depende também de `@myinst/shared@0.1.0-beta.4` e `@myinst/mcp-server@0.1.0-beta.4`, pois o sync multi-client, a validação de segredos e o login browser compartilham código entre os pacotes.
 
 Essa release publica:
 
@@ -71,9 +71,9 @@ npx @myinst/cli chat --help
 Se a release beta atual também deve ficar disponível pelo dist-tag `beta`, alinhe os três pacotes depois da publicação:
 
 ```bash
-npm dist-tag add @myinst/shared@0.1.0-beta.2 beta
-npm dist-tag add @myinst/mcp-server@0.1.0-beta.2 beta
-npm dist-tag add @myinst/cli@0.1.0-beta.2 beta
+npm dist-tag add @myinst/shared@0.1.0-beta.4 beta
+npm dist-tag add @myinst/mcp-server@0.1.0-beta.4 beta
+npm dist-tag add @myinst/cli@0.1.0-beta.4 beta
 ```
 
 ## Atualizar versão
@@ -95,9 +95,9 @@ pnpm version patch
 ## Notas
 
 - O `workspace:*` no `@myinst/shared` é automaticamente resolvido pelo pnpm para a versão real ao publicar
-- Para esta release, publique `@myinst/shared@0.1.0-beta.2` antes de `@myinst/mcp-server@0.1.0-beta.2` e `@myinst/cli@0.1.0-beta.2`
+- Para esta release, publique `@myinst/shared@0.1.0-beta.4` antes de `@myinst/mcp-server@0.1.0-beta.4` e `@myinst/cli@0.1.0-beta.4`
 - A validação `npx @myinst/cli --version` usa o dist-tag padrão `latest`; use outro tag somente se também ajustar o comando de validação
-- A release `0.1.0-beta.2` já foi publicada em `latest`; revise `dist-tags` para evitar que `beta` continue apontando para uma versão anterior
+- A release `0.1.0-beta.4` deve ficar publicada em `latest`; revise `dist-tags` para evitar que `beta` continue apontando para uma versão anterior
 - O campo `files` no package.json garante que apenas `dist/` é publicado
 - O `prepublishOnly` script garante que o build roda antes de publicar
 - A licença AGPL-3.0 é incluída automaticamente
