@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, FolderOpen, Pencil, Plus, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, FolderOpen, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { useContextMenuRegistry } from '@/components/ContextMenuRegistry';
 import { api } from '@/lib/api';
 import { gerarSlug } from '@/lib/slug';
@@ -44,6 +44,7 @@ export function WorkspacePage() {
   const [slugWorkspaceManual, setSlugWorkspaceManual] = useState(false);
   const [slugProjetoManual, setSlugProjetoManual] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [excluindoProjetoId, setExcluindoProjetoId] = useState<string | null>(null);
   const [erroForm, setErroForm] = useState('');
 
   useEffect(() => {
@@ -66,10 +67,20 @@ export function WorkspacePage() {
         const projeto = projetos.find((item) => item.id === id);
         if (!projeto) return [];
 
-        return [
+        const acoes = [
           {
             label: 'Editar',
             onSelect: () => iniciarEdicaoProjeto(projeto),
+          },
+        ];
+
+        if (projeto.isDefault) return acoes;
+
+        return [
+          ...acoes,
+          {
+            label: 'Excluir',
+            onSelect: () => void excluirProjeto(projeto),
           },
         ];
       },
@@ -184,6 +195,29 @@ export function WorkspacePage() {
       setErroForm(err instanceof Error ? err.message : 'Erro ao salvar projeto');
     } finally {
       setSalvando(false);
+    }
+  }
+
+  async function excluirProjeto(projeto: Projeto) {
+    if (!workspaceSlug || projeto.isDefault) return;
+
+    const confirmado = window.confirm(`Excluir o projeto "${projeto.name}"? Todo o conteúdo vinculado a ele será removido.`);
+    if (!confirmado) return;
+
+    setExcluindoProjetoId(projeto.id);
+    setErroForm('');
+
+    try {
+      await api.projetos.deletar(workspaceSlug, projeto.slug);
+      setProjetos((atuais) => atuais.filter((item) => item.id !== projeto.id));
+
+      if (editandoProjetoId === projeto.id) {
+        cancelarEdicao();
+      }
+    } catch (err) {
+      setErroForm(err instanceof Error ? err.message : 'Erro ao excluir projeto');
+    } finally {
+      setExcluindoProjetoId(null);
     }
   }
 
@@ -386,16 +420,32 @@ export function WorkspacePage() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        iniciarEdicaoProjeto(projeto);
-                      }}
-                      className="rounded-2xl border border-white/8 bg-white/[0.03] p-2.5 text-slate-400 transition hover:border-white/14 hover:text-white"
-                      aria-label={`Editar ${projeto.name}`}
-                    >
-                      <Pencil size={16} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          iniciarEdicaoProjeto(projeto);
+                        }}
+                        className="rounded-2xl border border-white/8 bg-white/[0.03] p-2.5 text-slate-400 transition hover:border-white/14 hover:text-white"
+                        aria-label={`Editar ${projeto.name}`}
+                      >
+                        <Pencil size={16} />
+                      </button>
+
+                      {!projeto.isDefault && (
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void excluirProjeto(projeto);
+                          }}
+                          disabled={excluindoProjetoId === projeto.id}
+                          className="rounded-2xl border border-white/8 bg-white/[0.03] p-2.5 text-slate-500 transition hover:border-red-400/20 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+                          aria-label={`Excluir ${projeto.name}`}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <p className="mt-5 flex-1 text-sm leading-7 text-slate-400">

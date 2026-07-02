@@ -239,14 +239,20 @@ export const api = {
       request<any[]>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/state/memories`),
     criarMemoria: (workspaceSlug: string, projetoSlug: string, body: any) =>
       request<any>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/state/memories`, { method: 'POST', body: JSON.stringify(body) }),
+    deletarMemoria: (workspaceSlug: string, projetoSlug: string, stateSlug: string) =>
+      request<void>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/state/memories/${stateSlug}`, { method: 'DELETE' }),
     listarDecisoes: (workspaceSlug: string, projetoSlug: string) =>
       request<any[]>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/state/decisions`),
     criarDecisao: (workspaceSlug: string, projetoSlug: string, body: any) =>
       request<any>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/state/decisions`, { method: 'POST', body: JSON.stringify(body) }),
+    deletarDecisao: (workspaceSlug: string, projetoSlug: string, stateSlug: string) =>
+      request<void>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/state/decisions/${stateSlug}`, { method: 'DELETE' }),
     listarSessoes: (workspaceSlug: string, projetoSlug: string) =>
       request<any[]>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/state/sessions`),
     criarSessao: (workspaceSlug: string, projetoSlug: string, body: any) =>
       request<any>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/state/sessions`, { method: 'POST', body: JSON.stringify(body) }),
+    deletarSessao: (workspaceSlug: string, projetoSlug: string, stateSlug: string) =>
+      request<void>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/state/sessions/${stateSlug}`, { method: 'DELETE' }),
   },
   chats: {
     listar: (workspaceSlug: string, projetoSlug: string, params?: FiltrosChat) => {
@@ -276,6 +282,8 @@ export const api = {
       const query = searchParams.toString() ? `?${searchParams}` : '';
       return request<ChatDetalhado>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/chats/${encodeURIComponent(sessionId)}${query}`);
     },
+    deletar: (workspaceSlug: string, projetoSlug: string, sessionId: string) =>
+      request<void>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/chats/${encodeURIComponent(sessionId)}`, { method: 'DELETE' }),
   },
   envVault: {
     listar: (workspaceSlug: string, projetoSlug: string) =>

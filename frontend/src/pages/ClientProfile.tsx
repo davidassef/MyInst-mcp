@@ -44,6 +44,7 @@ export function ClientProfilePage() {
   const [selecionado, setSelecionado] = useState<ItemGlobal | null>(null);
   const [mostrarForm, setMostrarForm] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [excluindoItemSlug, setExcluindoItemSlug] = useState<string | null>(null);
 
   const [novoTipo, setNovoTipo] = useState('instruction');
   const [novoTitulo, setNovoTitulo] = useState('');
@@ -143,10 +144,22 @@ export function ClientProfilePage() {
   }
 
   async function deletarItem(itemSlug: string) {
-    await api.clientProfiles.deletarItem(clientId, itemSlug);
-    setItems((atual) => atual.filter((item) => item.slug !== itemSlug));
-    if (selecionado?.slug === itemSlug) {
-      setSelecionado(null);
+    const itemGlobal = items.find((item) => item.slug === itemSlug);
+    const titulo = itemGlobal?.title ?? itemSlug;
+    const confirmado = window.confirm(`Excluir o item global "${titulo}"?`);
+    if (!confirmado) return;
+
+    setExcluindoItemSlug(itemSlug);
+
+    try {
+      await api.clientProfiles.deletarItem(clientId, itemSlug);
+      setItems((atual) => atual.filter((item) => item.slug !== itemSlug));
+
+      if (selecionado?.slug === itemSlug) {
+        setSelecionado(null);
+      }
+    } finally {
+      setExcluindoItemSlug(null);
     }
   }
 
@@ -264,7 +277,9 @@ export function ClientProfilePage() {
                       e.stopPropagation();
                       void deletarItem(item.slug);
                     }}
-                    className="rounded-2xl border border-white/8 bg-white/[0.03] p-2 text-slate-500 transition hover:border-red-400/20 hover:text-red-300"
+                    disabled={excluindoItemSlug === item.slug}
+                    className="rounded-2xl border border-white/8 bg-white/[0.03] p-2 text-slate-500 transition hover:border-red-400/20 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label={`Excluir ${item.title}`}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -298,6 +313,14 @@ export function ClientProfilePage() {
               >
                 <Save size={16} />
                 {salvando ? 'Salvando...' : 'Salvar item global'}
+              </button>
+              <button
+                onClick={() => void deletarItem(selecionado.slug)}
+                disabled={excluindoItemSlug === selecionado.slug}
+                className="ml-3 inline-flex items-center gap-2 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-200 transition hover:bg-red-500/15 disabled:opacity-50"
+              >
+                <Trash2 size={16} />
+                {excluindoItemSlug === selecionado.slug ? 'Excluindo...' : 'Excluir item global'}
               </button>
             </div>
           ) : (

@@ -1174,6 +1174,54 @@ describe('MyInst API', () => {
       }));
     });
 
+    it('DELETE /state/memories/:stateSlug remove memória revisada do projeto', async () => {
+      const criarRes = await app.inject({
+        method: 'POST',
+        url: '/api/v1/workspaces/default/projects/default/state/memories',
+        headers: { authorization: `Bearer ${apiKey}` },
+        payload: {
+          type: 'memory',
+          title: 'Memória para remover',
+          slug: 'memoria-para-remover',
+          body: 'Conteúdo temporário.',
+          metadata: { reviewed: true },
+        },
+      });
+      expect(criarRes.statusCode).toBe(201);
+
+      const removerRes = await app.inject({
+        method: 'DELETE',
+        url: '/api/v1/workspaces/default/projects/default/state/memories/memoria-para-remover',
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(removerRes.statusCode).toBe(204);
+
+      const listarRes = await app.inject({
+        method: 'GET',
+        url: '/api/v1/workspaces/default/projects/default/state/memories',
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(listarRes.statusCode).toBe(200);
+      expect(listarRes.json().data).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ slug: 'memoria-para-remover' }),
+        ]),
+      );
+    });
+
+    it('DELETE /state/sessions/:stateSlug retorna 404 para item inexistente', async () => {
+      const res = await app.inject({
+        method: 'DELETE',
+        url: '/api/v1/workspaces/default/projects/default/state/sessions/sessao-inexistente',
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(res.statusCode).toBe(404);
+      expect(res.json().error.code).toBe('NOT_FOUND');
+    });
+
     it('GET /search com scope=state encontra Project State sem conteúdo global', async () => {
       const res = await app.inject({
         method: 'GET',

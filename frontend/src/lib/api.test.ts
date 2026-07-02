@@ -83,6 +83,77 @@ describe('api.chats', () => {
       headers: expect.any(Headers),
     });
   });
+
+  it('remove chat importado pelo endpoint dedicado', async () => {
+    localStorage.setItem('myinst_token', 'token-local');
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 204,
+      json: async () => ({}),
+    } as Response);
+
+    await api.chats.deletar('meus-projetos', 'myinst', 'sessao-1');
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/workspaces/meus-projetos/projects/myinst/chats/sessao-1', {
+      method: 'DELETE',
+      headers: expect.any(Headers),
+    });
+  });
+});
+
+describe('api.state', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    storage.clear();
+  });
+
+  it('remove memória de Project State pelo slug', async () => {
+    localStorage.setItem('myinst_token', 'token-local');
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 204,
+      json: async () => ({}),
+    } as Response);
+
+    await api.state.deletarMemoria('meus-projetos', 'myinst', 'stack-do-projeto');
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/workspaces/meus-projetos/projects/myinst/state/memories/stack-do-projeto', {
+      method: 'DELETE',
+      headers: expect.any(Headers),
+    });
+  });
+
+  it('remove decisão de Project State pelo slug', async () => {
+    localStorage.setItem('myinst_token', 'token-local');
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 204,
+      json: async () => ({}),
+    } as Response);
+
+    await api.state.deletarDecisao('meus-projetos', 'myinst', 'usar-fastify');
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/workspaces/meus-projetos/projects/myinst/state/decisions/usar-fastify', {
+      method: 'DELETE',
+      headers: expect.any(Headers),
+    });
+  });
+
+  it('remove sessão de Project State pelo slug', async () => {
+    localStorage.setItem('myinst_token', 'token-local');
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 204,
+      json: async () => ({}),
+    } as Response);
+
+    await api.state.deletarSessao('meus-projetos', 'myinst', 'sessao-inicial');
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/workspaces/meus-projetos/projects/myinst/state/sessions/sessao-inicial', {
+      method: 'DELETE',
+      headers: expect.any(Headers),
+    });
+  });
 });
 
 describe('api.envVault', () => {

@@ -75,6 +75,7 @@ export function ProjetoPage() {
   const [bodyEditado, setBodyEditado] = useState('');
   const [tagsEditadas, setTagsEditadas] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [excluindoConteudoSlug, setExcluindoConteudoSlug] = useState<string | null>(null);
   const [salvoComSucesso, setSalvoComSucesso] = useState(false);
   const [erroSalvar, setErroSalvar] = useState('');
 
@@ -87,6 +88,7 @@ export function ProjetoPage() {
 
   const [pastas, setPastas] = useState<PastaItem[]>([]);
   const [pastaSelecionada, setPastaSelecionada] = useState<string | null>(null);
+  const [excluindoPastaId, setExcluindoPastaId] = useState<string | null>(null);
   const [mostrarFormPasta, setMostrarFormPasta] = useState(false);
   const [novaPastaNome, setNovaPastaNome] = useState('');
   const [abaAtiva, setAbaAtiva] = useState<AbaProjeto>('conteudo');
@@ -98,6 +100,7 @@ export function ProjetoPage() {
   const [stateTitulo, setStateTitulo] = useState('');
   const [stateBody, setStateBody] = useState('');
   const [stateResumo, setStateResumo] = useState('');
+  const [excluindoStateSlug, setExcluindoStateSlug] = useState<string | null>(null);
 
   useEffect(() => {
     if (!workspaceSlug || !slug) return;
@@ -168,11 +171,24 @@ export function ProjetoPage() {
 
   async function deletarPasta(pastaId: string) {
     if (!workspaceSlug || !slug) return;
-    if (!window.confirm('Tem certeza que deseja deletar esta pasta?')) return;
+    const confirmado = window.confirm('Excluir esta pasta? Os conteúdos vinculados ficarão sem pasta.');
+    if (!confirmado) return;
 
-    await api.pastas.deletar(workspaceSlug, slug, pastaId);
-    setPastas(pastas.filter((p) => p.id !== pastaId));
-    if (pastaSelecionada === pastaId) setPastaSelecionada(null);
+    setExcluindoPastaId(pastaId);
+
+    try {
+      await api.pastas.deletar(workspaceSlug, slug, pastaId);
+      setPastas((atuais) => atuais.filter((pasta) => pasta.id !== pastaId));
+      setConteudos((atuais) => atuais.map((conteudo) => (
+        conteudo.folderId === pastaId ? { ...conteudo, folderId: null } : conteudo
+      )));
+
+      if (pastaSelecionada === pastaId) {
+        setPastaSelecionada(null);
+      }
+    } finally {
+      setExcluindoPastaId(null);
+    }
   }
 
   async function criarConteudo(e: React.FormEvent) {
@@ -201,9 +217,24 @@ export function ProjetoPage() {
 
   async function deletarConteudo(contentSlug: string) {
     if (!workspaceSlug || !slug) return;
-    await api.conteudo.deletar(workspaceSlug, slug, contentSlug);
-    setConteudos(conteudos.filter((c) => c.slug !== contentSlug));
-    if (itemSelecionado?.slug === contentSlug) setItemSelecionado(null);
+    const confirmado = window.confirm('Excluir este conteúdo? O histórico de versões vinculado também será removido.');
+    if (!confirmado) return;
+
+    setExcluindoConteudoSlug(contentSlug);
+    setErroSalvar('');
+
+    try {
+      await api.conteudo.deletar(workspaceSlug, slug, contentSlug);
+      setConteudos((atuais) => atuais.filter((conteudo) => conteudo.slug !== contentSlug));
+
+      if (itemSelecionado?.slug === contentSlug) {
+        setItemSelecionado(null);
+      }
+    } catch (err) {
+      setErroSalvar(err instanceof Error ? err.message : 'Erro ao excluir conteúdo');
+    } finally {
+      setExcluindoConteudoSlug(null);
+    }
   }
 
   async function carregarProjectState() {
@@ -254,6 +285,45 @@ export function ProjetoPage() {
     setMostrarFormState(false);
   }
 
+  async function deletarStateItem(item: ProjectStateItem) {
+    if (!workspaceSlug || !slug) return;
+
+    const confirmado = window.confirm(`Excluir "${item.title}" do Project State?`);
+    if (!confirmado) return;
+
+    setExcluindoStateSlug(item.slug);
+
+    try {
+      if (item.type === 'memory') {
+        await api.state.deletarMemoria(workspaceSlug, slug, item.slug);
+        setMemorias((atuais) => atuais.filter((memoria) => memoria.slug !== item.slug));
+        return;
+      }
+
+      if (item.type === 'decision') {
+        await api.state.deletarDecisao(workspaceSlug, slug, item.slug);
+        setDecisoes((atuais) => atuais.filter((decisao) => decisao.slug !== item.slug));
+        return;
+      }
+
+      await api.state.deletarSessao(workspaceSlug, slug, item.slug);
+      setSessoes((atuais) => atuais.filter((sessao) => sessao.slug !== item.slug));
+    } finally {
+      setExcluindoStateSlug(null);
+    }
+  }
+
+  async function deletarChat(chat: ChatResumo): Promise<boolean> {
+    if (!workspaceSlug || !slug) return false;
+
+    const confirmado = window.confirm(`Excluir o chat importado "${chat.title}"?`);
+    if (!confirmado) return false;
+
+    await api.chats.deletar(workspaceSlug, slug, chat.externalSessionId);
+    setChats((atuais) => atuais.filter((item) => item.id !== chat.id));
+    return true;
+  }
+
   const itensState = abaAtiva === 'memorias' ? memorias : abaAtiva === 'decisoes' ? decisoes : sessoes;
 
   return (
@@ -274,7 +344,7 @@ export function ProjetoPage() {
       </div>
 
       {abaAtiva === 'chats' && workspaceSlug && slug && (
-        <ChatHistoryPanel workspaceSlug={workspaceSlug} projectSlug={slug} chats={chats} />
+        <ChatHistoryPanel workspaceSlug={workspaceSlug} projectSlug={slug} chats={chats} onDeleteChat={deletarChat} />
       )}
 
       {abaAtiva !== 'conteudo' && abaAtiva !== 'chats' && (
@@ -290,6 +360,8 @@ export function ProjetoPage() {
           resumo={stateResumo}
           setResumo={setStateResumo}
           criarState={criarState}
+          deletarStateItem={deletarStateItem}
+          excluindoStateSlug={excluindoStateSlug}
         />
       )}
 
@@ -354,7 +426,9 @@ export function ProjetoPage() {
             </button>
             <button
               onClick={() => deletarPasta(pasta.id)}
-              className="text-zinc-600 hover:text-red-400 transition-colors p-1"
+              disabled={excluindoPastaId === pasta.id}
+              className="text-zinc-600 hover:text-red-400 transition-colors p-1 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label={`Excluir pasta ${pasta.name}`}
             >
               <Trash2 size={12} />
             </button>
@@ -479,7 +553,9 @@ export function ProjetoPage() {
                 </div>
                 <button
                   onClick={(e) => { e.stopPropagation(); deletarConteudo(item.slug); }}
-                  className="text-zinc-600 hover:text-red-400 transition-colors"
+                  disabled={excluindoConteudoSlug === item.slug}
+                  className="text-zinc-600 hover:text-red-400 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                  aria-label={`Excluir ${item.title}`}
                 >
                   <Trash2 size={14} />
                 </button>
@@ -566,6 +642,14 @@ export function ProjetoPage() {
                   <Save size={14} />
                   {salvando ? 'Salvando...' : 'Salvar'}
                 </button>
+                <button
+                  onClick={() => deletarConteudo(itemSelecionado.slug)}
+                  disabled={excluindoConteudoSlug === itemSelecionado.slug}
+                  className="flex items-center gap-2 px-4 py-2 border border-red-500/30 bg-red-500/10 hover:bg-red-500/15 disabled:opacity-50 disabled:cursor-not-allowed text-red-200 text-sm rounded-lg transition-colors"
+                >
+                  <Trash2 size={14} />
+                  {excluindoConteudoSlug === itemSelecionado.slug ? 'Excluindo...' : 'Excluir'}
+                </button>
                 {salvoComSucesso && (
                   <span className="text-sm text-green-400">Salvo!</span>
                 )}
@@ -588,15 +672,18 @@ function ChatHistoryPanel({
   workspaceSlug,
   projectSlug,
   chats,
+  onDeleteChat,
 }: {
   workspaceSlug: string;
   projectSlug: string;
   chats: ChatResumo[];
+  onDeleteChat: (chat: ChatResumo) => Promise<boolean>;
 }) {
   const [chatSelecionadoId, setChatSelecionadoId] = useState<string | null>(null);
   const [chatSelecionado, setChatSelecionado] = useState<ChatDetalhado | null>(null);
   const [carregandoChat, setCarregandoChat] = useState(false);
   const [carregandoPaginaMensagens, setCarregandoPaginaMensagens] = useState(false);
+  const [excluindoChatId, setExcluindoChatId] = useState<string | null>(null);
   const [erroChat, setErroChat] = useState('');
 
   async function selecionarChat(chat: ChatResumo) {
@@ -616,6 +703,26 @@ function ChatHistoryPanel({
       setErroChat(err instanceof Error ? err.message : 'Erro ao carregar chat.');
     } finally {
       setCarregandoChat(false);
+    }
+  }
+
+  async function excluirChat(chat: ChatResumo, event: React.MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+    setExcluindoChatId(chat.id);
+    setErroChat('');
+
+    try {
+      const removido = await onDeleteChat(chat);
+      if (!removido) return;
+
+      if (chatSelecionadoId === chat.externalSessionId) {
+        setChatSelecionadoId(null);
+        setChatSelecionado(null);
+      }
+    } catch (err) {
+      setErroChat(err instanceof Error ? err.message : 'Erro ao excluir chat.');
+    } finally {
+      setExcluindoChatId(null);
     }
   }
 
@@ -656,10 +763,16 @@ function ChatHistoryPanel({
             const estaSelecionado = chatSelecionadoId === chat.externalSessionId;
 
             return (
-              <button
+              <article
                 key={chat.id}
-                type="button"
+                role="button"
+                tabIndex={0}
                 onClick={() => selecionarChat(chat)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' && event.key !== ' ') return;
+                  event.preventDefault();
+                  selecionarChat(chat);
+                }}
                 className={`rounded-xl border bg-zinc-900 p-4 text-left transition-colors ${
                   estaSelecionado
                     ? 'border-blue-500'
@@ -671,7 +784,18 @@ function ChatHistoryPanel({
                     <h4 className="font-medium text-zinc-100">{chat.title}</h4>
                     <p className="mt-1 break-all text-xs text-zinc-500">{chat.externalSessionId}</p>
                   </div>
-                  <span className="text-xs text-zinc-600">{new Date(chat.updatedAt).toLocaleDateString('pt-BR')}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-zinc-600">{new Date(chat.updatedAt).toLocaleDateString('pt-BR')}</span>
+                    <button
+                      type="button"
+                      onClick={(event) => excluirChat(chat, event)}
+                      disabled={excluindoChatId === chat.id}
+                      className="rounded-lg border border-zinc-800 p-1.5 text-zinc-500 transition-colors hover:border-red-500/30 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label={`Excluir chat ${chat.title}`}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
 
                 {chat.summary && <p className="mt-3 text-sm leading-6 text-blue-200">{chat.summary}</p>}
@@ -683,7 +807,7 @@ function ChatHistoryPanel({
                     <span key={tag} className="rounded bg-zinc-800 px-2 py-1">tag: {tag}</span>
                   ))}
                 </div>
-              </button>
+              </article>
             );
           })}
 
@@ -911,6 +1035,8 @@ function ProjectStatePanel({
   resumo,
   setResumo,
   criarState,
+  deletarStateItem,
+  excluindoStateSlug,
 }: {
   aba: AbaProjeto;
   items: ProjectStateItem[];
@@ -923,6 +1049,8 @@ function ProjectStatePanel({
   resumo: string;
   setResumo: (value: string) => void;
   criarState: (e: React.FormEvent) => Promise<void>;
+  deletarStateItem: (item: ProjectStateItem) => Promise<void>;
+  excluindoStateSlug: string | null;
 }) {
   const tituloAba = aba === 'memorias' ? 'Memórias revisadas' : aba === 'decisoes' ? 'Decisões técnicas' : 'Resumos de sessão';
   const textoBotao = aba === 'memorias' ? 'Nova memória' : aba === 'decisoes' ? 'Nova decisão' : 'Nova sessão';
@@ -982,7 +1110,18 @@ function ProjectStatePanel({
           <article key={item.id} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h4 className="font-medium text-zinc-100">{item.title}</h4>
-              <span className="text-xs text-zinc-600">{new Date(item.updatedAt).toLocaleDateString('pt-BR')}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-zinc-600">{new Date(item.updatedAt).toLocaleDateString('pt-BR')}</span>
+                <button
+                  type="button"
+                  onClick={() => deletarStateItem(item)}
+                  disabled={excluindoStateSlug === item.slug}
+                  className="rounded-lg border border-zinc-800 p-1.5 text-zinc-500 transition-colors hover:border-red-500/30 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+                  aria-label={`Excluir ${item.title}`}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
             </div>
             {item.summary && <p className="mt-3 text-sm leading-6 text-blue-200">{item.summary}</p>}
             <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-400">{item.body}</p>

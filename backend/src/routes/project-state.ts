@@ -31,6 +31,10 @@ export async function projectStateRoutes(app: FastifyInstance) {
     async (request, reply) => criarStateItem(request, reply, 'memory'),
   );
 
+  app.delete('/workspaces/:workspaceSlug/projects/:projectSlug/state/memories/:stateSlug', async (request, reply) => {
+    return deletarStateItem(request, reply, 'memory');
+  });
+
   app.get('/workspaces/:workspaceSlug/projects/:projectSlug/state/decisions', async (request, reply) => {
     const contexto = await resolverContextoProjeto(request);
     if (!contexto) return responderProjetoNaoEncontrado(reply);
@@ -49,6 +53,10 @@ export async function projectStateRoutes(app: FastifyInstance) {
     async (request, reply) => criarStateItem(request, reply, 'decision'),
   );
 
+  app.delete('/workspaces/:workspaceSlug/projects/:projectSlug/state/decisions/:stateSlug', async (request, reply) => {
+    return deletarStateItem(request, reply, 'decision');
+  });
+
   app.get('/workspaces/:workspaceSlug/projects/:projectSlug/state/sessions', async (request, reply) => {
     const contexto = await resolverContextoProjeto(request);
     if (!contexto) return responderProjetoNaoEncontrado(reply);
@@ -66,6 +74,10 @@ export async function projectStateRoutes(app: FastifyInstance) {
     { preHandler: [validar(criarProjectStateSchema)] },
     async (request, reply) => criarStateItem(request, reply, 'session'),
   );
+
+  app.delete('/workspaces/:workspaceSlug/projects/:projectSlug/state/sessions/:stateSlug', async (request, reply) => {
+    return deletarStateItem(request, reply, 'session');
+  });
 }
 
 async function criarStateItem(request: FastifyRequest, reply: FastifyReply, expectedType: StateType) {
@@ -153,6 +165,44 @@ async function criarStateItem(request: FastifyRequest, reply: FastifyReply, expe
   return reply.status(201).send({ data: { ...sessao, type: 'session' } });
 }
 
+async function deletarStateItem(request: FastifyRequest, reply: FastifyReply, expectedType: StateType) {
+  const contexto = await resolverContextoProjeto(request);
+  if (!contexto) return responderProjetoNaoEncontrado(reply);
+
+  const { stateSlug } = request.params as { stateSlug: string };
+
+  if (expectedType === 'memory') {
+    const [memoriaRemovida] = await db
+      .delete(projectMemories)
+      .where(and(eq(projectMemories.projectId, contexto.projectId), eq(projectMemories.slug, stateSlug)))
+      .returning({ id: projectMemories.id });
+
+    if (!memoriaRemovida) return responderStateNaoEncontrado(reply);
+
+    return reply.status(204).send();
+  }
+
+  if (expectedType === 'decision') {
+    const [decisaoRemovida] = await db
+      .delete(projectDecisions)
+      .where(and(eq(projectDecisions.projectId, contexto.projectId), eq(projectDecisions.slug, stateSlug)))
+      .returning({ id: projectDecisions.id });
+
+    if (!decisaoRemovida) return responderStateNaoEncontrado(reply);
+
+    return reply.status(204).send();
+  }
+
+  const [sessaoRemovida] = await db
+    .delete(projectSessions)
+    .where(and(eq(projectSessions.projectId, contexto.projectId), eq(projectSessions.slug, stateSlug)))
+    .returning({ id: projectSessions.id });
+
+  if (!sessaoRemovida) return responderStateNaoEncontrado(reply);
+
+  return reply.status(204).send();
+}
+
 async function resolverContextoProjeto(request: FastifyRequest) {
   const { workspaceSlug, projectSlug } = request.params as { workspaceSlug: string; projectSlug: string };
   const workspace = await resolverWorkspaceDoUsuario(request.user.id, workspaceSlug);
@@ -179,5 +229,11 @@ async function resolverContextoProjeto(request: FastifyRequest) {
 function responderProjetoNaoEncontrado(reply: FastifyReply) {
   return reply.status(404).send({
     error: { code: 'NOT_FOUND', message: 'Workspace ou projeto não encontrado', status: 404 },
+  });
+}
+
+function responderStateNaoEncontrado(reply: FastifyReply) {
+  return reply.status(404).send({
+    error: { code: 'NOT_FOUND', message: 'Item de Project State não encontrado', status: 404 },
   });
 }
