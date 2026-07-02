@@ -1,0 +1,6 @@
+{
+  "name": "opencode-deploy-guard",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true
+}
