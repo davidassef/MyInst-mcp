@@ -20,13 +20,7 @@ const destinoPack = join(process.cwd(), '.tmp', 'release-check');
 
 async function main() {
   const versoes = carregarVersoes();
-  const versao = [...new Set(Object.values(versoes))][0];
-
-  if (new Set(Object.values(versoes)).size !== 1) {
-    throw new Error(`Versões divergentes: ${JSON.stringify(versoes)}`);
-  }
-
-  console.log(`[SUCCESS] Versões alinhadas em ${versao}`);
+  console.log(`[SUCCESS] Versões carregadas: ${JSON.stringify(versoes)}`);
 
   validarLockfileCongelado();
 
@@ -34,13 +28,13 @@ async function main() {
   executarPnpm(['--filter', '@myinst/mcp-server', 'build']);
   executarPnpm(['--filter', '@myinst/cli', 'build']);
 
-  validarBinariosLocais(versao);
-  validarLiteralsDeVersao(versao);
-  validarPacks(versao);
+  validarBinariosLocais(versoes);
+  validarLiteralsDeVersao(versoes);
+  validarPacks(versoes);
 
   if (!skipNpm) {
-    validarRegistryNpm(versao);
-    validarNpxPublicado(versao);
+    validarRegistryNpm(versoes);
+    validarNpxPublicado(versoes);
   }
 
   console.log('[SUCCESS] release:check concluído');
@@ -58,29 +52,33 @@ function validarLockfileCongelado() {
   console.log('[SUCCESS] Lockfile está alinhado com os manifests');
 }
 
-function validarBinariosLocais(versao: string) {
+function validarBinariosLocais(versoes: Record<string, string>) {
   for (const pacote of pacotes.filter((item) => item.bin)) {
     const saida = executar('node', [pacote.bin as string, '--version'], { capture: true }).trim();
-    if (saida !== versao) {
-      throw new Error(`${pacote.nome} --version local retornou ${saida}, esperado ${versao}`);
+    const versaoEsperada = versoes[pacote.nome];
+
+    if (saida !== versaoEsperada) {
+      throw new Error(`${pacote.nome} --version local retornou ${saida}, esperado ${versaoEsperada}`);
     }
   }
 
-  console.log('[SUCCESS] Binários locais retornam a versão dos manifests');
+  console.log('[SUCCESS] Binários locais retornam as versões dos manifests');
 }
 
-function validarLiteralsDeVersao(versao: string) {
+function validarLiteralsDeVersao(versoes: Record<string, string>) {
   for (const pacote of pacotes.filter((item) => item.sourceVersionPath)) {
     const conteudo = readFileSync(join(process.cwd(), pacote.sourceVersionPath as string), 'utf-8');
-    if (!conteudo.includes(`'${versao}'`)) {
-      throw new Error(`${pacote.sourceVersionPath} não contém a versão ${versao}`);
+    const versaoEsperada = versoes[pacote.nome];
+
+    if (!conteudo.includes(`'${versaoEsperada}'`)) {
+      throw new Error(`${pacote.sourceVersionPath} não contém a versão ${versaoEsperada}`);
     }
   }
 
   console.log('[SUCCESS] Literais de versão do CLI/MCP estão alinhados');
 }
 
-function validarPacks(versao: string) {
+function validarPacks(versoes: Record<string, string>) {
   rmSync(destinoPack, { recursive: true, force: true });
   mkdirSync(destinoPack, { recursive: true });
 
@@ -88,13 +86,14 @@ function validarPacks(versao: string) {
 
   for (const pacote of pacotes) {
     executarPnpm(['--filter', pacote.nome, 'pack', '--pack-destination', destinoPack]);
-    const tarball = encontrarTarball(pacote, versao);
+    const versaoEsperada = versoes[pacote.nome];
+    const tarball = encontrarTarball(pacote, versaoEsperada);
     tarballs.push(tarball);
 
     const manifest = JSON.parse(executar('tar', ['-xOf', tarball, 'package/package.json'], { capture: true }));
 
-    if (manifest.version !== versao) {
-      throw new Error(`${pacote.nome} pack contém versão ${manifest.version}, esperado ${versao}`);
+    if (manifest.version !== versaoEsperada) {
+      throw new Error(`${pacote.nome} pack contém versão ${manifest.version}, esperado ${versaoEsperada}`);
     }
 
     if (!manifest.files?.includes('dist')) {
@@ -110,7 +109,7 @@ function validarPacks(versao: string) {
     executar('tar', ['-xOf', tarball, distIndex], { capture: true });
   }
 
-  validarInstalacaoTarballs(versao, tarballs);
+  validarInstalacaoTarballs(versoes, tarballs);
 
   console.log('[SUCCESS] Tarballs npm contêm manifests, dist e instalação válidos');
 }
@@ -132,7 +131,7 @@ function validarManifestSemWorkspaceProtocol(nomePacote: string, manifest: Recor
   }
 }
 
-function validarInstalacaoTarballs(versao: string, tarballs: string[]) {
+function validarInstalacaoTarballs(versoes: Record<string, string>, tarballs: string[]) {
   const destinoInstalacao = join(destinoPack, 'install-test');
 
   mkdirSync(destinoInstalacao, { recursive: true });
@@ -162,24 +161,25 @@ function validarInstalacaoTarballs(versao: string, tarballs: string[]) {
     '--version',
   ], { capture: true }).trim();
 
-  if (cliVersion !== versao) {
-    throw new Error(`tarball @myinst/cli retornou ${cliVersion}, esperado ${versao}`);
+  if (cliVersion !== versoes['@myinst/cli']) {
+    throw new Error(`tarball @myinst/cli retornou ${cliVersion}, esperado ${versoes['@myinst/cli']}`);
   }
 
-  if (mcpVersion !== versao) {
-    throw new Error(`tarball @myinst/mcp-server retornou ${mcpVersion}, esperado ${versao}`);
+  if (mcpVersion !== versoes['@myinst/mcp-server']) {
+    throw new Error(`tarball @myinst/mcp-server retornou ${mcpVersion}, esperado ${versoes['@myinst/mcp-server']}`);
   }
 }
 
-function validarRegistryNpm(versao: string) {
+function validarRegistryNpm(versoes: Record<string, string>) {
   for (const pacote of pacotes) {
     const metadata = JSON.parse(executar('npm', ['view', pacote.nome, 'version', 'dist-tags', '--json', '--prefer-online'], { capture: true }));
+    const versaoEsperada = versoes[pacote.nome];
 
-    if (metadata.version !== versao) {
-      throw new Error(`${pacote.nome} registry está em ${metadata.version}, esperado ${versao}`);
+    if (metadata.version !== versaoEsperada) {
+      throw new Error(`${pacote.nome} registry está em ${metadata.version}, esperado ${versaoEsperada}`);
     }
 
-    if (metadata['dist-tags']?.latest !== versao || metadata['dist-tags']?.beta !== versao) {
+    if (metadata['dist-tags']?.latest !== versaoEsperada || metadata['dist-tags']?.beta !== versaoEsperada) {
       throw new Error(`${pacote.nome} dist-tags desalinhadas: ${JSON.stringify(metadata['dist-tags'])}`);
     }
   }
@@ -187,16 +187,16 @@ function validarRegistryNpm(versao: string) {
   console.log('[SUCCESS] Registry npm está com latest/beta alinhados');
 }
 
-function validarNpxPublicado(versao: string) {
+function validarNpxPublicado(versoes: Record<string, string>) {
   const cliVersion = executar('npx', ['--yes', '@myinst/cli@latest', '--version'], { capture: true }).trim();
   const mcpVersion = executar('npx', ['--yes', '@myinst/mcp-server@latest', '--version'], { capture: true }).trim();
 
-  if (cliVersion !== versao) {
-    throw new Error(`npx @myinst/cli@latest retornou ${cliVersion}, esperado ${versao}`);
+  if (cliVersion !== versoes['@myinst/cli']) {
+    throw new Error(`npx @myinst/cli@latest retornou ${cliVersion}, esperado ${versoes['@myinst/cli']}`);
   }
 
-  if (mcpVersion !== versao) {
-    throw new Error(`npx @myinst/mcp-server@latest retornou ${mcpVersion}, esperado ${versao}`);
+  if (mcpVersion !== versoes['@myinst/mcp-server']) {
+    throw new Error(`npx @myinst/mcp-server@latest retornou ${mcpVersion}, esperado ${versoes['@myinst/mcp-server']}`);
   }
 
   console.log('[SUCCESS] npx @latest retorna a versão publicada');
