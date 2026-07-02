@@ -188,7 +188,7 @@ Se o `slug` mudar, use o novo slug nas chamadas seguintes. O MCP não cria alias
 
 ### `myinst_delete_workspace`
 
-Remove um workspace não padrão.
+Remove um workspace com confirmação explícita e proteções de compatibilidade.
 
 Parâmetros:
 
@@ -230,7 +230,7 @@ Se o `slug` mudar, use o novo slug nas chamadas seguintes. O MCP não mantém al
 
 ### `myinst_delete_project`
 
-Remove um projeto não padrão.
+Remove um projeto com confirmação explícita e proteções de compatibilidade.
 
 Parâmetros:
 

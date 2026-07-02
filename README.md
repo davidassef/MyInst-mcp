@@ -251,11 +251,11 @@ Se `MYINST_API_KEY` não for informada, o MCP abre o navegador, redireciona para
 | `myinst_list_workspaces` | lista workspaces do usuário |
 | `myinst_create_workspace` | cria workspace |
 | `myinst_update_workspace` | edita nome, slug ou descrição de workspace |
-| `myinst_delete_workspace` | apaga workspace não padrão com confirmação explícita |
+| `myinst_delete_workspace` | apaga workspace com confirmação explícita e proteções de compatibilidade |
 | `myinst_list_projects` | lista projetos do workspace |
 | `myinst_create_project` | cria projeto em um workspace |
 | `myinst_update_project` | edita nome, slug ou descrição de projeto |
-| `myinst_delete_project` | apaga projeto não padrão com confirmação explícita |
+| `myinst_delete_project` | apaga projeto com confirmação explícita e proteções de compatibilidade |
 | `myinst_list_sync_targets` | detecta clientes e estruturas sincronizáveis locais |
 | `myinst_pull` | materializa o vault em formato canônico ou nativo |
 | `myinst_push` | envia mudanças locais detectadas para o vault |
