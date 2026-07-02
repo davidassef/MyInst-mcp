@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, FileText, Trash2, Save, Search, Folder, FolderPlus, X, Brain, GitBranch, MessagesSquare } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Trash2, Save, Search, Folder, FolderPlus, X, Brain, GitBranch, MessagesSquare, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react';
 import { api, type ChatDetalhado, type ChatMensagem, type ChatResumo } from '@/lib/api';
 
 const TIPOS_LABEL: Record<string, string> = {
@@ -596,7 +596,7 @@ function ChatHistoryPanel({
   const [chatSelecionadoId, setChatSelecionadoId] = useState<string | null>(null);
   const [chatSelecionado, setChatSelecionado] = useState<ChatDetalhado | null>(null);
   const [carregandoChat, setCarregandoChat] = useState(false);
-  const [carregandoMaisMensagens, setCarregandoMaisMensagens] = useState(false);
+  const [carregandoPaginaMensagens, setCarregandoPaginaMensagens] = useState(false);
   const [erroChat, setErroChat] = useState('');
 
   async function selecionarChat(chat: ChatResumo) {
@@ -619,25 +619,26 @@ function ChatHistoryPanel({
     }
   }
 
-  async function carregarMaisMensagens() {
+  async function carregarPaginaMensagens(pagina: number) {
     if (!chatSelecionado) return;
 
-    setCarregandoMaisMensagens(true);
+    const totalPaginas = calcularTotalPaginasChat(chatSelecionado);
+    const paginaSegura = Math.min(Math.max(pagina, 1), totalPaginas);
+    const messageOffset = (paginaSegura - 1) * TAMANHO_PAGINA_MENSAGENS_CHAT;
+
+    setCarregandoPaginaMensagens(true);
     setErroChat('');
 
     try {
       const proximaPagina = await api.chats.obter(workspaceSlug, projectSlug, chatSelecionado.externalSessionId, {
         messageLimit: TAMANHO_PAGINA_MENSAGENS_CHAT,
-        messageOffset: chatSelecionado.messages.length,
+        messageOffset,
       });
-      setChatSelecionado({
-        ...proximaPagina,
-        messages: [...chatSelecionado.messages, ...proximaPagina.messages],
-      });
+      setChatSelecionado(proximaPagina);
     } catch (err) {
       setErroChat(err instanceof Error ? err.message : 'Erro ao carregar mensagens.');
     } finally {
-      setCarregandoMaisMensagens(false);
+      setCarregandoPaginaMensagens(false);
     }
   }
 
@@ -694,9 +695,9 @@ function ChatHistoryPanel({
         <ChatDetailPanel
           chat={chatSelecionado}
           carregando={carregandoChat}
-          carregandoMais={carregandoMaisMensagens}
+          carregandoPagina={carregandoPaginaMensagens}
           erro={erroChat}
-          onCarregarMais={carregarMaisMensagens}
+          onSelecionarPagina={carregarPaginaMensagens}
         />
       </div>
     </section>
@@ -706,16 +707,24 @@ function ChatHistoryPanel({
 function ChatDetailPanel({
   chat,
   carregando,
-  carregandoMais,
+  carregandoPagina,
   erro,
-  onCarregarMais,
+  onSelecionarPagina,
 }: {
   chat: ChatDetalhado | null;
   carregando: boolean;
-  carregandoMais: boolean;
+  carregandoPagina: boolean;
   erro: string;
-  onCarregarMais: () => void;
+  onSelecionarPagina: (pagina: number) => void;
 }) {
+  const [paginaDigitada, setPaginaDigitada] = useState('1');
+  const paginaAtual = chat ? calcularPaginaAtualChat(chat) : 1;
+  const totalPaginas = chat ? calcularTotalPaginasChat(chat) : 1;
+
+  useEffect(() => {
+    setPaginaDigitada(String(paginaAtual));
+  }, [paginaAtual, chat?.externalSessionId]);
+
   if (carregando) {
     return (
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6 text-sm text-zinc-500">
@@ -740,6 +749,14 @@ function ChatDetailPanel({
     );
   }
 
+  function submeterPagina(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const pagina = Number.parseInt(paginaDigitada, 10);
+    if (Number.isNaN(pagina)) return;
+
+    onSelecionarPagina(pagina);
+  }
+
   return (
     <article className="rounded-xl border border-zinc-800 bg-zinc-900">
       <div className="border-b border-zinc-800 p-4">
@@ -749,7 +766,7 @@ function ChatDetailPanel({
             <p className="mt-1 break-all text-xs text-zinc-500">{chat.externalSessionId}</p>
           </div>
           <span className="rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-500">
-            {chat.messages.length} de {chat.messageCount} mensagens
+            página {paginaAtual} de {totalPaginas} · {chat.messageCount} mensagens
           </span>
         </div>
       </div>
@@ -759,20 +776,89 @@ function ChatDetailPanel({
           <ChatMessageItem key={mensagem.id} mensagem={mensagem} />
         ))}
 
-        {chat.messages.length < chat.messageCount && (
-          <div className="flex justify-center border-t border-zinc-800 p-4">
-            <button
-              type="button"
-              onClick={onCarregarMais}
-              disabled={carregandoMais}
-              className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 transition-colors hover:border-blue-500 hover:text-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {carregandoMais ? 'Carregando...' : 'Carregar mais mensagens'}
-            </button>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800 p-4">
+          <div className="flex items-center gap-2">
+            <BotaoPaginaChat
+              label="Primeira página"
+              disabled={carregandoPagina || paginaAtual <= 1}
+              onClick={() => onSelecionarPagina(1)}
+              icon={<ChevronsLeft size={16} />}
+            />
+            <BotaoPaginaChat
+              label="Página anterior"
+              disabled={carregandoPagina || paginaAtual <= 1}
+              onClick={() => onSelecionarPagina(paginaAtual - 1)}
+              icon={<ChevronLeft size={16} />}
+            />
+            <BotaoPaginaChat
+              label="Próxima página"
+              disabled={carregandoPagina || paginaAtual >= totalPaginas}
+              onClick={() => onSelecionarPagina(paginaAtual + 1)}
+              icon={<ChevronRight size={16} />}
+            />
+            <BotaoPaginaChat
+              label="Última página"
+              disabled={carregandoPagina || paginaAtual >= totalPaginas}
+              onClick={() => onSelecionarPagina(totalPaginas)}
+              icon={<ChevronsRight size={16} />}
+            />
           </div>
-        )}
+
+          <form onSubmit={submeterPagina} className="flex items-center gap-2 text-sm text-zinc-400">
+            <span>Página</span>
+            <input
+              type="number"
+              min={1}
+              max={totalPaginas}
+              value={paginaDigitada}
+              onChange={(event) => setPaginaDigitada(event.target.value)}
+              className="h-9 w-20 rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-zinc-200 outline-none focus:border-blue-500"
+            />
+            <span>de {totalPaginas}</span>
+            <button
+              type="submit"
+              disabled={carregandoPagina}
+              className="h-9 rounded-lg border border-zinc-700 px-3 text-zinc-300 transition-colors hover:border-blue-500 hover:text-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Ir
+            </button>
+          </form>
+        </div>
       </div>
     </article>
+  );
+}
+
+function calcularPaginaAtualChat(chat: ChatDetalhado): number {
+  return Math.floor((chat.messageOffset || 0) / TAMANHO_PAGINA_MENSAGENS_CHAT) + 1;
+}
+
+function calcularTotalPaginasChat(chat: ChatDetalhado): number {
+  return Math.max(1, Math.ceil(chat.messageCount / TAMANHO_PAGINA_MENSAGENS_CHAT));
+}
+
+function BotaoPaginaChat({
+  label,
+  disabled,
+  onClick,
+  icon,
+}: {
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 text-zinc-300 transition-colors hover:border-blue-500 hover:text-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {icon}
+    </button>
   );
 }
 
