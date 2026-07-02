@@ -2,7 +2,7 @@
 
 CLI oficial do MyInst para login, listagem, status, pull, push, Project State e histórico de chats do vault.
 
-Versão atual: `0.1.0-beta.13`.
+Versão atual: `0.1.0-beta.16`.
 
 ## Instalacao
 
@@ -35,9 +35,9 @@ myinst chat list --workspace meus-projetos --project myinst --client codex --tag
 myinst chat show sessao-1 --workspace meus-projetos --project myinst
 myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
 myinst chat summarize sessao-1 --workspace meus-projetos --project myinst
-myinst env push --workspace meus-projetos --project myinst --file .env.local --name local
-myinst env push --workspace meus-projetos --project myinst --file .env.local --name local --create-recovery-key
-myinst env pull --workspace meus-projetos --project myinst --name local --output .env.local
+cd /caminho/do/projeto
+myinst env push --workspace meus-projetos --project myinst --file .env --name local --environment local
+myinst env pull --workspace meus-projetos --project myinst --name local --environment local --output .env
 ```
 
 ## Aviso de atualização
@@ -176,16 +176,18 @@ O import grava todas as sessões encontradas no `--path` dentro do projeto infor
 
 `myinst env` é o fluxo dedicado para arquivos `.env` de projeto. Ele não faz parte do `myinst pull/push` normal, porque `.env` continua bloqueado nos fluxos de conteúdo, chats e Project State.
 
+Rode os comandos na raiz do projeto que contém o arquivo `.env`. A pasta atual define qual arquivo local será lido ou escrito; `--workspace` e `--project` definem onde o envelope criptografado será salvo no vault. O beta atual não infere automaticamente o projeto remoto pelo diretório atual, nome da pasta ou Git remote.
+
 Comandos disponíveis:
 
-- `myinst env push --project <slug> --file .env.local --name local` criptografa localmente e envia somente o envelope cifrado.
-- `myinst env push --project <slug> --file .env.local --create-recovery-key` gera uma recovery key local e envia um envelope cifrado do segredo de vault.
-- `myinst env pull --project <slug> --name local --environment local --output .env.local` baixa o envelope, descriptografa localmente e cria backup se o destino já existir.
-- `myinst env list --project <slug>` lista metadados seguros.
-- `myinst env show --project <slug> --name local` mostra metadados seguros sem revelar valores.
-- `myinst env delete --project <slug> --name local` remove o env cifrado do projeto.
+- `myinst env push --workspace <workspace> --project <slug> --file .env --name local --environment local` criptografa localmente e envia somente o envelope cifrado.
+- `myinst env push --workspace <workspace> --project <slug> --file .env --name local --environment local --create-recovery-key` gera uma recovery key local e envia um envelope cifrado do segredo de vault.
+- `myinst env pull --workspace <workspace> --project <slug> --name local --environment local --output .env` baixa o envelope, descriptografa localmente e cria backup se o destino já existir.
+- `myinst env list --workspace <workspace> --project <slug>` lista metadados seguros.
+- `myinst env show --workspace <workspace> --project <slug> --name local --environment local` mostra metadados seguros sem revelar valores.
+- `myinst env delete --workspace <workspace> --project <slug> --name local --environment local` remove o env cifrado do projeto.
 
-`--project` é obrigatório para evitar gravar `.env` em um projeto genérico. O segredo do Env Vault deve ser informado por `MYINST_ENV_VAULT_SECRET` ou pelo prompt local oculto. Evite exportar o segredo na mesma linha do comando para não vazar em histórico, logs ou listagem de processos. O segredo não é salvo em `~/.myinst/config.json` e não deve ser enviado ao backend. O backend recebe apenas `encryptedPayload`, envelopes de recuperação cifrados e metadados operacionais do ciphertext.
+`--workspace` e `--project` devem ser explícitos para evitar gravar `.env` em um projeto genérico ou errado. O segredo do Env Vault deve ser informado por `MYINST_ENV_VAULT_SECRET` ou pelo prompt local oculto. Prefira o prompt oculto em uso interativo. Evite exportar o segredo na mesma linha do comando para não vazar em histórico, logs ou listagem de processos. O segredo não é salvo em `~/.myinst/config.json` e não deve ser enviado ao backend. O backend recebe apenas `encryptedPayload`, envelopes de recuperação cifrados e metadados operacionais do ciphertext.
 
 Se houver mais de um env com o mesmo `--name`, informe `--environment` em `pull`, `show` e `delete` para evitar operar no ambiente errado.
 

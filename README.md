@@ -6,7 +6,7 @@ Ele centraliza `skills`, `instructions`, `agents`, `hooks`, `memory`, `snippets`
 
 Também preserva continuidade de trabalho por projeto com Project State: memórias revisadas, decisões técnicas, resumos seguros de sessões e histórico de chats importado com opt-in explícito.
 
-O suporte a arquivos `.env` fica em um fluxo separado, o Env Vault. Ele armazena `.env` por projeto com criptografia local e recuperação por material criptográfico do usuário, sem misturar segredos ao sync normal. Consulte [docs/env-vault.md](./docs/env-vault.md).
+O suporte a arquivos `.env` fica em um fluxo separado, o Env Vault. Ele armazena `.env` por projeto com criptografia local e recuperação por material criptográfico do usuário, sem misturar segredos ao sync normal. Execute os comandos de Env Vault dentro da raiz do projeto e informe `--workspace` e `--project` explicitamente para evitar capturar segredos no projeto errado. Consulte [docs/env-vault.md](./docs/env-vault.md).
 
 ## O que o MyInst resolve
 
@@ -121,7 +121,7 @@ Pré-requisito antes de `myinst_push`:
 | `packages/mcp-server` | Servidor MCP local que conecta o cliente ao vault |
 | `packages/shared` | Schemas Zod, tipos e contratos compartilhados |
 
-Env Vault não é um tipo de conteúdo do sync. Ele usa rotas, comandos e retenção próprios para evitar que `.env` entre em busca, diff, Project State, chats ou adapters de clientes.
+Env Vault não é um tipo de conteúdo do sync. Ele usa rotas, comandos e retenção próprios para evitar que `.env` entre em busca, diff, Project State, chats ou adapters de clientes. O comando deve ser executado na pasta raiz do repositório que contém o `.env`; a identidade remota do projeto vem de `--workspace` e `--project`, não do nome da pasta.
 
 ## Compatibilidade de clientes
 
@@ -381,6 +381,24 @@ Regras por client:
 Para levar contexto para outro notebook, use `myinst chat list/show/export` no projeto correto. O export cria Markdown em `.myinst/chats/`; ele não reescreve o histórico interno do client. Cada novo adapter precisa declarar quais categorias suporta (`history`, `cache` ou outros artefatos), porque cada client guarda dados em estrutura própria.
 
 Não importe um diretório misto de sessões para um único projeto. O `myinst chat import` grava todas as sessões encontradas no `--path` informado dentro do `--workspace/--project` escolhido; ele ainda não roteia automaticamente por `cwd` ou por pasta de origem. Quando `~/.codex/sessions` tiver conversas de vários repositórios, faça primeiro `--dry-run`, escolha arquivos ou subdiretórios do projeto correto e só depois rode com `--reviewed`.
+
+### Env Vault por projeto
+
+Use Env Vault para `.env` reais. Não use `myinst push`, `myinst import`, chats ou Project State para segredos.
+
+Execute os comandos dentro da raiz do projeto que contém o arquivo:
+
+```powershell
+cd D:\Documentos\Projetos\MyInst
+myinst env push --workspace meus-projetos --project myinst --file .env --name local --environment local
+myinst env list --workspace meus-projetos --project myinst
+myinst env show --workspace meus-projetos --project myinst --name local --environment local
+myinst env pull --workspace meus-projetos --project myinst --name local --environment local --output .env
+```
+
+O MyInst ainda não infere automaticamente o projeto remoto pelo diretório atual. A pasta atual define qual arquivo local será lido por `--file` ou escrito por `--output`; `--workspace` e `--project` definem onde o envelope criptografado será salvo no vault. Se você executar o comando fora da pasta correta, `--file .env` pode apontar para outro arquivo.
+
+O segredo do Env Vault deve ser informado pelo prompt oculto da CLI ou por `MYINST_ENV_VAULT_SECRET` em ambiente local controlado. Não passe segredo na linha do comando e não armazene esse segredo em `~/.myinst/config.json`, README, scripts ou arquivos versionados.
 
 ### MyInst como contexto de agente
 

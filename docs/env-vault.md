@@ -2,9 +2,9 @@
 
 Env Vault é o fluxo dedicado para armazenar arquivos `.env` por projeto sem misturá-los com instruções, skills, chats, Project State ou configurações de clientes.
 
-O objetivo é resolver troca de máquina sem transformar o backend em um cofre capaz de ler segredos. O backend deve armazenar somente envelopes criptografados e metadados seguros; descriptografia acontece localmente na CLI, MCP local ou navegador.
+O objetivo é resolver troca de máquina sem transformar o backend em um cofre capaz de ler segredos. O backend deve armazenar somente envelopes criptografados e metadados seguros; descriptografia acontece localmente na CLI ou em clientes locais autorizados. O painel web atual mostra apenas metadados e comandos seguros.
 
-> Status: disponível via CLI e API própria. A publicação em produção depende dos gates, push, deploy por `git pull` e aplicação do schema no backend.
+> Status: disponível via CLI, API própria e painel web com metadados seguros.
 
 ## Modelo de segurança
 
@@ -46,19 +46,22 @@ Se o usuário perder todos os fatores criptográficos, o backend não deve conse
 
 ## CLI
 
-Comandos previstos:
+Execute os comandos na raiz do projeto que contém o arquivo `.env`. A pasta atual define o arquivo local lido por `--file` ou escrito por `--output`; o projeto remoto é definido por `--workspace` e `--project`.
 
-```bash
-myinst env push --workspace meus-projetos --project myinst --file .env.local --name local
-myinst env push --workspace meus-projetos --project myinst --file .env.local --name local --create-recovery-key
-myinst env pull --workspace meus-projetos --project myinst --name local --environment local --output .env.local
+```powershell
+cd D:\Documentos\Projetos\MyInst
+myinst env push --workspace meus-projetos --project myinst --file .env --name local --environment local
+myinst env push --workspace meus-projetos --project myinst --file .env --name local --environment local --create-recovery-key
+myinst env pull --workspace meus-projetos --project myinst --name local --environment local --output .env
 
 myinst env list --workspace meus-projetos --project myinst
-myinst env show --workspace meus-projetos --project myinst --name local
-myinst env delete --workspace meus-projetos --project myinst --name local
+myinst env show --workspace meus-projetos --project myinst --name local --environment local
+myinst env delete --workspace meus-projetos --project myinst --name local --environment local
 ```
 
-`--project` é obrigatório para impedir gravação em projeto genérico. O segredo pode vir de `MYINST_ENV_VAULT_SECRET` ou do prompt local oculto. Evite informar segredo na mesma linha do comando para não vazar em histórico, logs ou listagem de processos. Para criar envelope com uma recovery key já existente, use `MYINST_ENV_VAULT_RECOVERY_KEY`.
+`--workspace` e `--project` devem ser informados explicitamente neste beta. O MyInst ainda não infere automaticamente o projeto remoto pelo diretório atual, por nome de pasta ou por Git remote. Isso evita gravar segredos no projeto errado. Um manifesto local como `.myinst/project.json` pode ser adotado no futuro, mas não deve ser assumido no fluxo atual.
+
+`--project` é obrigatório para impedir gravação em projeto genérico. O segredo pode vir de `MYINST_ENV_VAULT_SECRET` ou do prompt local oculto. Prefira o prompt oculto para uso interativo. Evite informar segredo na mesma linha do comando para não vazar em histórico, logs ou listagem de processos. Para criar envelope com uma recovery key já existente, use `MYINST_ENV_VAULT_RECOVERY_KEY`.
 
 Se houver mais de um env com o mesmo `--name`, informe `--environment` em `pull`, `show` e `delete`. `sourcePath` é tratado como nome de arquivo seguro, não como caminho absoluto local.
 
