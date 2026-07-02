@@ -187,7 +187,7 @@ Comandos disponíveis:
 
 `--project` é obrigatório para evitar gravar `.env` em um projeto genérico. O segredo do Env Vault deve ser informado por `MYINST_ENV_VAULT_SECRET` ou pelo prompt local oculto. A opção `--secret` existe para automação controlada, mas pode ficar no histórico do shell. O segredo não é salvo em `~/.myinst/config.json` e não deve ser enviado ao backend. O backend recebe apenas `encryptedPayload`, envelopes de recuperação cifrados e metadados operacionais do ciphertext.
 
-Recovery por e-mail ou 2FA só valida identidade e autoriza step-up; ela não descriptografa `.env` sozinha. Para recuperação real, guarde a recovery key gerada por `--create-recovery-key` ou use outro material criptográfico local suportado no futuro, como dispositivo confiável, passphrase forte ou passkey. Se todos os fatores criptográficos forem perdidos, o MyInst não deve conseguir restaurar o plaintext.
+Recovery por e-mail ou 2FA só valida identidade e autoriza step-up; ela não descriptografa `.env` sozinha. Para recuperação real, guarde a recovery key gerada por `--create-recovery-key` ou informe uma recovery key existente por `MYINST_ENV_VAULT_RECOVERY_KEY`. No futuro, outros materiais criptográficos locais podem ser suportados, como dispositivo confiável, passphrase forte ou passkey. Se todos os fatores criptográficos forem perdidos, o MyInst não deve conseguir restaurar o plaintext.
 
 Por padrão, `env pull` nunca sobrescreve silenciosamente: se o arquivo de destino existir, a CLI cria `<arquivo>.bak` antes de gravar. Use `--overwrite` apenas quando quiser substituir sem backup.
 

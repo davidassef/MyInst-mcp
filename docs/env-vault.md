@@ -63,7 +63,7 @@ myinst env show --workspace meus-projetos --project myinst --name local
 myinst env delete --workspace meus-projetos --project myinst --name local
 ```
 
-`--project` é obrigatório para impedir gravação em projeto genérico. O segredo pode vir de `MYINST_ENV_VAULT_SECRET` ou do prompt local oculto. A opção `--secret` existe para automação controlada, mas pode ficar no histórico do shell.
+`--project` é obrigatório para impedir gravação em projeto genérico. O segredo pode vir de `MYINST_ENV_VAULT_SECRET` ou do prompt local oculto. A opção `--secret` existe para automação controlada, mas pode ficar no histórico do shell. Para criar envelope com uma recovery key já existente, use `MYINST_ENV_VAULT_RECOVERY_KEY`.
 
 ## Backend esperado
 

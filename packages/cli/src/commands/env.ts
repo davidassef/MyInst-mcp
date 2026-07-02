@@ -8,7 +8,6 @@ import {
   criarEnvVaultRecoveryEnvelope,
   criptografarEnvVault,
   descriptografarEnvVault,
-  extrairMetadadosEnvSeguro,
   gerarRecoveryKeyEnvVault,
   validarPayloadEnvVault,
   type EnvVaultEncryptedPayload,
