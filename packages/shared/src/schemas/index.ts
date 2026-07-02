@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { envVaultEncryptedPayloadSchema } from '../env-vault.js';
 import {
   CONTENT_TYPES,
   TAG_CATEGORIES,
@@ -102,6 +103,36 @@ export const criarChatSessionSchema = z.object({
 export const resumirChatSessionSchema = z.object({
   summary: z.string().max(4000).optional(),
 }).default({});
+
+const nomeEnvVaultSchema = z.string()
+  .min(1)
+  .max(120)
+  .regex(/^[a-z0-9._-]+$/);
+
+const caminhoEnvVaultSchema = z.string()
+  .min(1)
+  .max(500)
+  .refine((valor) => !valor.includes('\0'))
+  .refine((valor) => !valor.includes('..'));
+
+const ambienteEnvVaultSchema = z.string()
+  .min(1)
+  .max(80)
+  .regex(/^[a-z0-9._-]+$/)
+  .optional();
+
+export const envVaultFileMetadataSchema = z.object({
+  ciphertextByteLength: z.number().int().positive().max(5 * 1024 * 1024),
+  ciphertextSha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+}).strict();
+
+export const criarEnvVaultFileSchema = z.object({
+  name: nomeEnvVaultSchema,
+  sourcePath: caminhoEnvVaultSchema,
+  environment: ambienteEnvVaultSchema,
+  encryptedPayload: envVaultEncryptedPayloadSchema,
+  metadata: envVaultFileMetadataSchema,
+}).strict();
 
 export const criarFolderSchema = z.object({
   name: z.string().min(1).max(100),
