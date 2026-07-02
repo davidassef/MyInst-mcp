@@ -28,7 +28,7 @@ Release atual preparada:
 
 - `@myinst/shared@0.1.0-beta.12`
 - `@myinst/mcp-server@0.1.0-beta.11`
-- `@myinst/cli@0.1.0-beta.15`
+- `@myinst/cli@0.1.0-beta.16`
 
 Essa release corrige o pull nativo para preservar arquivos locais de configuração de clients, respeitar `metadata.myinstClientId` antes do default de client e evitar falsos conflitos por metadata interna. Como parte da regra fica em `@myinst/shared`, publique `shared`, depois `mcp-server` e por último `cli`.
 
@@ -90,10 +90,10 @@ Se a release beta atual também deve ficar disponível pelo dist-tag `beta`, ali
 ```bash
 npm dist-tag add @myinst/shared@0.1.0-beta.12 beta
 npm dist-tag add @myinst/mcp-server@0.1.0-beta.11 beta
-npm dist-tag add @myinst/cli@0.1.0-beta.15 beta
+npm dist-tag add @myinst/cli@0.1.0-beta.16 beta
 npm dist-tag add @myinst/shared@0.1.0-beta.12 latest
 npm dist-tag add @myinst/mcp-server@0.1.0-beta.11 latest
-npm dist-tag add @myinst/cli@0.1.0-beta.15 latest
+npm dist-tag add @myinst/cli@0.1.0-beta.16 latest
 ```
 
 ## Atualizar versão
@@ -116,7 +116,7 @@ pnpm version patch
 
 - Nunca use `npm publish` direto neste monorepo; use `pnpm publish` para que dependências `workspace:*` sejam reescritas no tarball publicado
 - Os manifests publicados não podem conter dependências `workspace:*`; rode `pnpm --filter @myinst/cli pack --pack-destination .tmp/npm-pack` antes de publicar quando a release for apenas do CLI
-- Para esta release, publique `@myinst/shared@0.1.0-beta.12`, mantenha `@myinst/mcp-server@0.1.0-beta.11` e publique `@myinst/cli@0.1.0-beta.15`
+- Para esta release, publique `@myinst/shared@0.1.0-beta.12`, mantenha `@myinst/mcp-server@0.1.0-beta.11` e publique `@myinst/cli@0.1.0-beta.16`
 - A validação `npx @myinst/cli --version` usa o dist-tag padrão `latest`; use outro tag somente se também ajustar o comando de validação
 - A release atual deve ficar publicada em `latest` e `beta`; revise `dist-tags` para evitar que qualquer tag continue apontando para uma versão anterior
 - O campo `files` no package.json garante que apenas `dist/` é publicado

@@ -33,7 +33,7 @@ import {
 import { avisarAtualizacaoDisponivel } from './update-check.js';
 
 const programa = new Command();
-const MYINST_VERSION = '0.1.0-beta.13';
+const MYINST_VERSION = '0.1.0-beta.16';
 
 programa
   .name('myinst')
