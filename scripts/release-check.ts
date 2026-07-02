@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
@@ -84,9 +84,13 @@ function validarPacks(versao: string) {
   rmSync(destinoPack, { recursive: true, force: true });
   mkdirSync(destinoPack, { recursive: true });
 
+  const tarballs: string[] = [];
+
   for (const pacote of pacotes) {
     executarPnpm(['--filter', pacote.nome, 'pack', '--pack-destination', destinoPack]);
     const tarball = encontrarTarball(pacote, versao);
+    tarballs.push(tarball);
+
     const manifest = JSON.parse(executar('tar', ['-xOf', tarball, 'package/package.json'], { capture: true }));
 
     if (manifest.version !== versao) {
@@ -106,7 +110,9 @@ function validarPacks(versao: string) {
     executar('tar', ['-xOf', tarball, distIndex], { capture: true });
   }
 
-  console.log('[SUCCESS] Tarballs npm contêm manifests e dist válidos');
+  validarInstalacaoTarballs(versao, tarballs);
+
+  console.log('[SUCCESS] Tarballs npm contêm manifests, dist e instalação válidos');
 }
 
 function validarManifestSemWorkspaceProtocol(nomePacote: string, manifest: Record<string, unknown>) {
@@ -123,6 +129,45 @@ function validarManifestSemWorkspaceProtocol(nomePacote: string, manifest: Recor
         throw new Error(`${nomePacote} pack contém dependência ${grupo}.${nome}=${versao}; publique com versão npm explícita`);
       }
     }
+  }
+}
+
+function validarInstalacaoTarballs(versao: string, tarballs: string[]) {
+  const destinoInstalacao = join(destinoPack, 'install-test');
+
+  mkdirSync(destinoInstalacao, { recursive: true });
+  writeFileSync(
+    join(destinoInstalacao, 'package.json'),
+    JSON.stringify({ private: true, type: 'module' }, null, 2),
+  );
+
+  executar('npm', [
+    'install',
+    '--prefix',
+    destinoInstalacao,
+    '--ignore-scripts',
+    '--package-lock=false',
+    '--fund=false',
+    '--audit=false',
+    ...tarballs,
+  ]);
+
+  const cliVersion = executar('node', [
+    join(destinoInstalacao, 'node_modules', '@myinst', 'cli', 'dist', 'index.js'),
+    '--version',
+  ], { capture: true }).trim();
+
+  const mcpVersion = executar('node', [
+    join(destinoInstalacao, 'node_modules', '@myinst', 'mcp-server', 'dist', 'index.js'),
+    '--version',
+  ], { capture: true }).trim();
+
+  if (cliVersion !== versao) {
+    throw new Error(`tarball @myinst/cli retornou ${cliVersion}, esperado ${versao}`);
+  }
+
+  if (mcpVersion !== versao) {
+    throw new Error(`tarball @myinst/mcp-server retornou ${mcpVersion}, esperado ${versao}`);
   }
 }
 

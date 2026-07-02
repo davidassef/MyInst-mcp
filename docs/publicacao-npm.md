@@ -12,21 +12,21 @@ O pacote shared é dependência do mcp-server, então precisa ser publicado prim
 
 ```bash
 cd packages/shared
-pnpm publish --access public
+pnpm publish --access public --tag beta
 ```
 
 ## Publicar @myinst/mcp-server
 
 ```bash
 cd packages/mcp-server
-pnpm publish --access public
+pnpm publish --access public --tag beta
 ```
 
 ## Publicar @myinst/cli
 
-Release atual preparada: `@myinst/cli@0.1.0-beta.6`.
+Release atual preparada: `@myinst/cli@0.1.0-beta.8`.
 
-Essa release depende também de `@myinst/shared@0.1.0-beta.6` e `@myinst/mcp-server@0.1.0-beta.6`, pois o sync multi-client, a validação de segredos e o login browser compartilham código entre os pacotes.
+Essa release depende também de `@myinst/shared@0.1.0-beta.8` e `@myinst/mcp-server@0.1.0-beta.8`, pois o sync multi-client, a validação de segredos e o login browser compartilham código entre os pacotes.
 
 Essa release publica:
 
@@ -51,8 +51,16 @@ pnpm --filter @myinst/cli pack --pack-destination .tmp/npm-pack
 Publicação:
 
 ```bash
-cd packages/cli
-pnpm publish --access public
+pnpm release:check -- --skip-npm
+
+cd packages/shared
+pnpm publish --access public --tag beta
+
+cd ../mcp-server
+pnpm publish --access public --tag beta
+
+cd ../cli
+pnpm publish --access public --tag beta
 ```
 
 ## Verificar publicação
@@ -71,9 +79,9 @@ npx @myinst/cli chat --help
 Se a release beta atual também deve ficar disponível pelo dist-tag `beta`, alinhe os três pacotes depois da publicação:
 
 ```bash
-npm dist-tag add @myinst/shared@0.1.0-beta.6 beta
-npm dist-tag add @myinst/mcp-server@0.1.0-beta.6 beta
-npm dist-tag add @myinst/cli@0.1.0-beta.6 beta
+npm dist-tag add @myinst/shared@0.1.0-beta.8 latest
+npm dist-tag add @myinst/mcp-server@0.1.0-beta.8 latest
+npm dist-tag add @myinst/cli@0.1.0-beta.8 latest
 ```
 
 ## Atualizar versão
@@ -94,10 +102,11 @@ pnpm version patch
 
 ## Notas
 
-- Os manifests publicados não podem conter dependências `workspace:*`; use versões npm explícitas nos pacotes publicáveis ou publique via `pnpm publish` validando o tarball antes
-- Para esta release, publique `@myinst/shared@0.1.0-beta.6` antes de `@myinst/mcp-server@0.1.0-beta.6` e `@myinst/cli@0.1.0-beta.6`
+- Nunca use `npm publish` direto neste monorepo; use `pnpm publish` para que dependências `workspace:*` sejam reescritas no tarball publicado
+- Os manifests publicados não podem conter dependências `workspace:*`; rode `pnpm release:check -- --skip-npm` antes de publicar para validar pack e instalação local
+- Para esta release, publique `@myinst/shared@0.1.0-beta.8` antes de `@myinst/mcp-server@0.1.0-beta.8` e `@myinst/cli@0.1.0-beta.8`
 - A validação `npx @myinst/cli --version` usa o dist-tag padrão `latest`; use outro tag somente se também ajustar o comando de validação
-- A release `0.1.0-beta.6` deve ficar publicada em `latest`; revise `dist-tags` para evitar que `beta` continue apontando para uma versão anterior
+- A release `0.1.0-beta.8` deve ficar publicada em `latest` e `beta`; revise `dist-tags` para evitar que qualquer tag continue apontando para uma versão anterior
 - O campo `files` no package.json garante que apenas `dist/` é publicado
 - O `prepublishOnly` script garante que o build roda antes de publicar
 - A licença AGPL-3.0 é incluída automaticamente
