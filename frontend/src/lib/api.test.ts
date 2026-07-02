@@ -47,4 +47,37 @@ describe('api.chats', () => {
     const headers = fetchMock.mock.calls[0]?.[1]?.headers as Headers;
     expect(headers.get('Authorization')).toBe('Bearer token-local');
   });
+
+  it('busca mensagens de um chat pelo identificador da sessão', async () => {
+    localStorage.setItem('myinst_token', 'token-local');
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: {
+          id: 'chat-1',
+          client: 'codex',
+          externalSessionId: 'sessao-1',
+          title: 'Sessão Codex',
+          messageCount: 1,
+          messages: [
+            {
+              id: 'msg-1',
+              role: 'user',
+              content: 'Abrir chat',
+              metadata: {},
+              createdAt: '2026-07-02T12:00:00.000Z',
+            },
+          ],
+        },
+      }),
+    } as Response);
+
+    const chat = await api.chats.obter('meus-projetos', 'myinst', 'sessao-1');
+
+    expect(chat.messages).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/workspaces/meus-projetos/projects/myinst/chats/sessao-1', {
+      headers: expect.any(Headers),
+    });
+  });
 });

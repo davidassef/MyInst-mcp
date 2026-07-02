@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Plus, FileText, Trash2, Save, Search, Folder, FolderPlus, X, Brain, GitBranch, MessagesSquare } from 'lucide-react';
-import { api, type ChatResumo } from '@/lib/api';
+import { api, type ChatDetalhado, type ChatMensagem, type ChatResumo } from '@/lib/api';
 
 const TIPOS_LABEL: Record<string, string> = {
   skill: 'Skill',
@@ -271,8 +271,8 @@ export function ProjetoPage() {
         <BotaoAbaProjeto label="Chats" active={abaAtiva === 'chats'} onClick={() => setAbaAtiva('chats')} icon={<MessagesSquare size={14} />} />
       </div>
 
-      {abaAtiva === 'chats' && (
-        <ChatHistoryPanel chats={chats} />
+      {abaAtiva === 'chats' && workspaceSlug && slug && (
+        <ChatHistoryPanel workspaceSlug={workspaceSlug} projectSlug={slug} chats={chats} />
       )}
 
       {abaAtiva !== 'conteudo' && abaAtiva !== 'chats' && (
@@ -582,7 +582,36 @@ export function ProjetoPage() {
   );
 }
 
-function ChatHistoryPanel({ chats }: { chats: ChatResumo[] }) {
+function ChatHistoryPanel({
+  workspaceSlug,
+  projectSlug,
+  chats,
+}: {
+  workspaceSlug: string;
+  projectSlug: string;
+  chats: ChatResumo[];
+}) {
+  const [chatSelecionadoId, setChatSelecionadoId] = useState<string | null>(null);
+  const [chatSelecionado, setChatSelecionado] = useState<ChatDetalhado | null>(null);
+  const [carregandoChat, setCarregandoChat] = useState(false);
+  const [erroChat, setErroChat] = useState('');
+
+  async function selecionarChat(chat: ChatResumo) {
+    setChatSelecionadoId(chat.externalSessionId);
+    setCarregandoChat(true);
+    setErroChat('');
+
+    try {
+      const chatDetalhado = await api.chats.obter(workspaceSlug, projectSlug, chat.externalSessionId);
+      setChatSelecionado(chatDetalhado);
+    } catch (err) {
+      setChatSelecionado(null);
+      setErroChat(err instanceof Error ? err.message : 'Erro ao carregar chat.');
+    } finally {
+      setCarregandoChat(false);
+    }
+  }
+
   return (
     <section className="space-y-4">
       <div>
@@ -590,38 +619,118 @@ function ChatHistoryPanel({ chats }: { chats: ChatResumo[] }) {
         <p className="mt-1 text-sm text-zinc-500">Transcripts importados explicitamente por client, separados dos resumos de Project State.</p>
       </div>
 
-      <div className="grid gap-3">
-        {chats.map((chat) => {
-          const tags = extrairTagsChat(chat.metadata);
+      <div className="grid gap-4 lg:grid-cols-[minmax(280px,420px)_1fr]">
+        <div className="grid content-start gap-3">
+          {chats.map((chat) => {
+            const tags = extrairTagsChat(chat.metadata);
+            const estaSelecionado = chatSelecionadoId === chat.externalSessionId;
 
-          return (
-            <article key={chat.id} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <h4 className="font-medium text-zinc-100">{chat.title}</h4>
-                  <p className="mt-1 break-all text-xs text-zinc-500">{chat.externalSessionId}</p>
+            return (
+              <button
+                key={chat.id}
+                type="button"
+                onClick={() => selecionarChat(chat)}
+                className={`rounded-xl border bg-zinc-900 p-4 text-left transition-colors ${
+                  estaSelecionado
+                    ? 'border-blue-500'
+                    : 'border-zinc-800 hover:border-zinc-600'
+                }`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <h4 className="font-medium text-zinc-100">{chat.title}</h4>
+                    <p className="mt-1 break-all text-xs text-zinc-500">{chat.externalSessionId}</p>
+                  </div>
+                  <span className="text-xs text-zinc-600">{new Date(chat.updatedAt).toLocaleDateString('pt-BR')}</span>
                 </div>
-                <span className="text-xs text-zinc-600">{new Date(chat.updatedAt).toLocaleDateString('pt-BR')}</span>
-              </div>
 
-              {chat.summary && <p className="mt-3 text-sm leading-6 text-blue-200">{chat.summary}</p>}
+                {chat.summary && <p className="mt-3 text-sm leading-6 text-blue-200">{chat.summary}</p>}
 
-              <div className="mt-4 flex flex-wrap gap-2 text-xs text-zinc-500">
-                <span className="rounded bg-zinc-800 px-2 py-1">client: {chat.client}</span>
-                <span className="rounded bg-zinc-800 px-2 py-1">mensagens: {chat.messageCount}</span>
-                {tags.map((tag) => (
-                  <span key={tag} className="rounded bg-zinc-800 px-2 py-1">tag: {tag}</span>
-                ))}
-              </div>
-            </article>
-          );
-        })}
+                <div className="mt-4 flex flex-wrap gap-2 text-xs text-zinc-500">
+                  <span className="rounded bg-zinc-800 px-2 py-1">client: {chat.client}</span>
+                  <span className="rounded bg-zinc-800 px-2 py-1">mensagens: {chat.messageCount}</span>
+                  {tags.map((tag) => (
+                    <span key={tag} className="rounded bg-zinc-800 px-2 py-1">tag: {tag}</span>
+                  ))}
+                </div>
+              </button>
+            );
+          })}
 
-        {chats.length === 0 && (
-          <p className="rounded-xl border border-zinc-800 bg-zinc-900 py-10 text-center text-sm text-zinc-500">Nenhum chat importado encontrado.</p>
-        )}
+          {chats.length === 0 && (
+            <p className="rounded-xl border border-zinc-800 bg-zinc-900 py-10 text-center text-sm text-zinc-500">Nenhum chat importado encontrado.</p>
+          )}
+        </div>
+
+        <ChatDetailPanel chat={chatSelecionado} carregando={carregandoChat} erro={erroChat} />
       </div>
     </section>
+  );
+}
+
+function ChatDetailPanel({
+  chat,
+  carregando,
+  erro,
+}: {
+  chat: ChatDetalhado | null;
+  carregando: boolean;
+  erro: string;
+}) {
+  if (carregando) {
+    return (
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6 text-sm text-zinc-500">
+        Carregando chat...
+      </div>
+    );
+  }
+
+  if (erro) {
+    return (
+      <div className="rounded-xl border border-red-900/60 bg-red-950/20 p-6 text-sm text-red-300">
+        {erro}
+      </div>
+    );
+  }
+
+  if (!chat) {
+    return (
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6 text-sm text-zinc-500">
+        Selecione um chat para visualizar as mensagens.
+      </div>
+    );
+  }
+
+  return (
+    <article className="rounded-xl border border-zinc-800 bg-zinc-900">
+      <div className="border-b border-zinc-800 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h4 className="font-medium text-zinc-100">{chat.title}</h4>
+            <p className="mt-1 break-all text-xs text-zinc-500">{chat.externalSessionId}</p>
+          </div>
+          <span className="rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-500">{chat.messageCount} mensagens</span>
+        </div>
+      </div>
+
+      <div className="max-h-[70vh] overflow-y-auto">
+        {chat.messages.map((mensagem) => (
+          <ChatMessageItem key={mensagem.id} mensagem={mensagem} />
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function ChatMessageItem({ mensagem }: { mensagem: ChatMensagem }) {
+  return (
+    <div className="border-b border-zinc-800 px-4 py-3 last:border-b-0">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <span className="rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-400">{mensagem.role}</span>
+        <span className="text-xs text-zinc-600">{new Date(mensagem.createdAt).toLocaleString('pt-BR')}</span>
+      </div>
+      <p className="whitespace-pre-wrap break-words text-sm leading-6 text-zinc-300">{mensagem.content}</p>
+    </div>
   );
 }
 
