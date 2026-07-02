@@ -161,6 +161,51 @@ describe('sync status', () => {
       expect.objectContaining({ clientId: 'claude', slug: 'agents' }),
     ]));
   });
+
+  it('ignora metadata de migracao ao comparar assinaturas', () => {
+    const local = conteudoLocal('instruction', 'agents', 'conteudo codex', 'codex');
+    const remoto = {
+      ...conteudoRemoto('instruction', 'agents', 'conteudo codex', 'codex'),
+      metadata: {
+        migratedBy: 'codex-local-project-sync',
+        migratedFromPath: 'D:/Documentos/Projetos/MyInst',
+      },
+    };
+
+    const status = calcularSyncStatus({
+      workspace,
+      project,
+      locais: [local],
+      remotos: [remoto],
+      manifesto: null,
+    });
+
+    expect(status.synced).toMatchObject([{ clientId: 'codex', slug: 'agents' }]);
+    expect(status.conflicts).toHaveLength(0);
+  });
+
+  it('ignora metadata nao materializada em arquivo local', () => {
+    const local = {
+      ...conteudoLocal('skill', 'opencode-workflow', 'conteudo claude'),
+      metadata: { myinstSourceCategory: 'shared_materialized' },
+    };
+    const remoto = {
+      ...conteudoRemoto('skill', 'opencode-workflow', 'conteudo claude'),
+      metadata: { description: 'Descricao mantida no vault' },
+    };
+    const manifesto = manifestoCom(remoto);
+
+    const status = calcularSyncStatus({
+      workspace,
+      project,
+      locais: [local],
+      remotos: [remoto],
+      manifesto,
+    });
+
+    expect(status.synced).toMatchObject([{ slug: 'opencode-workflow' }]);
+    expect(status.push).toHaveLength(0);
+  });
 });
 
 function conteudoLocal(type: string, slug: string, body: string, clientId = 'claude'): ConteudoSyncLocal {

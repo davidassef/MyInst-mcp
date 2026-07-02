@@ -1,6 +1,6 @@
 import { access, constants, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { basename, dirname, extname, join, resolve } from 'node:path';
+import { basename, dirname, extname, join, relative, resolve } from 'node:path';
 import { redigirSegredosEmTexto } from '../security.js';
 
 export type TipoSincronizavel =
@@ -1284,7 +1284,8 @@ async function escreverEstruturaClaude(items: ItemSincronizavel[], target: SyncT
     return escreverEstruturaClaudeGlobal(items, target);
   }
 
-  const base = join(resolverRaizProjetoPorPath(target.detectedPaths[0]), '.claude');
+  const raizProjeto = resolverRaizProjetoPorPath(target.detectedPaths[0]);
+  const base = join(raizProjeto, '.claude');
 
   return escreverComRegras(items, target, {
     skill: { dir: join(base, 'skills'), ext: '.md' },
@@ -1297,6 +1298,8 @@ async function escreverEstruturaClaude(items: ItemSincronizavel[], target: SyncT
     output_style: { dir: join(base, 'output-styles'), ext: '.md' },
     setting: { file: join(base, 'settings.json') },
     snippet: { dir: join(base, 'snippets'), ext: '.md' },
+  }, {
+    resolverCaminhoPreferencial: (item) => resolverSourcePathProjeto(item, raizProjeto, '.claude'),
   });
 }
 
@@ -1681,11 +1684,18 @@ async function escreverComRegras(
   items: ItemSincronizavel[],
   target: SyncTarget,
   regras: Partial<Record<TipoSincronizavel, { file?: string; dir?: string; ext?: string } | undefined>>,
+  options: { resolverCaminhoPreferencial?: (item: ItemSincronizavel) => string | null } = {},
 ): Promise<EscritaCliente> {
   const written: EscritaCliente['written'] = [];
   const ignored: EscritaCliente['ignored'] = [];
 
   for (const item of items) {
+    const caminhoPreferencial = options.resolverCaminhoPreferencial?.(item);
+    if (caminhoPreferencial) {
+      await escreverArquivoNativo(caminhoPreferencial, item, written, ignored);
+      continue;
+    }
+
     const regra = regras[item.type];
     if (!regra) {
       ignored.push({ type: item.type, slug: item.slug, reason: 'tipo sem suporte nativo neste cliente' });
@@ -1741,6 +1751,21 @@ async function escreverArquivoNativo(
 
 function ehConfiguracaoLocalProtegida(item: ItemSincronizavel): boolean {
   return item.type === 'setting' || item.type === 'mcp_config';
+}
+
+function resolverSourcePathProjeto(item: ItemSincronizavel, raizProjeto: string, pastaCliente: string): string | null {
+  const sourcePath = item.metadata.myinstSourcePath;
+  if (typeof sourcePath !== 'string' || sourcePath.trim().length === 0) {
+    return null;
+  }
+
+  const caminho = resolve(sourcePath);
+  const relativo = relative(resolve(raizProjeto), caminho).replace(/\\/g, '/');
+  if (relativo.startsWith('..') || relativo === '' || relativo.startsWith('/')) {
+    return null;
+  }
+
+  return relativo.startsWith(`${pastaCliente}/`) ? caminho : null;
 }
 
 function resolverBaseOculta(target: SyncTarget, dir: string) {

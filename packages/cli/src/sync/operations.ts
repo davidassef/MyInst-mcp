@@ -293,7 +293,7 @@ async function buscarSnapshotRemoto(
   }
 
   return {
-    items: respostas.flatMap((resposta) => resposta.items),
+    items: filtrarRemotosPorClients(respostas.flatMap((resposta) => resposta.items), params.clients),
     serverTime: respostas.at(-1)?.serverTime ?? new Date().toISOString(),
   };
 }
@@ -372,7 +372,7 @@ async function lerRespostaSnapshot(
     items: (payload.items ?? []).map((conteudo: ConteudoSyncRemoto) => normalizarConteudoRemoto({
       ...conteudo,
       scope: conteudo.scope || defaults.scope,
-      clientId: conteudo.clientId || defaults.clientId,
+      clientId: conteudo.clientId || lerStringMetadata(conteudo.metadata, 'myinstClientId') || defaults.clientId,
     })),
     serverTime: payload.serverTime ?? new Date().toISOString(),
   };
@@ -490,6 +490,15 @@ function agruparGlobaisPorClient(conteudos: ConteudoSyncLocal[]): Map<string, Co
   }
 
   return grupos;
+}
+
+function filtrarRemotosPorClients(conteudos: ConteudoSyncRemoto[], clients: string[] | undefined): ConteudoSyncRemoto[] {
+  if (!clients || clients.length === 0) {
+    return conteudos;
+  }
+
+  const clientsSelecionados = new Set(clients);
+  return conteudos.filter((conteudo) => clientsSelecionados.has(normalizarConteudoRemoto(conteudo).clientId ?? 'claude'));
 }
 
 function agruparPorClientEscopo(conteudos: ConteudoSyncRemoto[]): Map<string, { clientId: string; scope: 'project' | 'global'; conteudos: ConteudoSyncRemoto[] }> {

@@ -140,6 +140,36 @@ describe('sync operations', () => {
     await expect(readFile(join(dir, '.claude', 'CLAUDE.md'), 'utf-8')).rejects.toThrow();
   });
 
+  it('pull com client Claude explicito nao aplica itens Codex remotos', async () => {
+    const dir = await criarDirTemp(temporarios);
+    const fetchMock = vi.fn().mockResolvedValue(respostaJson({
+      data: {
+        items: [
+          itemRemoto('instruction', 'claude', 'Instrucoes Claude'),
+          itemRemoto('instruction', 'agents', 'Instrucoes Codex', {
+            clientId: undefined,
+            metadata: { myinstClientId: 'codex', myinstSourceScope: 'project' },
+          }),
+        ],
+        serverTime: '2026-06-27T00:00:00.000Z',
+      },
+    }));
+
+    const resultado = await executarPullSincronizado({
+      config,
+      diretorio: dir,
+      project: 'default',
+      workspace: 'default',
+      clients: ['claude'],
+      fetchImpl: fetchMock,
+    });
+    const conteudoClaude = await readFile(join(dir, '.claude', 'CLAUDE.md'), 'utf-8');
+
+    expect(conteudoClaude).toBe('Instrucoes Claude');
+    expect(resultado.aplicados).toHaveLength(1);
+    await expect(readFile(join(dir, '.codex', 'AGENTS.md'), 'utf-8')).rejects.toThrow();
+  });
+
   it('pull global com client Codex explicito cria layout nativo mesmo sem estrutura previa', async () => {
     const dir = await criarDirTemp(temporarios);
     const fetchMock = vi.fn().mockResolvedValue(respostaJson({

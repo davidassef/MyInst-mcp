@@ -287,6 +287,10 @@ function removerMetadataInterna(metadata: Record<string, unknown>): Record<strin
   delete metadataPublica.myinstSourceScope;
   delete metadataPublica.myinstSourcePath;
   delete metadataPublica.myinstFileExtension;
+  delete metadataPublica.myinstSourceCategory;
+  delete metadataPublica.migratedBy;
+  delete metadataPublica.migratedFromPath;
+  delete metadataPublica.description;
 
   return metadataPublica;
 }
