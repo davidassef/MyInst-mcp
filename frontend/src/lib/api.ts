@@ -58,6 +58,13 @@ export interface EnvVaultFileMetadata {
   ciphertextSha256?: string;
 }
 
+export interface EnvVaultRecoveryEnvelope {
+  method: 'recovery_key' | 'trusted_device' | 'passphrase' | 'passkey';
+  label: string;
+  encryptedVaultSecret: EnvVaultEncryptedPayload;
+  stepUpFactors: Array<'email' | 'totp' | 'passkey' | 'password'>;
+}
+
 export interface EnvVaultFileResumo {
   id: string;
   name: string;
@@ -74,6 +81,7 @@ export interface CriarEnvVaultFileInput {
   environment?: string;
   encryptedPayload: EnvVaultEncryptedPayload;
   metadata: EnvVaultFileMetadata;
+  recoveryEnvelopes?: EnvVaultRecoveryEnvelope[];
 }
 
 export interface EnvVaultFileDetalhado extends EnvVaultFileResumo {

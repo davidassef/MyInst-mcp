@@ -162,6 +162,42 @@ describe('Env Vault CLI', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
+  it('exige output explicito para não confiar em sourcePath remoto', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'myinst-env-no-output-'));
+    const origem = join(dir, '.env');
+    await writeFile(origem, 'DATABASE_URL=postgresql://novo\n', 'utf-8');
+    const preparado = await prepararEnvVaultPush({ file: origem, name: 'local', segredo: SEGREDO });
+
+    const fetchImpl = async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url.endsWith('/env-files')) {
+        return new Response(JSON.stringify({
+          data: [{ id: 'env-1', name: 'local', sourcePath: '/tmp/servidor/.env' }],
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+
+      return new Response(JSON.stringify({
+        data: {
+          id: 'env-1',
+          name: 'local',
+          encryptedPayload: preparado.body.encryptedPayload,
+        },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    };
+
+    await expect(baixarEnvVaultFile({
+      config: CONFIG,
+      workspace: 'default',
+      project: 'myinst',
+      name: 'local',
+      segredo: SEGREDO,
+      fetchImpl,
+    })).rejects.toThrow('Informe --output para materializar um env localmente.');
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
   it('busca env pelo nome sem expor valores', async () => {
     const fetchImpl = async () => new Response(JSON.stringify({
       data: [

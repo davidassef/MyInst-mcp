@@ -216,11 +216,34 @@ describe('api.envVault', () => {
         ciphertextByteLength: 6,
         ciphertextSha256: 'a'.repeat(64),
       },
+      recoveryEnvelopes: [
+        {
+          method: 'recovery_key',
+          label: 'Recovery key principal',
+          encryptedVaultSecret: {
+            version: 'env-vault-v1',
+            algorithm: 'AES-GCM',
+            kdf: {
+              algorithm: 'pbkdf2-sha256',
+              iterations: 210000,
+              keyLength: 32,
+              digest: 'sha256',
+            },
+            salt: 'AAAAAAAAAAAAAAAAAAAAAA',
+            iv: 'AAAAAAAAAAAAAAAA',
+            authTag: 'AAAAAAAAAAAAAAAAAAAAAA',
+            ciphertext: 'BBBBBBBB',
+          },
+          stepUpFactors: ['email', 'totp'],
+        },
+      ],
     });
 
     const body = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string);
     expect(body).not.toHaveProperty('plaintext');
     expect(body).not.toHaveProperty('keyNames');
+    expect(body.recoveryEnvelopes).toHaveLength(1);
+    expect(JSON.stringify(body)).not.toContain('segredo-local');
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/workspaces/meus-projetos/projects/myinst/env-files', {
       method: 'POST',
       body: expect.any(String),

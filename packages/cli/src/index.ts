@@ -204,7 +204,6 @@ env
   .requiredOption('-p, --project <slug>', 'Slug do projeto')
   .option('-n, --name <name>', 'Nome lógico do env')
   .option('--environment <name>', 'Ambiente associado')
-  .option('--secret <secret>', 'Segredo local do Env Vault')
   .option('--create-recovery-key', 'Gerar recovery key local e enviar envelope de recuperação cifrado')
   .action(executarEnvPush);
 
@@ -214,9 +213,8 @@ env
   .requiredOption('-n, --name <name>', 'Nome lógico ou id do env')
   .option('-w, --workspace <slug>', 'Slug do workspace')
   .requiredOption('-p, --project <slug>', 'Slug do projeto')
-  .option('-o, --output <path>', 'Destino local do arquivo')
+  .requiredOption('-o, --output <path>', 'Destino local do arquivo')
   .option('--overwrite', 'Sobrescrever destino sem criar backup')
-  .option('--secret <secret>', 'Segredo local do Env Vault')
   .action(executarEnvPull);
 
 env

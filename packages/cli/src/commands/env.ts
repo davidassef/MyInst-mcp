@@ -25,7 +25,6 @@ const RESET = '\x1b[0m';
 interface EnvBaseOptions {
   workspace?: string;
   project?: string;
-  secret?: string;
 }
 
 interface EnvPushOptions extends EnvBaseOptions {
@@ -100,10 +99,12 @@ interface BaixarEnvVaultFileResult {
 
 export async function executarEnvPush(options: EnvPushOptions): Promise<void> {
   try {
+    garantirEnvVaultExperimentalHabilitado();
+
     const config = carregarConfigObrigatoria();
     const workspace = options.workspace || 'default';
     const project = obterProjetoObrigatorio(options.project);
-    const segredo = await resolverSegredoEnvVault(options.secret);
+    const segredo = await resolverSegredoEnvVault();
     const preparado = await prepararEnvVaultPush({
       file: options.file,
       name: options.name,
@@ -135,10 +136,12 @@ export async function executarEnvPush(options: EnvPushOptions): Promise<void> {
 
 export async function executarEnvPull(options: EnvPullOptions): Promise<void> {
   try {
+    garantirEnvVaultExperimentalHabilitado();
+
     const config = carregarConfigObrigatoria();
     const workspace = options.workspace || 'default';
     const project = obterProjetoObrigatorio(options.project);
-    const segredo = await resolverSegredoEnvVault(options.secret);
+    const segredo = await resolverSegredoEnvVault();
     const resultado = await baixarEnvVaultFile({
       config,
       workspace,
@@ -160,6 +163,8 @@ export async function executarEnvPull(options: EnvPullOptions): Promise<void> {
 
 export async function executarEnvList(options: EnvListOptions): Promise<void> {
   try {
+    garantirEnvVaultExperimentalHabilitado();
+
     const config = carregarConfigObrigatoria();
     const workspace = options.workspace || 'default';
     const project = obterProjetoObrigatorio(options.project);
@@ -189,6 +194,8 @@ export async function executarEnvList(options: EnvListOptions): Promise<void> {
 
 export async function executarEnvShow(options: EnvNameOptions): Promise<void> {
   try {
+    garantirEnvVaultExperimentalHabilitado();
+
     const config = carregarConfigObrigatoria();
     const workspace = options.workspace || 'default';
     const project = obterProjetoObrigatorio(options.project);
@@ -211,6 +218,8 @@ export async function executarEnvShow(options: EnvNameOptions): Promise<void> {
 
 export async function executarEnvDelete(options: EnvNameOptions): Promise<void> {
   try {
+    garantirEnvVaultExperimentalHabilitado();
+
     const config = carregarConfigObrigatoria();
     const workspace = options.workspace || 'default';
     const project = obterProjetoObrigatorio(options.project);
@@ -276,7 +285,11 @@ export async function baixarEnvVaultFile(params: BaixarEnvVaultFileParams): Prom
     payload: validarPayloadEnvVault(env.encryptedPayload),
     segredo: params.segredo,
   });
-  const outputPath = params.output || env.sourcePath || env.name;
+  const outputPath = params.output;
+  if (!outputPath) {
+    throw new Error('Informe --output para materializar um env localmente.');
+  }
+
   const backupPath = await prepararDestino(outputPath, params.overwrite);
 
   await writeFile(outputPath, plaintext, { encoding: 'utf-8', mode: 0o600 });
@@ -341,8 +354,8 @@ export async function deletarEnvVaultFile(params: BuscarEnvVaultFileParams): Pro
   }
 }
 
-async function resolverSegredoEnvVault(segredo?: string): Promise<string> {
-  const valor = segredo || process.env.MYINST_ENV_VAULT_SECRET;
+async function resolverSegredoEnvVault(): Promise<string> {
+  const valor = process.env.MYINST_ENV_VAULT_SECRET;
   if (valor) {
     return valor;
   }
@@ -353,7 +366,7 @@ async function resolverSegredoEnvVault(segredo?: string): Promise<string> {
 async function perguntarSegredoOculto(prompt: string): Promise<string> {
   const entrada = input;
   if (!entrada.isTTY || typeof entrada.setRawMode !== 'function') {
-    throw new Error('Segredo do Env Vault é obrigatório. Informe MYINST_ENV_VAULT_SECRET ou --secret.');
+    throw new Error('Segredo do Env Vault é obrigatório. Informe MYINST_ENV_VAULT_SECRET ou use o prompt interativo.');
   }
 
   output.write(prompt);
@@ -480,6 +493,14 @@ function obterProjetoObrigatorio(project?: string): string {
   }
 
   throw new Error('Informe --project para associar o env a um projeto especifico.');
+}
+
+function garantirEnvVaultExperimentalHabilitado(): void {
+  if (process.env.MYINST_ENABLE_ENV_VAULT === '1') {
+    return;
+  }
+
+  throw new Error('Env Vault ainda está em rollout. Defina MYINST_ENABLE_ENV_VAULT=1 apenas após habilitar a API no servidor.');
 }
 
 async function encerrarComErroHttp(resposta: Response): Promise<never> {

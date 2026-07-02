@@ -4,7 +4,7 @@ Env Vault é o fluxo dedicado para armazenar arquivos `.env` por projeto sem mis
 
 O objetivo é resolver troca de máquina sem transformar o backend em um cofre capaz de ler segredos. O backend deve armazenar somente envelopes criptografados e metadados seguros; descriptografia acontece localmente na CLI, MCP local ou navegador.
 
-> Status: em rollout. O núcleo criptográfico compartilhado, contratos e CLI já existem. A persistência backend depende da alteração de schema aprovada pelo fluxo do projeto.
+> Status: em rollout. O núcleo criptográfico compartilhado, contratos e CLI já existem. A persistência backend depende da alteração de schema aprovada pelo fluxo do projeto. Até a API existir no servidor, comandos da CLI exigem `MYINST_ENABLE_ENV_VAULT=1` para execução experimental.
 
 ## Modelo de segurança
 
@@ -13,7 +13,7 @@ O objetivo é resolver troca de máquina sem transformar o backend em um cofre c
 - O backend não recebe plaintext, valores de variáveis, segredo de vault, recovery key em claro ou hash de plaintext.
 - Metadados persistidos devem ser operacionais e seguros: tamanho do ciphertext, hash do ciphertext e datas.
 - Nomes de variáveis só podem aparecer por opt-in local após unlock; não são persistidos por padrão.
-- `env pull` nunca sobrescreve arquivo local silenciosamente: cria backup ou exige opção explícita.
+- `env pull` exige `--output`, não confia em caminho retornado pelo servidor e nunca sobrescreve arquivo local silenciosamente.
 
 ## Criptografia
 
@@ -49,21 +49,16 @@ Se o usuário perder todos os fatores criptográficos, o backend não deve conse
 Comandos previstos:
 
 ```bash
-MYINST_ENV_VAULT_SECRET="segredo-local-forte-com-entropia" \
-  myinst env push --workspace meus-projetos --project myinst --file .env.local --name local
-
-MYINST_ENV_VAULT_SECRET="segredo-local-forte-com-entropia" \
-  myinst env push --workspace meus-projetos --project myinst --file .env.local --name local --create-recovery-key
-
-MYINST_ENV_VAULT_SECRET="segredo-local-forte-com-entropia" \
-  myinst env pull --workspace meus-projetos --project myinst --name local --output .env.local
+myinst env push --workspace meus-projetos --project myinst --file .env.local --name local
+myinst env push --workspace meus-projetos --project myinst --file .env.local --name local --create-recovery-key
+myinst env pull --workspace meus-projetos --project myinst --name local --output .env.local
 
 myinst env list --workspace meus-projetos --project myinst
 myinst env show --workspace meus-projetos --project myinst --name local
 myinst env delete --workspace meus-projetos --project myinst --name local
 ```
 
-`--project` é obrigatório para impedir gravação em projeto genérico. O segredo pode vir de `MYINST_ENV_VAULT_SECRET` ou do prompt local oculto. A opção `--secret` existe para automação controlada, mas pode ficar no histórico do shell. Para criar envelope com uma recovery key já existente, use `MYINST_ENV_VAULT_RECOVERY_KEY`.
+`--project` é obrigatório para impedir gravação em projeto genérico. O segredo pode vir de `MYINST_ENV_VAULT_SECRET` ou do prompt local oculto. Evite informar segredo na mesma linha do comando para não vazar em histórico, logs ou listagem de processos. Para criar envelope com uma recovery key já existente, use `MYINST_ENV_VAULT_RECOVERY_KEY`.
 
 ## Backend esperado
 
