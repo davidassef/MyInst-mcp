@@ -32,7 +32,7 @@ import {
   type TipoSincronizavel,
 } from './sync-targets/index.js';
 
-const MYINST_VERSION = '0.1.0-beta.6';
+const MYINST_VERSION = '0.1.0-beta.7';
 const SCOPES_SYNC = ['project', 'global', 'all'] as const;
 const FORMATOS_PULL = ['myinst', 'native'] as const;
 const TIPOS_CANONICOS = ['skill', 'instruction', 'mcp_config', 'agent', 'command', 'hook', 'memory', 'output_style', 'setting', 'snippet'] as const;
