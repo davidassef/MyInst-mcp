@@ -26,11 +26,11 @@ pnpm publish --access public --tag latest
 
 Release atual preparada:
 
-- `@myinst/shared@0.1.0-beta.10`
-- `@myinst/mcp-server@0.1.0-beta.10`
-- `@myinst/cli@0.1.0-beta.12`
+- `@myinst/shared@0.1.0-beta.11`
+- `@myinst/mcp-server@0.1.0-beta.11`
+- `@myinst/cli@0.1.0-beta.13`
 
-Essa release corrige o pull nativo para preservar arquivos locais de configuração de clients. Como a regra fica em `@myinst/shared`, publique `shared`, depois `mcp-server` e por último `cli`.
+Essa release corrige o pull nativo para preservar arquivos locais de configuração de clients, respeitar `metadata.myinstClientId` antes do default de client e evitar falsos conflitos por metadata interna. Como parte da regra fica em `@myinst/shared`, publique `shared`, depois `mcp-server` e por último `cli`.
 
 Essa release publica:
 
@@ -44,6 +44,8 @@ Essa release publica:
 - `myinst login` abre o fluxo browser por padrão e mantém `--api-key` para login manual.
 - `myinst pull/push/status` exigem `--client` quando múltiplos clients são detectados.
 - Pull nativo preserva `setting` e `mcp_config` locais já existentes, evitando sobrescrever API keys, paths, providers e modelos específicos da máquina.
+- `myinst pull --client <id>` filtra itens de projeto pelo client normalizado, inclusive quando o client vem em `metadata.myinstClientId`.
+- `myinst status` ignora metadata interna/de migração que não é materializada no arquivo local.
 - Sync bloqueia segredos prováveis e usa placeholders em configs sensíveis.
 
 Antes de publicar esta release:
@@ -86,12 +88,12 @@ npx @myinst/cli chat --help
 Se a release beta atual também deve ficar disponível pelo dist-tag `beta`, alinhe os pacotes alterados depois da publicação:
 
 ```bash
-npm dist-tag add @myinst/shared@0.1.0-beta.10 beta
-npm dist-tag add @myinst/mcp-server@0.1.0-beta.10 beta
-npm dist-tag add @myinst/cli@0.1.0-beta.12 beta
-npm dist-tag add @myinst/shared@0.1.0-beta.10 latest
-npm dist-tag add @myinst/mcp-server@0.1.0-beta.10 latest
-npm dist-tag add @myinst/cli@0.1.0-beta.12 latest
+npm dist-tag add @myinst/shared@0.1.0-beta.11 beta
+npm dist-tag add @myinst/mcp-server@0.1.0-beta.11 beta
+npm dist-tag add @myinst/cli@0.1.0-beta.13 beta
+npm dist-tag add @myinst/shared@0.1.0-beta.11 latest
+npm dist-tag add @myinst/mcp-server@0.1.0-beta.11 latest
+npm dist-tag add @myinst/cli@0.1.0-beta.13 latest
 ```
 
 ## Atualizar versão
@@ -114,7 +116,7 @@ pnpm version patch
 
 - Nunca use `npm publish` direto neste monorepo; use `pnpm publish` para que dependências `workspace:*` sejam reescritas no tarball publicado
 - Os manifests publicados não podem conter dependências `workspace:*`; rode `pnpm --filter @myinst/cli pack --pack-destination .tmp/npm-pack` antes de publicar quando a release for apenas do CLI
-- Para esta release, publique `@myinst/shared@0.1.0-beta.10`, `@myinst/mcp-server@0.1.0-beta.10` e `@myinst/cli@0.1.0-beta.12`
+- Para esta release, publique `@myinst/shared@0.1.0-beta.11`, `@myinst/mcp-server@0.1.0-beta.11` e `@myinst/cli@0.1.0-beta.13`
 - A validação `npx @myinst/cli --version` usa o dist-tag padrão `latest`; use outro tag somente se também ajustar o comando de validação
 - A release atual deve ficar publicada em `latest` e `beta`; revise `dist-tags` para evitar que qualquer tag continue apontando para uma versão anterior
 - O campo `files` no package.json garante que apenas `dist/` é publicado

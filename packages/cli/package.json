@@ -1,6 +1,6 @@
 {
   "name": "@myinst/cli",
-  "version": "0.1.0-beta.12",
+  "version": "0.1.0-beta.13",
   "description": "CLI para gerenciar seu vault MyInst",
   "type": "module",
   "license": "AGPL-3.0",
