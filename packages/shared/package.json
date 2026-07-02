@@ -23,6 +23,10 @@
     "./security": {
       "types": "./dist/security.d.ts",
       "import": "./dist/security.js"
+    },
+    "./env-vault": {
+      "types": "./dist/env-vault.d.ts",
+      "import": "./dist/env-vault.js"
     }
   },
   "scripts": {
