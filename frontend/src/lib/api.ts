@@ -38,6 +38,48 @@ export interface FiltrosChat {
   offset?: number;
 }
 
+export interface EnvVaultEncryptedPayload {
+  version: 'env-vault-v1';
+  algorithm: 'AES-GCM';
+  kdf: {
+    algorithm: 'pbkdf2-sha256';
+    iterations: 210000;
+    keyLength: 32;
+    digest: 'sha256';
+  };
+  salt: string;
+  iv: string;
+  authTag: string;
+  ciphertext: string;
+}
+
+export interface EnvVaultFileMetadata {
+  ciphertextByteLength: number;
+  ciphertextSha256?: string;
+}
+
+export interface EnvVaultFileResumo {
+  id: string;
+  name: string;
+  sourcePath: string;
+  environment?: string | null;
+  metadata: EnvVaultFileMetadata;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CriarEnvVaultFileInput {
+  name: string;
+  sourcePath: string;
+  environment?: string;
+  encryptedPayload: EnvVaultEncryptedPayload;
+  metadata: EnvVaultFileMetadata;
+}
+
+export interface EnvVaultFileDetalhado extends EnvVaultFileResumo {
+  encryptedPayload: EnvVaultEncryptedPayload;
+}
+
 function normalizarBaseApi(base: string): string {
   let baseNormalizada = base.replace(/\/+$/, '');
 
@@ -234,6 +276,19 @@ export const api = {
       const query = searchParams.toString() ? `?${searchParams}` : '';
       return request<ChatDetalhado>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/chats/${encodeURIComponent(sessionId)}${query}`);
     },
+  },
+  envVault: {
+    listar: (workspaceSlug: string, projetoSlug: string) =>
+      request<EnvVaultFileResumo[]>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/env-files`),
+    criar: (workspaceSlug: string, projetoSlug: string, body: CriarEnvVaultFileInput) =>
+      request<EnvVaultFileResumo>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/env-files`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    obter: (workspaceSlug: string, projetoSlug: string, envId: string) =>
+      request<EnvVaultFileDetalhado>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/env-files/${encodeURIComponent(envId)}`),
+    deletar: (workspaceSlug: string, projetoSlug: string, envId: string) =>
+      request<void>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/env-files/${encodeURIComponent(envId)}`, { method: 'DELETE' }),
   },
   tags: {
     listar: () => request<any[]>('/tags'),
