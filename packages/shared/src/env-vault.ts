@@ -10,7 +10,10 @@ const TAMANHO_AUTH_TAG = 16;
 const ITERACOES_PADRAO = 210_000;
 const TAMANHO_MAXIMO_CIPHERTEXT = 5 * 1024 * 1024;
 const PREFIXO_RECOVERY_KEY = 'myinst-env-rk_';
+const PREFIXO_SEGREDO_VAULT = 'myinst-env-vs_';
 const BASE64_URL_REGEX = /^[A-Za-z0-9_-]+$/;
+const RECOVERY_METHODS = ['recovery_key', 'trusted_device', 'passphrase', 'passkey'] as const;
+const STEP_UP_FACTORS = ['email', 'totp', 'passkey', 'password'] as const;
 
 export interface EnvVaultKdfParams {
   algorithm: typeof KDF_ALGORITMO;
@@ -34,6 +37,16 @@ export interface EnvVaultMetadata {
   byteLength: number;
 }
 
+export type EnvVaultRecoveryMethod = typeof RECOVERY_METHODS[number];
+export type EnvVaultStepUpFactor = typeof STEP_UP_FACTORS[number];
+
+export interface EnvVaultRecoveryEnvelope {
+  method: EnvVaultRecoveryMethod;
+  label: string;
+  encryptedVaultSecret: EnvVaultEncryptedPayload;
+  stepUpFactors: EnvVaultStepUpFactor[];
+}
+
 export interface ExtrairMetadadosEnvSeguroOptions {
   incluirNomesChaves?: boolean;
 }
@@ -46,6 +59,19 @@ export interface CriptografarEnvVaultParams {
 export interface DescriptografarEnvVaultParams {
   payload: EnvVaultEncryptedPayload;
   segredo: string;
+}
+
+export interface CriarEnvVaultRecoveryEnvelopeParams {
+  vaultSecret: string;
+  segredoRecuperacao: string;
+  method: EnvVaultRecoveryMethod;
+  label: string;
+  stepUpFactors?: EnvVaultStepUpFactor[];
+}
+
+export interface AbrirEnvVaultRecoveryEnvelopeParams {
+  envelope: EnvVaultRecoveryEnvelope;
+  segredoRecuperacao: string;
 }
 
 export async function criptografarEnvVault(params: CriptografarEnvVaultParams): Promise<EnvVaultEncryptedPayload> {
@@ -123,6 +149,48 @@ export function calcularHashCiphertextEnvVault(payload: EnvVaultEncryptedPayload
 
 export function gerarRecoveryKeyEnvVault(): string {
   return `${PREFIXO_RECOVERY_KEY}${codificarBase64Url(randomBytes(32))}`;
+}
+
+export function gerarSegredoVaultEnvVault(): string {
+  return `${PREFIXO_SEGREDO_VAULT}${codificarBase64Url(randomBytes(32))}`;
+}
+
+export async function criarEnvVaultRecoveryEnvelope(
+  params: CriarEnvVaultRecoveryEnvelopeParams,
+): Promise<EnvVaultRecoveryEnvelope> {
+  validarSegredo(params.vaultSecret);
+
+  const envelope: EnvVaultRecoveryEnvelope = {
+    method: params.method,
+    label: params.label,
+    encryptedVaultSecret: await criptografarEnvVault({
+      plaintext: params.vaultSecret,
+      segredo: params.segredoRecuperacao,
+    }),
+    stepUpFactors: params.stepUpFactors ?? [],
+  };
+
+  return validarRecoveryEnvelopeEnvVault(envelope);
+}
+
+export async function abrirEnvVaultRecoveryEnvelope(
+  params: AbrirEnvVaultRecoveryEnvelopeParams,
+): Promise<string> {
+  const envelope = validarRecoveryEnvelopeEnvVault(params.envelope);
+
+  return descriptografarEnvVault({
+    payload: envelope.encryptedVaultSecret,
+    segredo: params.segredoRecuperacao,
+  });
+}
+
+export function validarRecoveryEnvelopeEnvVault(envelope: unknown): EnvVaultRecoveryEnvelope {
+  const resultado = envVaultRecoveryEnvelopeSchema.safeParse(envelope);
+  if (!resultado.success) {
+    throw new Error('Envelope de recuperação do Env Vault inválido.');
+  }
+
+  return resultado.data;
 }
 
 function criarKdfParams(): EnvVaultKdfParams {
@@ -387,3 +455,13 @@ export const envVaultEncryptedPayloadSchema = z.object({
   authTag: z.string().regex(BASE64_URL_REGEX).refine((valor) => possuiTamanhoBase64Url(valor, TAMANHO_AUTH_TAG)),
   ciphertext: z.string().regex(BASE64_URL_REGEX).refine(possuiCiphertextValido),
 });
+
+export const envVaultRecoveryMethodSchema = z.enum(RECOVERY_METHODS);
+export const envVaultStepUpFactorSchema = z.enum(STEP_UP_FACTORS);
+
+export const envVaultRecoveryEnvelopeSchema = z.object({
+  method: envVaultRecoveryMethodSchema,
+  label: z.string().min(1).max(120),
+  encryptedVaultSecret: envVaultEncryptedPayloadSchema,
+  stepUpFactors: z.array(envVaultStepUpFactorSchema).max(4).default([]),
+}).strict();

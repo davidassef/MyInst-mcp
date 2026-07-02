@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { envVaultEncryptedPayloadSchema } from '../env-vault.js';
+import { envVaultEncryptedPayloadSchema, envVaultRecoveryEnvelopeSchema } from '../env-vault.js';
 import {
   CONTENT_TYPES,
   TAG_CATEGORIES,
@@ -132,6 +132,7 @@ export const criarEnvVaultFileSchema = z.object({
   environment: ambienteEnvVaultSchema,
   encryptedPayload: envVaultEncryptedPayloadSchema,
   metadata: envVaultFileMetadataSchema,
+  recoveryEnvelopes: z.array(envVaultRecoveryEnvelopeSchema).max(5).optional(),
 }).strict();
 
 export const criarFolderSchema = z.object({

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { criptografarEnvVault } from '../src/env-vault.js';
+import {
+  criarEnvVaultRecoveryEnvelope,
+  criptografarEnvVault,
+  gerarRecoveryKeyEnvVault,
+  gerarSegredoVaultEnvVault,
+} from '../src/env-vault.js';
 import { criarEnvVaultFileSchema, resumirChatSessionSchema } from '../src/schemas/index.js';
 
 describe('schemas', () => {
@@ -26,6 +31,41 @@ describe('schemas', () => {
 
     expect(parsed.name).toBe('local');
     expect(JSON.stringify(parsed)).not.toContain('postgresql://local');
+  });
+
+  it('aceita envelopes de recuperação sem permitir email como chave criptografica', async () => {
+    const encryptedPayload = await criptografarEnvVault({
+      plaintext: 'DATABASE_URL=postgresql://local',
+      segredo: 'segredo-local-do-usuario-com-entropia',
+    });
+    const recoveryEnvelope = await criarEnvVaultRecoveryEnvelope({
+      vaultSecret: gerarSegredoVaultEnvVault(),
+      segredoRecuperacao: gerarRecoveryKeyEnvVault(),
+      method: 'recovery_key',
+      label: 'Recovery key principal',
+      stepUpFactors: ['email', 'totp'],
+    });
+
+    const parsed = criarEnvVaultFileSchema.parse({
+      name: 'local',
+      sourcePath: '.env.local',
+      encryptedPayload,
+      metadata: {
+        ciphertextByteLength: 128,
+      },
+      recoveryEnvelopes: [recoveryEnvelope],
+    });
+
+    expect(parsed.recoveryEnvelopes?.[0]?.stepUpFactors).toEqual(['email', 'totp']);
+    expect(() => criarEnvVaultFileSchema.parse({
+      name: 'local',
+      sourcePath: '.env.local',
+      encryptedPayload,
+      metadata: {
+        ciphertextByteLength: 128,
+      },
+      recoveryEnvelopes: [{ ...recoveryEnvelope, method: 'email' }],
+    })).toThrow();
   });
 
   it('rejeita plaintext e metadados sensiveis no contrato de env vault', async () => {

@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+  abrirEnvVaultRecoveryEnvelope,
   calcularHashCiphertextEnvVault,
+  criarEnvVaultRecoveryEnvelope,
   descriptografarEnvVault,
   extrairMetadadosEnvSeguro,
   gerarRecoveryKeyEnvVault,
+  gerarSegredoVaultEnvVault,
   criptografarEnvVault,
   validarPayloadEnvVault,
+  validarRecoveryEnvelopeEnvVault,
 } from '../src/env-vault.js';
 
 const SEGREDO_PRINCIPAL = 'segredo-local-do-usuario-com-entropia';
@@ -101,6 +105,69 @@ describe('Env Vault', () => {
 
     expect(recoveryKey).toMatch(/^myinst-env-rk_[A-Za-z0-9_-]{43,}$/);
     expect(recoveryKey).not.toContain('DATABASE_URL');
+  });
+
+  it('gera segredo de vault local sem depender do plaintext', () => {
+    const vaultSecret = gerarSegredoVaultEnvVault();
+
+    expect(vaultSecret).toMatch(/^myinst-env-vs_[A-Za-z0-9_-]{43,}$/);
+    expect(vaultSecret).not.toContain('DATABASE_URL');
+  });
+
+  it('cria envelope de recuperação sem expor segredo de vault', async () => {
+    const vaultSecret = gerarSegredoVaultEnvVault();
+    const recoveryKey = gerarRecoveryKeyEnvVault();
+
+    const envelope = await criarEnvVaultRecoveryEnvelope({
+      vaultSecret,
+      segredoRecuperacao: recoveryKey,
+      method: 'recovery_key',
+      label: 'Recovery key principal',
+      stepUpFactors: ['email', 'totp'],
+    });
+
+    expect(envelope.method).toBe('recovery_key');
+    expect(envelope.stepUpFactors).toEqual(['email', 'totp']);
+    expect(JSON.stringify(envelope)).not.toContain(vaultSecret);
+  });
+
+  it('abre envelope de recuperação somente com segredo correto', async () => {
+    const vaultSecret = gerarSegredoVaultEnvVault();
+    const recoveryKey = gerarRecoveryKeyEnvVault();
+
+    const envelope = await criarEnvVaultRecoveryEnvelope({
+      vaultSecret,
+      segredoRecuperacao: recoveryKey,
+      method: 'recovery_key',
+      label: 'Recovery key principal',
+    });
+
+    await expect(abrirEnvVaultRecoveryEnvelope({
+      envelope,
+      segredoRecuperacao: 'recovery-key-incorreta',
+    })).rejects.toThrow('Não foi possível descriptografar o Env Vault.');
+
+    await expect(abrirEnvVaultRecoveryEnvelope({
+      envelope,
+      segredoRecuperacao: recoveryKey,
+    })).resolves.toBe(vaultSecret);
+  });
+
+  it('rejeita email e 2FA como metodo criptografico de recuperação', async () => {
+    const vaultSecret = gerarSegredoVaultEnvVault();
+    const recoveryKey = gerarRecoveryKeyEnvVault();
+    const envelope = await criarEnvVaultRecoveryEnvelope({
+      vaultSecret,
+      segredoRecuperacao: recoveryKey,
+      method: 'recovery_key',
+      label: 'Recovery key principal',
+      stepUpFactors: ['email', 'totp'],
+    });
+
+    expect(() => validarRecoveryEnvelopeEnvVault({
+      ...envelope,
+      method: 'email',
+    })).toThrow('Envelope de recuperação do Env Vault inválido.');
   });
 
   it('valida payload recebido da rede antes de usar o KDF', async () => {
