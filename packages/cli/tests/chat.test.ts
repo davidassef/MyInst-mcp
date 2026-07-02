@@ -199,7 +199,7 @@ describe('Chat CLI', () => {
         payload: {
           type: 'message',
           role: 'user',
-          content: [{ type: 'input_text', text: '# AGENTS.md instructions for D:\\Projeto\n\n<INSTRUCTIONS>...' }],
+          content: [{ type: 'input_text', text: '# AGENTS.md instructions\n\n<INSTRUCTIONS>...' }],
         },
       },
       {

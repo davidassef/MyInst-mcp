@@ -466,7 +466,7 @@ function ehMensagemOperacionalCodex(message: ChatMessageInput): boolean {
   }
 
   const conteudo = message.content.trimStart();
-  return conteudo.startsWith('# AGENTS.md instructions for ')
+  return conteudo.startsWith('# AGENTS.md instructions')
     || conteudo.startsWith('<permissions instructions>')
     || conteudo.startsWith('<environment_context>')
     || conteudo.startsWith('<app-context>')
