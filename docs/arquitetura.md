@@ -124,6 +124,8 @@ User (1) ──► (N) Tag
 
 Use `targetFormat="native"` com `clients` explícitos quando quiser materializar no layout real do cliente, como `.codex/AGENTS.md` ou `.codex/skills/<namespace>/<slug>/SKILL.md`.
 
+Arquivos nativos de configuração (`setting` e `mcp_config`) são tratados como específicos da máquina. O export nativo pode criar esses arquivos quando ausentes, mas preserva arquivos existentes para não sobrescrever credenciais, paths, providers, modelos ou outros ajustes locais. Conteúdo autoral como `instruction`, `skill`, `agent`, `command`, `memory` e `snippet` continua seguindo o fluxo normal de sync.
+
 ## Client Profiles
 
 Client Profiles representam configurações globais por cliente. Eles não pertencem a workspaces nem projetos.

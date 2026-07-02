@@ -166,6 +166,37 @@ describe('sync operations', () => {
     await expect(readFile(join(dir, '.claude', 'settings.json'), 'utf-8')).rejects.toThrow();
   });
 
+  it('pull global preserva config local existente do Codex', async () => {
+    const dir = await criarDirTemp(temporarios);
+    await mkdir(join(dir, '.codex'), { recursive: true });
+    await writeFile(join(dir, '.codex', 'config.toml'), 'model = "local"\napi_key = "valor-local"', 'utf-8');
+
+    const fetchMock = vi.fn().mockResolvedValue(respostaJson({
+      data: {
+        items: [itemRemoto('setting', 'codex-config', 'model = "remoto"', { clientId: 'codex', scope: 'global' })],
+        serverTime: '2026-06-27T00:00:00.000Z',
+      },
+    }));
+
+    const resultado = await executarPullSincronizado({
+      config,
+      diretorio: dir,
+      project: 'default',
+      workspace: 'default',
+      scope: 'global',
+      clients: ['codex'],
+      fetchImpl: fetchMock,
+      homeDir: dir,
+    });
+    const conteudo = await readFile(join(dir, '.codex', 'config.toml'), 'utf-8');
+
+    expect(conteudo).toBe('model = "local"\napi_key = "valor-local"');
+    expect(resultado.aplicados).toHaveLength(0);
+    expect(resultado.ignorados).toEqual([
+      'codex/global/setting/codex-config: configuração local existente preservada',
+    ]);
+  });
+
   it('push bloqueia envio local quando conteúdo contém segredo provável', async () => {
     const dir = await criarDirTemp(temporarios);
     await criarSkillLocal(dir, 'leak', 'Use MYINST_API_KEY=myinst_12345678901234567890');

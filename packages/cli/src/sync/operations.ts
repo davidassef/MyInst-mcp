@@ -33,6 +33,7 @@ export interface OperacaoSyncParams {
 export interface ResultadoPullSincronizado {
   items: ConteudoSyncRemoto[];
   aplicados: string[];
+  ignorados: string[];
   manifesto: ManifestoSync;
 }
 
@@ -45,6 +46,7 @@ export interface ResultadoPushSincronizado {
 
 interface ResultadoAplicacaoConteudo {
   aplicados: string[];
+  ignorados: string[];
   itensAplicados: ConteudoSyncRemoto[];
 }
 
@@ -88,7 +90,7 @@ export async function executarPullSincronizado(params: OperacaoSyncParams): Prom
 
   await gravarManifestoSync(params.diretorio, manifesto);
 
-  return { items: remoto.items, aplicados: aplicacao.aplicados, manifesto };
+  return { items: remoto.items, aplicados: aplicacao.aplicados, ignorados: aplicacao.ignorados, manifesto };
 }
 
 export async function executarPushSincronizado(params: OperacaoSyncParams): Promise<ResultadoPushSincronizado> {
@@ -228,6 +230,7 @@ async function aplicarConteudo(
   homeDir = homedir(),
 ): Promise<ResultadoAplicacaoConteudo> {
   const aplicados: string[] = [];
+  const ignorados: string[] = [];
   const itensAplicados: ConteudoSyncRemoto[] = [];
   const grupos = agruparPorClientEscopo(conteudos);
 
@@ -241,7 +244,11 @@ async function aplicarConteudo(
     );
 
     const caminhosEscritos = exportacao.results.flatMap((resultado) => resultado.written.map((escrito) => escrito.path));
+    const itensIgnorados = exportacao.results.flatMap((resultado) => resultado.ignored.map((ignorado) => (
+      `${resultado.clientId}/${resultado.scope}/${ignorado.type}/${ignorado.slug}: ${ignorado.reason}`
+    )));
     aplicados.push(...caminhosEscritos);
+    ignorados.push(...itensIgnorados);
 
     if (caminhosEscritos.length > 0) {
       itensAplicados.push(...grupo.conteudos);
@@ -264,7 +271,7 @@ async function aplicarConteudo(
     }
   }
 
-  return { aplicados, itensAplicados };
+  return { aplicados, ignorados, itensAplicados };
 }
 
 async function buscarSnapshotRemoto(

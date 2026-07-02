@@ -1312,9 +1312,7 @@ async function escreverEstruturaClaudeGlobal(items: ItemSincronizavel[], target:
       continue;
     }
 
-    await mkdir(dirname(caminho), { recursive: true });
-    await writeFile(caminho, item.body, 'utf-8');
-    written.push({ path: caminho, type: item.type, slug: item.slug });
+    await escreverArquivoNativo(caminho, item, written, ignored);
   }
 
   return {
@@ -1350,9 +1348,7 @@ async function escreverEstruturaCodex(items: ItemSincronizavel[], target: SyncTa
       continue;
     }
 
-    await mkdir(dirname(caminho), { recursive: true });
-    await writeFile(caminho, item.body, 'utf-8');
-    written.push({ path: caminho, type: item.type, slug: item.slug });
+    await escreverArquivoNativo(caminho, item, written, ignored);
   }
 
   return {
@@ -1477,9 +1473,7 @@ async function escreverEstruturaOpenCode(items: ItemSincronizavel[], target: Syn
   if (configs.length > 0) {
     const caminhoConfig = join(base, 'opencode.jsonc');
     const configPrincipal = escolherConfigPrincipalOpenCode(configs);
-    await mkdir(dirname(caminhoConfig), { recursive: true });
-    await writeFile(caminhoConfig, configPrincipal.body, 'utf-8');
-    written.push({ path: caminhoConfig, type: configPrincipal.type, slug: configPrincipal.slug });
+    await escreverArquivoNativo(caminhoConfig, configPrincipal, written, ignored);
     for (const item of configs) {
       if (item.slug === configPrincipal.slug && item.type === configPrincipal.type) continue;
       ignored.push({ type: item.type, slug: item.slug, reason: 'opencode.jsonc já foi reservado por um item de maior precedência' });
@@ -1497,9 +1491,7 @@ async function escreverEstruturaOpenCode(items: ItemSincronizavel[], target: Syn
       ? join(regra.dir, item.slug, regra.ext.slice(1))
       : join(regra.dir, `${item.slug}${regra.ext}`);
     if (written.some((w) => w.path === caminho)) continue;
-    await mkdir(dirname(caminho), { recursive: true });
-    await writeFile(caminho, item.body, 'utf-8');
-    written.push({ path: caminho, type: item.type, slug: item.slug });
+    await escreverArquivoNativo(caminho, item, written, ignored);
   }
 
   return {
@@ -1652,9 +1644,7 @@ async function escreverEstruturaQwen(items: ItemSincronizavel[], target: SyncTar
       continue;
     }
 
-    await mkdir(dirname(caminho), { recursive: true });
-    await writeFile(caminho, item.body, 'utf-8');
-    written.push({ path: caminho, type: item.type, slug: item.slug });
+    await escreverArquivoNativo(caminho, item, written, ignored);
   }
 
   return {
@@ -1703,9 +1693,7 @@ async function escreverComRegras(
     }
 
     if (regra.file) {
-      await mkdir(dirname(regra.file), { recursive: true });
-      await writeFile(regra.file, item.body, 'utf-8');
-      written.push({ path: regra.file, type: item.type, slug: item.slug });
+      await escreverArquivoNativo(regra.file, item, written, ignored);
       continue;
     }
 
@@ -1718,9 +1706,7 @@ async function escreverComRegras(
       ? join(regra.dir, item.slug, regra.ext.slice(1))
       : join(regra.dir, `${item.slug}${regra.ext}`);
 
-    await mkdir(dirname(caminho), { recursive: true });
-    await writeFile(caminho, item.body, 'utf-8');
-    written.push({ path: caminho, type: item.type, slug: item.slug });
+    await escreverArquivoNativo(caminho, item, written, ignored);
   }
 
   return {
@@ -1730,6 +1716,31 @@ async function escreverComRegras(
     written,
     ignored,
   };
+}
+
+async function escreverArquivoNativo(
+  caminho: string,
+  item: ItemSincronizavel,
+  written: EscritaCliente['written'],
+  ignored: EscritaCliente['ignored'],
+  conteudo = item.body,
+): Promise<void> {
+  if (ehConfiguracaoLocalProtegida(item) && await existe(caminho)) {
+    ignored.push({
+      type: item.type,
+      slug: item.slug,
+      reason: 'configuração local existente preservada',
+    });
+    return;
+  }
+
+  await mkdir(dirname(caminho), { recursive: true });
+  await writeFile(caminho, conteudo, 'utf-8');
+  written.push({ path: caminho, type: item.type, slug: item.slug });
+}
+
+function ehConfiguracaoLocalProtegida(item: ItemSincronizavel): boolean {
+  return item.type === 'setting' || item.type === 'mcp_config';
 }
 
 function resolverBaseOculta(target: SyncTarget, dir: string) {

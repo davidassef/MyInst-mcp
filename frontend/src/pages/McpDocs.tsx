@@ -201,6 +201,10 @@ MYINST_SERVER = "https://api-myinst.lotoscore.com.br"`}
               titulo="Ao detectar varios clientes"
               texto="Quando houver mais de um client detectado, informe clients explicitamente, inclusive em scope project. Nao sincronize automaticamente uma origem ambigua."
             />
+            <CartaoTexto
+              titulo="Configs locais"
+              texto="setting e mcp_config em layout nativo so sao criados quando ausentes. Se o arquivo local ja existir, o pull preserva a versao da maquina para nao sobrescrever chaves, paths, modelos ou providers."
+            />
           </div>
         </Secao>
 

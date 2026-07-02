@@ -222,6 +222,8 @@ O MyInst preserva `client` e `session` para filtros, busca, exportação e resum
 
 Nem todo cliente suporta todos os tipos em formato nativo. O MCP informa explicitamente o que foi ignorado.
 
+Configs nativas de client são preservadas quando já existem no disco. `setting` e `mcp_config` só são materializados em arquivos como `.codex/config.toml`, `.mcp.json`, `.cursor/mcp.json`, `settings.json`, `argv.json` ou `.kimi-code/mcp.json` quando o arquivo ainda não existe. Essa regra impede que um pull sobrescreva credenciais, caminhos e opções locais de outra máquina.
+
 ## Ajuda
 
 ```bash

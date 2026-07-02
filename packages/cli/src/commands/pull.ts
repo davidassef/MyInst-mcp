@@ -33,6 +33,12 @@ export async function executarPull(projeto: string, options: SyncOptionsNormaliz
       return;
     }
 
+    if (resultado.aplicados.length === 0 && resultado.ignorados.length > 0) {
+      console.log(`${AMARELO}[WARN] Nenhum arquivo aplicado; configurações locais existentes foram preservadas:${RESET}`);
+      resultado.ignorados.forEach((itemIgnorado) => console.log(`  ${CINZA}${itemIgnorado}${RESET}`));
+      return;
+    }
+
     if (resultado.aplicados.length === 0) {
       console.log(`${AMARELO}[WARN] Conteudo remoto encontrado, mas nenhuma estrutura nativa compativel foi detectada para aplicar.${RESET}`);
       return;
@@ -40,6 +46,12 @@ export async function executarPull(projeto: string, options: SyncOptionsNormaliz
 
     console.log(`${VERDE}[SUCCESS] ${resultado.aplicados.length} arquivo(s) aplicado(s):${RESET}`);
     resultado.aplicados.forEach((caminho) => console.log(`  ${CINZA}${caminho}${RESET}`));
+
+    if (resultado.ignorados.length > 0) {
+      console.log(`${AMARELO}[WARN] ${resultado.ignorados.length} item(ns) ignorado(s) para preservar arquivos locais:${RESET}`);
+      resultado.ignorados.forEach((itemIgnorado) => console.log(`  ${CINZA}${itemIgnorado}${RESET}`));
+    }
+
     console.log(`${CINZA}Manifesto atualizado em .myinst/sync-state.json${RESET}`);
   } catch (erro) {
     if (erro instanceof Error && erro.message.includes('fetch')) {

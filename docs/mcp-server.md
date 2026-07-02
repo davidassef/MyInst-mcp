@@ -430,6 +430,8 @@ O resultado separa `Pendente de pull`, `Pendente de push`, `Conflitos` e `Sincro
 
 A CLI usa os mesmos adapters multi-cliente do MCP. Quando mais de um client for detectado, `myinst status`, `myinst pull` e `myinst push` exigem `--client <id...>` para evitar aplicar conteúdo no layout errado. Use `--scope global` ou `--scope all` para incluir estruturas globais da home do usuário.
 
+Arquivos nativos de configuração são protegidos contra overwrite. Ao materializar `setting` ou `mcp_config`, o MyInst cria o arquivo somente se ele não existir; quando já existe, preserva a versão local e reporta o item como ignorado. Essa regra cobre configs como `.codex/config.toml`, `.mcp.json`, `.cursor/mcp.json`, `settings.json`, `argv.json`, `.aider.conf.yml`, `opencode.jsonc` e `.kimi-code/mcp.json`.
+
 Exemplos:
 
 ```bash

@@ -315,6 +315,8 @@ Project State não sincroniza cache bruto nem transcripts completos por padrão.
 
 Quando mais de um client local for detectado, informe `--client` explicitamente nos comandos de sync. Configurações com segredos reais devem usar placeholders como `{{MYINST_API_KEY}}`; o push bloqueia padrões prováveis de segredo antes de gravar no vault.
 
+No `pull` em formato nativo, arquivos de configuração de client são tratados como locais da máquina. O MyInst pode criar `setting` ou `mcp_config` quando o arquivo ainda não existe, mas não sobrescreve configs existentes como `.codex/config.toml`, `.mcp.json`, `.cursor/mcp.json`, `settings.json`, `argv.json`, `.kimi-code/mcp.json` ou equivalentes. Instruções e skills continuam sincronizáveis normalmente.
+
 Na CLI, o fluxo equivalente é:
 
 ```bash

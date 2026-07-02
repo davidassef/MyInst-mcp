@@ -63,6 +63,8 @@ O manifesto é atualizado automaticamente após `myinst pull` e após `myinst pu
 
 O sync bloqueia envio de segredos prováveis. Em `mcp_config` e settings, substitua valores reais por placeholders como `{{MYINST_API_KEY}}` e `{{DATABASE_URL}}`.
 
+No `pull` nativo, configurações de client são protegidas por padrão. Se o arquivo local já existir, o MyInst preserva o conteúdo da máquina e ignora o item remoto correspondente; se o arquivo não existir, ele pode criar a versão redigida do vault. Isso evita sobrescrever API keys, caminhos locais, providers, modelos e ajustes específicos do notebook.
+
 Fluxo recomendado:
 
 ```bash

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -213,6 +213,41 @@ describe('sync targets', () => {
       expect(conteudo).toContain('name: "Migrations Seguras"');
       expect(conteudo).toContain('description: "Use quando precisar criar, revisar ou executar migrations."');
       expect(conteudo).toContain('# Migrations Seguras');
+    } finally {
+      await rm(destino, { recursive: true, force: true });
+    }
+  });
+
+  it('preserva configs locais existentes ao exportar para layout nativo', async () => {
+    const modulo = await importarModulo();
+    const destino = await mkdtemp(join(tmpdir(), 'myinst-codex-config-local-'));
+
+    try {
+      await mkdir(join(destino, '.codex'), { recursive: true });
+      await writeFile(join(destino, '.codex', 'config.toml'), 'model = "local"\napi_key = "valor-local"', 'utf-8');
+
+      const resultado = await modulo.exportarParaClientesNativos(destino, [
+        {
+          type: 'setting',
+          slug: 'codex-config',
+          title: 'Codex Config',
+          body: 'model = "remoto"',
+          metadata: { myinstClientId: 'codex', myinstSourceScope: 'global' },
+          tags: [],
+        },
+      ], 'global', ['codex']);
+
+      const conteudo = await readFile(join(destino, '.codex', 'config.toml'), 'utf-8');
+
+      expect(conteudo).toBe('model = "local"\napi_key = "valor-local"');
+      expect(resultado.results[0].written).toHaveLength(0);
+      expect(resultado.results[0].ignored).toEqual([
+        expect.objectContaining({
+          type: 'setting',
+          slug: 'codex-config',
+          reason: 'configuração local existente preservada',
+        }),
+      ]);
     } finally {
       await rm(destino, { recursive: true, force: true });
     }
