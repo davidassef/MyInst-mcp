@@ -25,7 +25,7 @@ import {
 import { avisarAtualizacaoDisponivel } from './update-check.js';
 
 const programa = new Command();
-const MYINST_VERSION = '0.1.0-beta.10';
+const MYINST_VERSION = '0.1.0-beta.11';
 
 programa
   .name('myinst')

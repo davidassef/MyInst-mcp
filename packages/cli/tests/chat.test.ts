@@ -132,6 +132,88 @@ describe('Chat CLI', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
+  it('planeja importação de histórico Codex no formato payload do desktop', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'myinst-chat-codex-payload-'));
+    const caminho = join(dir, 'sessao-desktop.jsonl');
+    const registrosJsonl = [
+      { type: 'turn_context', payload: { cwd: 'D:\\Documentos\\Projetos\\MyInst' } },
+      {
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'developer',
+          content: [{ type: 'input_text', text: 'Responda em pt-BR.' }],
+        },
+      },
+      {
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: 'Sincronize o histórico.' }],
+        },
+      },
+      {
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: 'Histórico sincronizado.' }],
+        },
+      },
+    ];
+
+    await writeFile(caminho, registrosJsonl.map((registro) => JSON.stringify(registro)).join('\n'), 'utf-8');
+
+    const plano = await planejarImportacaoChatClient({
+      client: 'codex',
+      include: ['history'],
+      sourcePath: caminho,
+    });
+
+    expect(plano.sessions).toHaveLength(1);
+    expect(plano.sessions[0].messages).toEqual([
+      expect.objectContaining({ role: 'system', content: 'Responda em pt-BR.' }),
+      expect.objectContaining({ role: 'user', content: 'Sincronize o histórico.' }),
+      expect.objectContaining({ role: 'assistant', content: 'Histórico sincronizado.' }),
+    ]);
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('redige mensagem inteira quando histórico tem segredo em texto livre', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'myinst-chat-codex-secret-'));
+    const caminho = join(dir, 'sessao-segredo.jsonl');
+    const registrosJsonl = [
+      {
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: 'Use Bearer abcdefghijklmnop para testar.' }],
+        },
+      },
+    ];
+
+    await writeFile(caminho, registrosJsonl.map((registro) => JSON.stringify(registro)).join('\n'), 'utf-8');
+
+    const plano = await planejarImportacaoChatClient({
+      client: 'codex',
+      include: ['history'],
+      sourcePath: caminho,
+    });
+
+    expect(plano.sessions[0].messages).toEqual([
+      expect.objectContaining({
+        role: 'user',
+        content: '{{SECRET}}',
+        metadata: expect.objectContaining({ myinstRedactedSecrets: ['secret'] }),
+      }),
+    ]);
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
   it('bloqueia cache enquanto não houver persistência segura por client', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'myinst-chat-cache-'));
 

@@ -2,7 +2,7 @@
 
 CLI oficial do MyInst para login, listagem, status, pull, push, Project State e histórico de chats do vault.
 
-Versão atual: `0.1.0-beta.10`.
+Versão atual: `0.1.0-beta.11`.
 
 ## Instalacao
 
@@ -142,7 +142,7 @@ Comandos disponíveis:
 - `myinst chat export <session-id> --format markdown` grava `.myinst/chats/<session-id>.md`.
 - `myinst chat summarize <session-id>` atualiza o resumo no servidor.
 
-Arquivos JSON devem conter `messages`; Markdown entra como uma mensagem única revisada. O import dedicado de Codex aceita `.jsonl` do histórico e exige `--dry-run` ou `--reviewed`. A categoria `cache` existe no contrato, mas fica bloqueada até existir persistência segura por client. O backend bloqueia padrões prováveis de segredo antes de persistir.
+Arquivos JSON devem conter `messages`; Markdown entra como uma mensagem única revisada. O import dedicado de Codex aceita `.jsonl` do histórico, incluindo o formato `payload` do Codex desktop, e exige `--dry-run` ou `--reviewed`. Mensagens com segredo provável que não puderem ser redigidas granularmente viram `{{SECRET}}`. A categoria `cache` existe no contrato, mas fica bloqueada até existir persistência segura por client. O backend bloqueia padrões prováveis de segredo antes de persistir.
 
 JSON recomendado:
 

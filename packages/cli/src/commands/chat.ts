@@ -400,7 +400,7 @@ function extrairMensagemCodex(registro: Record<string, unknown>): ChatMessageInp
     return null;
   }
 
-  const responseItem = lerObjeto(registro.item);
+  const responseItem = lerObjeto(registro.item) ?? lerObjeto(registro.payload);
   if (responseItem?.type !== 'message') {
     return null;
   }
@@ -417,7 +417,11 @@ function extrairMensagemCodex(registro: Record<string, unknown>): ChatMessageInp
 
   const redacao = redigirSegredosEmTexto(content);
   if (detectarSegredoProvavelEmTexto(redacao.texto)) {
-    throw new Error('Histórico contém segredo provável que não pôde ser redigido automaticamente. Revise o arquivo antes de importar.');
+    return {
+      role,
+      content: '{{SECRET}}',
+      metadata: { myinstRedactedSecrets: ['secret'], myinstRedactionMode: 'message' },
+    };
   }
 
   return {
@@ -463,6 +467,10 @@ function lerObjeto(valor: unknown): Record<string, unknown> | null {
 function normalizarRoleCodex(valor: unknown): ChatRole | null {
   if (valor === 'user' || valor === 'assistant' || valor === 'system' || valor === 'tool') {
     return valor;
+  }
+
+  if (valor === 'developer') {
+    return 'system';
   }
 
   return null;
