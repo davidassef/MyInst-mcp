@@ -445,6 +445,22 @@ myinst login
 myinst login --server http://localhost:3000 --api-key myinst_xxx
 ```
 
+## Histórico de chats por client
+
+Chats não fazem parte do sync nativo de arquivos (`myinst_pull`, `myinst_push` ou `myinst_import`). Eles usam o fluxo próprio da CLI/API:
+
+```bash
+myinst chat push --workspace meus-projetos --project myinst --client codex --session sessao-1 --file chat.json
+myinst chat list --workspace meus-projetos --project myinst --client codex --tag release
+myinst chat show sessao-1 --workspace meus-projetos --project myinst
+myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
+myinst chat summarize sessao-1 --workspace meus-projetos --project myinst
+```
+
+O campo `client` preserva a origem do chat e permite listar, buscar e exportar por cliente (`codex`, `claude`, `cursor`, `kimi` ou outro ID controlado). A CLI aceita JSON normalizado com `messages` ou Markdown revisado. Nesta versão, o MyInst não varre `.codex/sessions`, `.claude/projects`, `history/**` ou caches internos automaticamente.
+
+Use chats para continuidade e auditoria por projeto. Use Project State `session` quando quiser salvar apenas um resumo revisado de uma sessão, sem transcript completo.
+
 ## Estruturas reconhecidas
 
 Exemplos suportados nesta fase:

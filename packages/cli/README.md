@@ -22,17 +22,17 @@ myinst pull
 myinst push
 myinst st
 myinst ls
-myinst status --client codex kimi
-myinst push default --scope all --client codex
+myinst status myinst --workspace meus-projetos --client codex kimi
+myinst push myinst --workspace meus-projetos --scope all --client codex
 myinst state capture memory "Contexto do deploy" --body "Deploy ocorre por push e pull na VPS."
 myinst state push .myinst/state/drafts/memory-contexto-do-deploy.json --reviewed
-myinst state pull
-myinst state search "deploy"
-myinst chat push --project default --client codex --session sessao-1 --file chat.json
-myinst chat list --project default --client codex --tag release
-myinst chat show sessao-1 --project default
-myinst chat export sessao-1 --project default --format markdown
-myinst chat summarize sessao-1 --project default
+myinst state pull myinst --workspace meus-projetos
+myinst state search "deploy" --workspace meus-projetos --project myinst
+myinst chat push --workspace meus-projetos --project myinst --client codex --session sessao-1 --file chat.json
+myinst chat list --workspace meus-projetos --project myinst --client codex --tag release
+myinst chat show sessao-1 --workspace meus-projetos --project myinst
+myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
+myinst chat summarize sessao-1 --workspace meus-projetos --project myinst
 ```
 
 ## Sync tipo repositorio remoto
@@ -117,7 +117,9 @@ O push exige `metadata.reviewed=true` e bloqueia padrões prováveis de segredos
 
 ## Histórico de chats
 
-`myinst chat` importa histórico apenas por arquivo explícito. A CLI não varre transcripts locais automaticamente.
+`myinst chat` importa histórico apenas por arquivo explícito. A CLI não varre transcripts locais, caches ou diretórios internos de clientes automaticamente.
+
+Chats não entram no `myinst pull/push` de arquivos nativos. Eles usam um fluxo próprio por `{ workspace, project, client, session }`, permitindo filtrar e exportar conversas por cliente de origem.
 
 Comandos disponíveis:
 
@@ -128,6 +130,25 @@ Comandos disponíveis:
 - `myinst chat summarize <session-id>` atualiza o resumo no servidor.
 
 Arquivos JSON devem conter `messages`; Markdown entra como uma mensagem única revisada. O backend bloqueia padrões prováveis de segredo antes de persistir.
+
+JSON recomendado:
+
+```json
+{
+  "title": "Correção do sync Codex",
+  "summary": "Resumo opcional revisado.",
+  "metadata": {
+    "tags": ["codex", "sync"],
+    "source": "codex-export"
+  },
+  "messages": [
+    { "role": "user", "content": "Corrija o pull do Codex." },
+    { "role": "assistant", "content": "Pull ajustado e validado." }
+  ]
+}
+```
+
+Use `--client codex`, `--client claude`, `--client cursor`, `--client kimi` ou outro ID controlado para preservar a origem da sessão. O export grava Markdown em `.myinst/chats/`; ele não reescreve o histórico interno do client.
 
 ## Requisitos
 

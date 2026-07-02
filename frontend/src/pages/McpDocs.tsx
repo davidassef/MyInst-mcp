@@ -272,11 +272,22 @@ myinst push api-supernosso --workspace meus-projetos --scope project --client co
         </Secao>
 
         <Secao titulo="Historico de chats">
-          <div className="grid gap-4 md:grid-cols-[0.95fr_1.05fr]">
+          <div className="grid gap-4 md:grid-cols-3">
             <CartaoTexto
               titulo="Opt-in explicito"
-              texto="Chats entram apenas por arquivo JSON ou Markdown informado pelo usuario. A CLI nao varre transcripts locais automaticamente."
+              texto="Chats entram apenas por arquivo JSON ou Markdown informado pelo usuario. A CLI nao varre transcripts locais, caches ou diretorios internos automaticamente."
             />
+            <CartaoTexto
+              titulo="Client e projeto obrigatorios"
+              texto="Cada chat fica ligado ao workspace, projeto, client e session informados no push. Use o projeto que representa o repositorio de origem."
+            />
+            <CartaoTexto
+              titulo="Fora do pull/push nativo"
+              texto="myinst pull e myinst push sincronizam arquivos de contexto. Historico de chats usa myinst chat push/list/show/export/summarize."
+            />
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-[0.95fr_1.05fr]">
             <BlocoCodigo
               titulo="Fluxo CLI"
               codigo={`myinst chat push --workspace meus-projetos --project myinst --client codex --session sessao-1 --file chat.json
@@ -285,6 +296,28 @@ myinst chat show sessao-1 --workspace meus-projetos --project myinst
 myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
 myinst chat summarize sessao-1 --workspace meus-projetos --project myinst`}
             />
+            <BlocoCodigo
+              titulo="JSON recomendado"
+              codigo={`{
+  "title": "Correcao do sync Codex",
+  "summary": "Resumo opcional revisado.",
+  "metadata": {
+    "tags": ["codex", "sync"],
+    "source": "codex-export"
+  },
+  "messages": [
+    { "role": "user", "content": "Corrija o pull do Codex." },
+    { "role": "assistant", "content": "Pull ajustado e validado." }
+  ]
+}`}
+            />
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <CartaoTexto titulo="codex" texto="Use --client codex com arquivo revisado. O MyInst nao importa .codex/sessions automaticamente." />
+            <CartaoTexto titulo="claude" texto="Use --client claude com JSON ou Markdown revisado. Nao envie transcript bruto com segredos." />
+            <CartaoTexto titulo="cursor" texto="Use --client cursor. Arquivo Markdown vira uma sessao importada com uma mensagem de usuario." />
+            <CartaoTexto titulo="outros" texto="Use --client <id>. O valor e preservado para filtros, busca, exportacao e resumo." />
           </div>
         </Secao>
 

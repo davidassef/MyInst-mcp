@@ -175,7 +175,7 @@ O MCP também expõe operações explícitas para administrar o vault sem abrir 
 - `myinst_update_client_profile_item`
 - `myinst_delete_client_profile_item`
 
-Deletes exigem `confirm=true`. O backend continua bloqueando exclusão de workspace default e projeto default.
+Deletes exigem `confirm=true`. O backend continua aplicando proteções para entidades de compatibilidade.
 
 Itens globais de Client Profiles ficam fora de workspace/projeto. Use essas tools para ajustes pontuais; para sincronização recorrente de arquivos locais, prefira `myinst_pull`, `myinst_push` e `myinst_import`.
 
@@ -185,15 +185,27 @@ Para operadores humanos fora do fluxo MCP, use `@myinst/cli`. A CLI mantém `.my
 
 ```bash
 myinst login
-myinst pull default --client codex
-myinst status default --client codex
-myinst push default --client codex
-myinst status default --client codex kimi
+myinst pull myinst --workspace meus-projetos --client codex
+myinst status myinst --workspace meus-projetos --client codex
+myinst push myinst --workspace meus-projetos --client codex
+myinst status myinst --workspace meus-projetos --client codex kimi
 ```
 
 `myinst status` compara o manifesto local, os arquivos reconhecidos no disco e o snapshot remoto do vault. O resultado mostra pendências de pull, pendências de push e conflitos. Quando há conflito, `myinst push` é bloqueado até revisão manual.
 
 A CLI usa os adapters compartilhados com o MCP. Quando mais de um client for detectado, use `--client <id...>` para escolher o alvo e evitar escrita no layout errado. Use `--scope global` ou `--scope all` para incluir estruturas globais da home do usuário.
+
+## Histórico de chats
+
+Chats dos clients não fazem parte do sync nativo de arquivos do MCP. Use a CLI ou a API para importar sessões revisadas por arquivo explícito:
+
+```bash
+myinst chat push --workspace meus-projetos --project myinst --client codex --session sessao-1 --file chat.json
+myinst chat list --workspace meus-projetos --project myinst --client codex
+myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
+```
+
+O MyInst preserva `client` e `session` para filtros, busca, exportação e resumo. Ele não varre `.codex/sessions`, `.claude/projects`, `history/**` ou caches internos automaticamente.
 
 ## Tipos sincronizáveis
 

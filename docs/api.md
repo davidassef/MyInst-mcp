@@ -278,6 +278,8 @@ Observação: o comando `myinst status` da CLI usa `/sync/pull` para buscar o sn
 
 Histórico de chats é opt-in e separado de `project_sessions`. Nenhuma rota entra em sync automático. Cada sessão deve ser enviada para o projeto que representa o repositório ou produto de origem.
 
+Chats são identificados por `client` e `session`. Use `client` para registrar a origem da conversa (`codex`, `claude`, `cursor`, `kimi` ou outro identificador controlado pelo integrador) e `session` para o ID estável da sessão no client de origem. O backend não importa transcripts nativos automaticamente; a entrada deve chegar como JSON revisado pela CLI ou por chamada direta à API.
+
 ### POST /workspaces/:workspaceSlug/projects/:projectSlug/chats
 
 Cria ou atualiza uma sessão importada explicitamente.
@@ -298,6 +300,8 @@ Cria ou atualiza uma sessão importada explicitamente.
 ```
 
 `retentionUntil` é opcional; quando omitido, o backend aplica retenção padrão de 180 dias. A API rejeita segredos prováveis em mensagens ou metadata.
+
+Roles aceitas em `messages`: `user`, `assistant`, `system`, `tool`.
 
 ### GET /workspaces/:workspaceSlug/projects/:projectSlug/chats
 

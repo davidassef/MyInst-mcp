@@ -191,6 +191,10 @@ myinst chat summarize sessao-1 --workspace meus-projetos --project myinst
 
 A retenção padrão é de 180 dias. A API rejeita padrões prováveis de segredo em mensagens e metadata antes de persistir. Cada histórico deve ser salvo no projeto que representa o repositório ou produto de origem; não use um projeto genérico para agrupar chats de contextos diferentes.
 
+O histórico de chats não usa os adapters de arquivo de `myinst pull`/`myinst push`. Ele é indexado por `{ workspace, project, client, session }` e permite filtrar ou exportar sessões por client, como `codex`, `claude`, `cursor`, `kimi` ou outro identificador informado na CLI.
+
+Nesta versão, o MyInst não varre automaticamente diretórios internos de clients, como `.codex/sessions`, `.claude/projects`, `history/**` ou caches locais. Para sincronizar chats, normalize a sessão para JSON/Markdown revisado e use `myinst chat push`.
+
 ## Sync Local da CLI
 
 A CLI standalone usa o backend como vault remoto e mantém um manifesto local em `.myinst/sync-state.json`.
