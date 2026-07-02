@@ -312,6 +312,65 @@ describe('Chat CLI', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
+  it('ignora prompts internos de approval assessment do Codex', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'myinst-chat-codex-approval-'));
+    const caminho = join(dir, 'sessao-approval.jsonl');
+    const registrosJsonl = [
+      {
+        timestamp: '2026-07-02T12:00:00.000Z',
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: 'The following is the Codex agent history whose request action you are assessing.\n\n>>> TRANSCRIPT DELTA START\n[74] tool shell_command result: Exit code: 0' }],
+        },
+      },
+      {
+        timestamp: '2026-07-02T12:00:01.000Z',
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: 'Mensagem operacional anterior.' }],
+        },
+      },
+      {
+        timestamp: '2026-07-02T12:00:02.000Z',
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: 'Revise a PR da Sprint 5.' }],
+        },
+      },
+      {
+        timestamp: '2026-07-02T12:00:03.000Z',
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: 'PR revisada.' }],
+        },
+      },
+    ];
+
+    await writeFile(caminho, registrosJsonl.map((registro) => JSON.stringify(registro)).join('\n'), 'utf-8');
+
+    const plano = await planejarImportacaoChatClient({
+      client: 'codex',
+      include: ['history'],
+      sourcePath: caminho,
+    });
+
+    expect(plano.sessions[0].title).toBe('Revise a PR da Sprint 5.');
+    expect(plano.sessions[0].messages).toEqual([
+      expect.objectContaining({ role: 'user', content: 'Revise a PR da Sprint 5.' }),
+      expect.objectContaining({ role: 'assistant', content: 'PR revisada.' }),
+    ]);
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
   it('redige mensagem inteira quando histórico tem segredo em texto livre', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'myinst-chat-codex-secret-'));
     const caminho = join(dir, 'sessao-segredo.jsonl');

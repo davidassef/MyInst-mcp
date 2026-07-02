@@ -489,6 +489,7 @@ function ehMensagemOperacionalCodex(message: ChatMessageInput): boolean {
     || conteudo.startsWith('<environment_context>')
     || conteudo.startsWith('<app-context>')
     || conteudo.startsWith('<collaboration_mode>')
+    || conteudo.startsWith('The following is the Codex agent history')
     || conteudo.startsWith('[tool_output]')
     || /^Exit code:\s*\d+\s+Wall time:/i.test(conteudo);
 }
