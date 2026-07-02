@@ -258,7 +258,7 @@ export async function executarChatDelete(sessionId: string, options: ChatShowOpt
 
   const resposta = await fetch(endpointChat(config, workspace, project, sessionId), {
     method: 'DELETE',
-    headers: headersJson(config),
+    headers: headersAuth(config),
   });
 
   if (!resposta.ok) {
@@ -709,6 +709,12 @@ function endpointChat(config: MyInstConfig, workspace: string, project: string, 
 function headersJson(config: MyInstConfig): Record<string, string> {
   return {
     'Content-Type': 'application/json',
+    Authorization: `Bearer ${config.apiKey}`,
+  };
+}
+
+function headersAuth(config: MyInstConfig): Record<string, string> {
+  return {
     Authorization: `Bearer ${config.apiKey}`,
   };
 }
