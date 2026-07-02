@@ -15,6 +15,7 @@ import {
   type ProjectStateType,
 } from './commands/state.js';
 import {
+  executarChatDelete,
   executarChatExport,
   executarChatImport,
   executarChatList,
@@ -174,6 +175,13 @@ chat
   .option('-w, --workspace <slug>', 'Slug do workspace')
   .option('-p, --project <slug>', 'Slug do projeto', 'default')
   .action((sessionId: string, options) => executarChatSummarize(sessionId, options));
+
+chat
+  .command('delete <sessionId>')
+  .description('Remover uma sessão de chat importada')
+  .option('-w, --workspace <slug>', 'Slug do workspace')
+  .option('-p, --project <slug>', 'Slug do projeto', 'default')
+  .action((sessionId: string, options) => executarChatDelete(sessionId, options));
 
 await avisarAtualizacaoDisponivel(MYINST_VERSION);
 

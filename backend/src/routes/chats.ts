@@ -59,6 +59,19 @@ export async function chatRoutes(app: FastifyInstance) {
     return montarMarkdownChat(sessao);
   });
 
+  app.delete('/workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId', async (request, reply) => {
+    const contexto = await resolverContextoProjeto(request);
+    if (!contexto) return responderProjetoNaoEncontrado(reply);
+
+    const sessao = await buscarChatComMensagens(contexto.projectId, sessionIdParam(request));
+    if (!sessao) return responderChatNaoEncontrado(reply);
+
+    await db.delete(chatMessages).where(eq(chatMessages.sessionId, sessao.id));
+    await db.delete(chatSessions).where(eq(chatSessions.id, sessao.id));
+
+    return reply.status(204).send();
+  });
+
   app.post(
     '/workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId/summarize',
     { preHandler: [validar(resumirChatSessionSchema)] },

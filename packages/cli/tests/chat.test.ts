@@ -173,10 +173,141 @@ describe('Chat CLI', () => {
 
     expect(plano.sessions).toHaveLength(1);
     expect(plano.sessions[0].messages).toEqual([
-      expect.objectContaining({ role: 'system', content: 'Responda em pt-BR.' }),
       expect.objectContaining({ role: 'user', content: 'Sincronize o histórico.' }),
       expect.objectContaining({ role: 'assistant', content: 'Histórico sincronizado.' }),
     ]);
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('ignora contexto operacional do Codex e inicia na primeira fala real do usuário', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'myinst-chat-codex-context-'));
+    const caminho = join(dir, 'sessao-com-contexto.jsonl');
+    const registrosJsonl = [
+      {
+        timestamp: '2026-07-02T10:00:00.000Z',
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'developer',
+          content: [{ type: 'input_text', text: '<permissions instructions>\nFilesystem sandboxing...' }],
+        },
+      },
+      {
+        timestamp: '2026-07-02T10:00:01.000Z',
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: '# AGENTS.md instructions for D:\\Projeto\n\n<INSTRUCTIONS>...' }],
+        },
+      },
+      {
+        timestamp: '2026-07-02T10:00:02.000Z',
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: 'Mensagem anterior ao pedido real.' }],
+        },
+      },
+      {
+        timestamp: '2026-07-02T10:00:03.000Z',
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: 'Corrija a sincronização de chats.' }],
+        },
+      },
+      {
+        timestamp: '2026-07-02T10:00:04.000Z',
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'tool',
+          content: [{ type: 'output_text', text: '[tool_output]\nExit code: 0\nWall time: 1.2 seconds' }],
+        },
+      },
+      {
+        timestamp: '2026-07-02T10:00:05.000Z',
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: 'Sincronização corrigida.' }],
+        },
+      },
+    ];
+
+    await writeFile(caminho, registrosJsonl.map((registro) => JSON.stringify(registro)).join('\n'), 'utf-8');
+
+    const plano = await planejarImportacaoChatClient({
+      client: 'codex',
+      include: ['history'],
+      sourcePath: caminho,
+    });
+
+    expect(plano.sessions[0].title).toBe('Corrija a sincronização de chats.');
+    expect(plano.sessions[0].startedAt).toBe('2026-07-02T10:00:03.000Z');
+    expect(plano.sessions[0].updatedAt).toBe('2026-07-02T10:00:05.000Z');
+    expect(plano.sessions[0].messages).toEqual([
+      expect.objectContaining({
+        role: 'user',
+        content: 'Corrija a sincronização de chats.',
+        createdAt: '2026-07-02T10:00:03.000Z',
+      }),
+      expect.objectContaining({
+        role: 'assistant',
+        content: 'Sincronização corrigida.',
+        createdAt: '2026-07-02T10:00:05.000Z',
+      }),
+    ]);
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('usa o pedido real como título quando a mensagem contém anexos do Codex', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'myinst-chat-codex-files-'));
+    const caminho = join(dir, 'sessao-com-anexo.jsonl');
+    const mensagemComAnexo = [
+      '# Files mentioned by the user:',
+      '',
+      '## log.txt: C:\\Temp\\log.txt',
+      '',
+      '## My request for Codex:',
+      'Analise o log e encontre a causa.',
+    ].join('\n');
+    const registrosJsonl = [
+      {
+        timestamp: '2026-07-02T11:00:00.000Z',
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: mensagemComAnexo }],
+        },
+      },
+      {
+        timestamp: '2026-07-02T11:00:01.000Z',
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: 'Causa encontrada.' }],
+        },
+      },
+    ];
+
+    await writeFile(caminho, registrosJsonl.map((registro) => JSON.stringify(registro)).join('\n'), 'utf-8');
+
+    const plano = await planejarImportacaoChatClient({
+      client: 'codex',
+      include: ['history'],
+      sourcePath: caminho,
+    });
+
+    expect(plano.sessions[0].title).toBe('Analise o log e encontre a causa.');
 
     await rm(dir, { recursive: true, force: true });
   });

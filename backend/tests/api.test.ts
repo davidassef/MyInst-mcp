@@ -1420,6 +1420,24 @@ describe('MyInst API', () => {
       expect(res.json().data.summary).toContain('Corrija o pull do Codex.');
     });
 
+    it('DELETE /workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId remove sessão importada', async () => {
+      const res = await app.inject({
+        method: 'DELETE',
+        url: '/api/v1/workspaces/default/projects/default/chats/codex-session-1',
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(res.statusCode).toBe(204);
+
+      const consulta = await app.inject({
+        method: 'GET',
+        url: '/api/v1/workspaces/default/projects/default/chats/codex-session-1',
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(consulta.statusCode).toBe(404);
+    });
+
     it('POST /workspaces/:workspaceSlug/projects/:projectSlug/chats rejeita segredo provável antes de persistir', async () => {
       const res = await app.inject({
         method: 'POST',

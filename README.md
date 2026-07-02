@@ -340,6 +340,7 @@ myinst chat list --workspace meus-projetos --project myinst --client codex --tag
 myinst chat show sessao-1 --workspace meus-projetos --project myinst
 myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
 myinst chat summarize sessao-1 --workspace meus-projetos --project myinst
+myinst chat delete sessao-1 --workspace meus-projetos --project myinst
 ```
 
 Formato JSON recomendado para importação:

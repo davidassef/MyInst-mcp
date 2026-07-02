@@ -459,6 +459,7 @@ myinst chat list --workspace meus-projetos --project myinst --client codex --tag
 myinst chat show sessao-1 --workspace meus-projetos --project myinst
 myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
 myinst chat summarize sessao-1 --workspace meus-projetos --project myinst
+myinst chat delete sessao-1 --workspace meus-projetos --project myinst
 ```
 
 O campo `client` preserva a origem do chat e permite listar, buscar e exportar por cliente (`codex`, `claude`, `cursor`, `kimi` ou outro ID controlado). A CLI aceita JSON normalizado com `messages`, Markdown revisado e, quando houver adapter dedicado, uma fonte interna escolhida explicitamente. Nesta versão, `codex/history` já pode ser importado de arquivos `.jsonl` com `myinst chat import`; `cache` fica bloqueado até existir persistência segura por client. O MyInst não varre `.codex/sessions`, `.claude/projects`, `history/**` ou caches internos automaticamente.

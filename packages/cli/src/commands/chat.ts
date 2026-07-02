@@ -233,6 +233,23 @@ export async function executarChatSummarize(sessionId: string, options: ChatShow
   console.log(`${VERDE}[SUCCESS] Resumo atualizado:${RESET} ${json.data.summary ?? ''}`);
 }
 
+export async function executarChatDelete(sessionId: string, options: ChatShowOptions): Promise<void> {
+  const config = carregarConfigObrigatoria();
+  const workspace = options.workspace || 'default';
+  const project = options.project || 'default';
+
+  const resposta = await fetch(endpointChat(config, workspace, project, sessionId), {
+    method: 'DELETE',
+    headers: headersJson(config),
+  });
+
+  if (!resposta.ok) {
+    await encerrarComErroHttp(resposta);
+  }
+
+  console.log(`${VERDE}[SUCCESS] Chat removido:${RESET} ${sessionId}`);
+}
+
 export async function carregarChatDeArquivo(caminho: string, options: ChatArquivoOptions): Promise<ChatArquivo> {
   const conteudo = await readFile(caminho, 'utf-8');
   const extensao = extname(caminho).toLowerCase();
@@ -306,6 +323,8 @@ async function carregarSessaoCodexJsonl(caminho: string): Promise<ChatArquivo | 
   const conteudo = await readFile(caminho, 'utf-8');
   const messages: ChatMessageInput[] = [];
   let sourceCwd: string | undefined;
+  let conversaIniciada = false;
+  let ultimoTimestampMensagem: number | null = null;
 
   for (const linha of conteudo.split(/\r?\n/)) {
     if (!linha.trim()) continue;
@@ -320,7 +339,11 @@ async function carregarSessaoCodexJsonl(caminho: string): Promise<ChatArquivo | 
 
     const message = extrairMensagemCodex(registro);
     if (!message) continue;
+    if (ehMensagemOperacionalCodex(message)) continue;
+    if (!conversaIniciada && message.role !== 'user') continue;
 
+    conversaIniciada = true;
+    ultimoTimestampMensagem = aplicarOrdemCronologicaCodex(message, ultimoTimestampMensagem);
     messages.push(message);
   }
 
@@ -335,6 +358,8 @@ async function carregarSessaoCodexJsonl(caminho: string): Promise<ChatArquivo | 
     client: 'codex',
     externalSessionId,
     title: titulo,
+    startedAt: messages[0]?.createdAt,
+    updatedAt: messages.at(-1)?.createdAt,
     metadata: {
       client: 'codex',
       source: 'codex-jsonl',
@@ -420,6 +445,7 @@ function extrairMensagemCodex(registro: Record<string, unknown>): ChatMessageInp
     return {
       role,
       content: '{{SECRET}}',
+      createdAt: extrairTimestampCodex(registro),
       metadata: { myinstRedactedSecrets: ['secret'], myinstRedactionMode: 'message' },
     };
   }
@@ -427,10 +453,45 @@ function extrairMensagemCodex(registro: Record<string, unknown>): ChatMessageInp
   return {
     role,
     content: redacao.texto,
+    createdAt: extrairTimestampCodex(registro),
     metadata: redacao.possuiSegredos
       ? { myinstRedactedSecrets: redacao.chavesRedigidas }
       : {},
   };
+}
+
+function ehMensagemOperacionalCodex(message: ChatMessageInput): boolean {
+  if (message.role === 'system' || message.role === 'tool') {
+    return true;
+  }
+
+  const conteudo = message.content.trimStart();
+  return conteudo.startsWith('# AGENTS.md instructions for ')
+    || conteudo.startsWith('<permissions instructions>')
+    || conteudo.startsWith('<environment_context>')
+    || conteudo.startsWith('<app-context>')
+    || conteudo.startsWith('<collaboration_mode>')
+    || conteudo.startsWith('[tool_output]')
+    || /^Exit code:\s*\d+\s+Wall time:/i.test(conteudo);
+}
+
+function aplicarOrdemCronologicaCodex(message: ChatMessageInput, ultimoTimestamp: number | null): number | null {
+  if (!message.createdAt) {
+    return ultimoTimestamp;
+  }
+
+  const timestamp = new Date(message.createdAt).getTime();
+  if (Number.isNaN(timestamp)) {
+    delete message.createdAt;
+    return ultimoTimestamp;
+  }
+
+  const timestampOrdenado = ultimoTimestamp !== null && timestamp <= ultimoTimestamp
+    ? ultimoTimestamp + 1
+    : timestamp;
+
+  message.createdAt = new Date(timestampOrdenado).toISOString();
+  return timestampOrdenado;
 }
 
 function extrairTextoConteudoCodex(content: unknown): string {
@@ -482,6 +543,11 @@ function extrairTituloChat(messages: ChatMessageInput[]): string | null {
     return null;
   }
 
+  const pedidoCodex = extrairPedidoCodex(primeiraMensagemUsuario.content);
+  if (pedidoCodex) {
+    return pedidoCodex.slice(0, 80);
+  }
+
   const primeiraLinha = primeiraMensagemUsuario.content
     .split(/\r?\n/)
     .find((linha) => linha.trim());
@@ -491,6 +557,33 @@ function extrairTituloChat(messages: ChatMessageInput[]): string | null {
   }
 
   return primeiraLinha.trim().slice(0, 80);
+}
+
+function extrairPedidoCodex(content: string): string | null {
+  const linhas = content.split(/\r?\n/);
+  const indicePedido = linhas.findIndex((linha) => linha.trim() === '## My request for Codex:');
+  if (indicePedido < 0) {
+    return null;
+  }
+
+  const primeiraLinhaPedido = linhas
+    .slice(indicePedido + 1)
+    .find((linha) => linha.trim());
+
+  return primeiraLinhaPedido?.trim() || null;
+}
+
+function extrairTimestampCodex(registro: Record<string, unknown>): string | undefined {
+  if (typeof registro.timestamp !== 'string') {
+    return undefined;
+  }
+
+  const timestamp = new Date(registro.timestamp);
+  if (Number.isNaN(timestamp.getTime())) {
+    return undefined;
+  }
+
+  return timestamp.toISOString();
 }
 
 function normalizarIncludes(valor: string): ChatImportInclude[] {

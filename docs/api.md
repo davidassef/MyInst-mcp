@@ -324,6 +324,10 @@ Exporta a sessão como Markdown.
 
 Atualiza o resumo. Se `summary` não for enviado, o backend gera um resumo local simples a partir das mensagens.
 
+### DELETE /workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId
+
+Remove uma sessão de chat importada e suas mensagens. `sessionId` pode ser o UUID interno ou o ID externo informado no push.
+
 ---
 
 ## Erros
