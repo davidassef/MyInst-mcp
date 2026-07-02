@@ -35,6 +35,8 @@ myinst chat list --workspace meus-projetos --project myinst --client codex --tag
 myinst chat show sessao-1 --workspace meus-projetos --project myinst
 myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
 myinst chat summarize sessao-1 --workspace meus-projetos --project myinst
+MYINST_ENV_VAULT_SECRET="segredo-local-forte-com-entropia" myinst env push --workspace meus-projetos --project myinst --file .env.local --name local
+MYINST_ENV_VAULT_SECRET="segredo-local-forte-com-entropia" myinst env pull --workspace meus-projetos --project myinst --name local --output .env.local
 ```
 
 ## Aviso de atualização
@@ -168,6 +170,22 @@ JSON recomendado:
 Use `--client codex`, `--client claude`, `--client cursor`, `--client kimi` ou outro ID controlado para preservar a origem da sessão. Suporte a `history` e `cache` é implementado client por client, porque cada ferramenta guarda dados em estrutura própria. O export grava Markdown em `.myinst/chats/`; ele não reescreve o histórico interno do client.
 
 O import grava todas as sessões encontradas no `--path` dentro do projeto informado por `--workspace` e `--project`. Ele ainda não separa automaticamente sessões por `cwd`; se `~/.codex/sessions` tiver conversas de vários repositórios, use `--dry-run` e importe apenas arquivos ou subdiretórios que pertencem ao projeto correto.
+
+## Env Vault
+
+`myinst env` é o fluxo dedicado para arquivos `.env` de projeto. Ele não faz parte do `myinst pull/push` normal, porque `.env` continua bloqueado nos fluxos de conteúdo, chats e Project State.
+
+Comandos disponíveis:
+
+- `myinst env push --project <slug> --file .env.local --name local` criptografa localmente e envia somente o envelope cifrado.
+- `myinst env pull --project <slug> --name local --output .env.local` baixa o envelope, descriptografa localmente e cria backup se o destino já existir.
+- `myinst env list --project <slug>` lista metadados seguros.
+- `myinst env show --project <slug> --name local` mostra metadados seguros sem revelar valores.
+- `myinst env delete --project <slug> --name local` remove o env cifrado do projeto.
+
+O segredo do Env Vault deve ser informado por `MYINST_ENV_VAULT_SECRET` ou pelo prompt local oculto. A opção `--secret` existe para automação controlada, mas pode ficar no histórico do shell. O segredo não é salvo em `~/.myinst/config.json` e não deve ser enviado ao backend. O backend recebe apenas `encryptedPayload` e metadados operacionais do ciphertext.
+
+Por padrão, `env pull` nunca sobrescreve silenciosamente: se o arquivo de destino existir, a CLI cria `<arquivo>.bak` antes de gravar. Use `--overwrite` apenas quando quiser substituir sem backup.
 
 ## Requisitos
 

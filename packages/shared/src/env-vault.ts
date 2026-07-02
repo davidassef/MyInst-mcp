@@ -14,8 +14,8 @@ const BASE64_URL_REGEX = /^[A-Za-z0-9_-]+$/;
 
 export interface EnvVaultKdfParams {
   algorithm: typeof KDF_ALGORITMO;
-  iterations: number;
-  keyLength: number;
+  iterations: typeof ITERACOES_PADRAO;
+  keyLength: typeof TAMANHO_CHAVE;
   digest: 'sha256';
 }
 

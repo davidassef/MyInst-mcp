@@ -6,6 +6,13 @@ import { executarPull } from './commands/pull.js';
 import { executarPush } from './commands/push.js';
 import { executarList } from './commands/list.js';
 import { executarStatus } from './commands/status.js';
+import {
+  executarEnvDelete,
+  executarEnvList,
+  executarEnvPull,
+  executarEnvPush,
+  executarEnvShow,
+} from './commands/env.js';
 import { normalizarSyncOptions, type SyncCliOptions } from './commands/sync-options.js';
 import {
   executarStateCapture,
@@ -184,6 +191,55 @@ chat
   .option('-w, --workspace <slug>', 'Slug do workspace')
   .option('-p, --project <slug>', 'Slug do projeto', 'default')
   .action((sessionId: string, options) => executarChatDelete(sessionId, options));
+
+const env = programa
+  .command('env')
+  .description('Gerenciar arquivos .env criptografados por projeto');
+
+env
+  .command('push')
+  .description('Criptografar e enviar arquivo .env para o Env Vault')
+  .requiredOption('-f, --file <path>', 'Arquivo .env local')
+  .option('-w, --workspace <slug>', 'Slug do workspace')
+  .option('-p, --project <slug>', 'Slug do projeto', 'default')
+  .option('-n, --name <name>', 'Nome lógico do env')
+  .option('--environment <name>', 'Ambiente associado')
+  .option('--secret <secret>', 'Segredo local do Env Vault')
+  .action(executarEnvPush);
+
+env
+  .command('pull')
+  .description('Baixar e descriptografar arquivo .env do Env Vault')
+  .requiredOption('-n, --name <name>', 'Nome lógico ou id do env')
+  .option('-w, --workspace <slug>', 'Slug do workspace')
+  .option('-p, --project <slug>', 'Slug do projeto', 'default')
+  .option('-o, --output <path>', 'Destino local do arquivo')
+  .option('--overwrite', 'Sobrescrever destino sem criar backup')
+  .option('--secret <secret>', 'Segredo local do Env Vault')
+  .action(executarEnvPull);
+
+env
+  .command('list')
+  .description('Listar envs criptografados do projeto')
+  .option('-w, --workspace <slug>', 'Slug do workspace')
+  .option('-p, --project <slug>', 'Slug do projeto', 'default')
+  .action(executarEnvList);
+
+env
+  .command('show')
+  .description('Mostrar metadados seguros de um env')
+  .requiredOption('-n, --name <name>', 'Nome lógico ou id do env')
+  .option('-w, --workspace <slug>', 'Slug do workspace')
+  .option('-p, --project <slug>', 'Slug do projeto', 'default')
+  .action(executarEnvShow);
+
+env
+  .command('delete')
+  .description('Remover env criptografado do projeto')
+  .requiredOption('-n, --name <name>', 'Nome lógico ou id do env')
+  .option('-w, --workspace <slug>', 'Slug do workspace')
+  .option('-p, --project <slug>', 'Slug do projeto', 'default')
+  .action(executarEnvDelete);
 
 await avisarAtualizacaoDisponivel(MYINST_VERSION);
 
