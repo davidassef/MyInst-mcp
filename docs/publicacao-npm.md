@@ -24,9 +24,9 @@ pnpm publish --access public --tag latest
 
 ## Publicar @myinst/cli
 
-Release atual preparada: `@myinst/cli@0.1.0-beta.8`.
+Release atual preparada: `@myinst/cli@0.1.0-beta.9`.
 
-Essa release depende também de `@myinst/shared@0.1.0-beta.8` e `@myinst/mcp-server@0.1.0-beta.8`, pois o sync multi-client, a validação de segredos e o login browser compartilham código entre os pacotes.
+Essa release depende também de `@myinst/shared@0.1.0-beta.9` e `@myinst/mcp-server@0.1.0-beta.9`, pois o sync multi-client, a validação de segredos, o login browser e o import dedicado de histórico compartilham código entre os pacotes.
 
 Essa release publica:
 
@@ -79,12 +79,12 @@ npx @myinst/cli chat --help
 Se a release beta atual também deve ficar disponível pelo dist-tag `beta`, alinhe os três pacotes depois da publicação:
 
 ```bash
-npm dist-tag add @myinst/shared@0.1.0-beta.8 beta
-npm dist-tag add @myinst/mcp-server@0.1.0-beta.8 beta
-npm dist-tag add @myinst/cli@0.1.0-beta.8 beta
-npm dist-tag add @myinst/shared@0.1.0-beta.8 latest
-npm dist-tag add @myinst/mcp-server@0.1.0-beta.8 latest
-npm dist-tag add @myinst/cli@0.1.0-beta.8 latest
+npm dist-tag add @myinst/shared@0.1.0-beta.9 beta
+npm dist-tag add @myinst/mcp-server@0.1.0-beta.9 beta
+npm dist-tag add @myinst/cli@0.1.0-beta.9 beta
+npm dist-tag add @myinst/shared@0.1.0-beta.9 latest
+npm dist-tag add @myinst/mcp-server@0.1.0-beta.9 latest
+npm dist-tag add @myinst/cli@0.1.0-beta.9 latest
 ```
 
 ## Atualizar versão
@@ -107,9 +107,9 @@ pnpm version patch
 
 - Nunca use `npm publish` direto neste monorepo; use `pnpm publish` para que dependências `workspace:*` sejam reescritas no tarball publicado
 - Os manifests publicados não podem conter dependências `workspace:*`; rode `pnpm release:check -- --skip-npm` antes de publicar para validar pack e instalação local
-- Para esta release, publique `@myinst/shared@0.1.0-beta.8` antes de `@myinst/mcp-server@0.1.0-beta.8` e `@myinst/cli@0.1.0-beta.8`
+- Para esta release, publique `@myinst/shared@0.1.0-beta.9` antes de `@myinst/mcp-server@0.1.0-beta.9` e `@myinst/cli@0.1.0-beta.9`
 - A validação `npx @myinst/cli --version` usa o dist-tag padrão `latest`; use outro tag somente se também ajustar o comando de validação
-- A release `0.1.0-beta.8` deve ficar publicada em `latest` e `beta`; revise `dist-tags` para evitar que qualquer tag continue apontando para uma versão anterior
+- A release `0.1.0-beta.9` deve ficar publicada em `latest` e `beta`; revise `dist-tags` para evitar que qualquer tag continue apontando para uma versão anterior
 - O campo `files` no package.json garante que apenas `dist/` é publicado
 - O `prepublishOnly` script garante que o build roda antes de publicar
 - A licença AGPL-3.0 é incluída automaticamente

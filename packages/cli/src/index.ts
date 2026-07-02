@@ -24,7 +24,7 @@ import {
 } from './commands/chat.js';
 
 const programa = new Command();
-const MYINST_VERSION = '0.1.0-beta.8';
+const MYINST_VERSION = '0.1.0-beta.9';
 
 programa
   .name('myinst')
