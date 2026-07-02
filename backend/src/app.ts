@@ -54,7 +54,7 @@ export async function criarApp(configuracao: ConfiguracaoAmbiente = carregarAmbi
   await app.register(jwt, { secret: configuracao.jwtSecret || 'dev-secret-local-only' });
 
   await app.register(rateLimit, {
-    max: 100,
+    max: configuracao.nodeEnv === 'test' ? 10_000 : 100,
     timeWindow: '1 minute',
     keyGenerator: (request) => {
       return (request.user as { id?: string } | undefined)?.id || request.ip;
