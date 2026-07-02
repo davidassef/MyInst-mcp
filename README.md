@@ -6,6 +6,8 @@ Ele centraliza `skills`, `instructions`, `agents`, `hooks`, `memory`, `snippets`
 
 Também preserva continuidade de trabalho por projeto com Project State: memórias revisadas, decisões técnicas, resumos seguros de sessões e histórico de chats importado com opt-in explícito.
 
+O suporte a arquivos `.env` fica em um fluxo separado, o Env Vault. Ele está em rollout para armazenar `.env` por projeto com criptografia local e recuperação por material criptográfico do usuário, sem misturar segredos ao sync normal. Consulte [docs/env-vault.md](./docs/env-vault.md).
+
 ## O que o MyInst resolve
 
 Equipes pequenas e usuários avançados costumam espalhar contexto em:
@@ -118,6 +120,8 @@ Pré-requisito antes de `myinst_push`:
 | `packages/cli` | CLI para login, listagem, status, pull, push e chats fora do fluxo MCP |
 | `packages/mcp-server` | Servidor MCP local que conecta o cliente ao vault |
 | `packages/shared` | Schemas Zod, tipos e contratos compartilhados |
+
+Env Vault não é um tipo de conteúdo do sync. Ele usa rotas, comandos e retenção próprios para evitar que `.env` entre em busca, diff, Project State, chats ou adapters de clientes.
 
 ## Compatibilidade de clientes
 
