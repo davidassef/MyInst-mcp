@@ -321,6 +321,12 @@ myinst chat summarize sessao-1 --workspace meus-projetos --project myinst`}
             <CartaoTexto titulo="cursor" texto="Use --client cursor. Arquivo Markdown vira uma sessao importada com uma mensagem de usuario." />
             <CartaoTexto titulo="outros" texto="Use --client <id>. O valor e preservado para filtros, busca, exportacao e resumo." />
           </div>
+
+          <p className="mt-4 text-sm leading-7 text-slate-400">
+            O import salva tudo que estiver no caminho informado dentro do projeto escolhido. Ele ainda nao separa sessoes
+            automaticamente por cwd; quando um diretorio tiver conversas de varios repositorios, rode dry-run e importe
+            apenas arquivos ou subdiretorios do projeto correto.
+          </p>
         </Secao>
 
         <Secao titulo="Politica anti-segredo">

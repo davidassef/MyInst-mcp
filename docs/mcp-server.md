@@ -461,6 +461,8 @@ myinst chat summarize sessao-1 --workspace meus-projetos --project myinst
 
 O campo `client` preserva a origem do chat e permite listar, buscar e exportar por cliente (`codex`, `claude`, `cursor`, `kimi` ou outro ID controlado). A CLI aceita JSON normalizado com `messages`, Markdown revisado e, quando houver adapter dedicado, uma fonte interna escolhida explicitamente. Nesta versão, `codex/history` já pode ser importado de arquivos `.jsonl` com `myinst chat import`; `cache` fica bloqueado até existir persistência segura por client. O MyInst não varre `.codex/sessions`, `.claude/projects`, `history/**` ou caches internos automaticamente.
 
+O `myinst chat import` não roteia sessões automaticamente por `cwd`. Tudo que estiver no `--path` informado será salvo no `--workspace/--project` escolhido. Para preservar um projeto por repositório, rode `--dry-run` e importe apenas arquivos ou subdiretórios que pertencem ao projeto correto.
+
 Use chats para continuidade e auditoria por projeto. Use Project State `session` quando quiser salvar apenas um resumo revisado de uma sessão, sem transcript completo.
 
 ## Estruturas reconhecidas

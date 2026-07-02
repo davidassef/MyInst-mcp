@@ -371,6 +371,8 @@ Regras por client:
 
 Para levar contexto para outro notebook, use `myinst chat list/show/export` no projeto correto. O export cria Markdown em `.myinst/chats/`; ele não reescreve o histórico interno do client. Cada novo adapter precisa declarar quais categorias suporta (`history`, `cache` ou outros artefatos), porque cada client guarda dados em estrutura própria.
 
+Não importe um diretório misto de sessões para um único projeto. O `myinst chat import` grava todas as sessões encontradas no `--path` informado dentro do `--workspace/--project` escolhido; ele ainda não roteia automaticamente por `cwd` ou por pasta de origem. Quando `~/.codex/sessions` tiver conversas de vários repositórios, faça primeiro `--dry-run`, escolha arquivos ou subdiretórios do projeto correto e só depois rode com `--reviewed`.
+
 ### MyInst como contexto de agente
 
 Inclua o MyInst no documento de contexto do projeto, como `AGENTS.md`, `CLAUDE.md` ou equivalente. O papel dele é diferente de uma fonte de documentação como `context7`: o MyInst é o vault versionado do seu contexto operacional, e deve materializar arquivos locais do projeto antes de virar base de trabalho recorrente.

@@ -163,6 +163,8 @@ JSON recomendado:
 
 Use `--client codex`, `--client claude`, `--client cursor`, `--client kimi` ou outro ID controlado para preservar a origem da sessão. Suporte a `history` e `cache` é implementado client por client, porque cada ferramenta guarda dados em estrutura própria. O export grava Markdown em `.myinst/chats/`; ele não reescreve o histórico interno do client.
 
+O import grava todas as sessões encontradas no `--path` dentro do projeto informado por `--workspace` e `--project`. Ele ainda não separa automaticamente sessões por `cwd`; se `~/.codex/sessions` tiver conversas de vários repositórios, use `--dry-run` e importe apenas arquivos ou subdiretórios que pertencem ao projeto correto.
+
 ## Requisitos
 
 - Node.js 22+
