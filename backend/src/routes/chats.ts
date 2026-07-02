@@ -131,14 +131,7 @@ async function criarChat(request: FastifyRequest, reply: FastifyReply) {
     .returning();
 
   await db.delete(chatMessages).where(eq(chatMessages.sessionId, sessao.id));
-  await inserirMensagensChat(body.messages.map((mensagem) => ({
-    sessionId: sessao.id,
-    role: mensagem.role,
-    content: mensagem.content,
-    tokenCount: mensagem.tokenCount,
-    metadata: mensagem.metadata,
-    createdAt: mensagem.createdAt ? new Date(mensagem.createdAt) : new Date(),
-  })));
+  await inserirMensagensChat(normalizarMensagensChat(sessao.id, body.messages));
 
   return reply.status(201).send({
     data: {
@@ -195,6 +188,24 @@ async function inserirMensagensChat(mensagens: Array<typeof chatMessages.$inferI
   for (let indice = 0; indice < mensagens.length; indice += tamanhoLote) {
     await db.insert(chatMessages).values(mensagens.slice(indice, indice + tamanhoLote));
   }
+}
+
+function normalizarMensagensChat(
+  sessionId: string,
+  mensagens: CriarChatSessionInput['messages'],
+): Array<typeof chatMessages.$inferInsert> {
+  const inicioImportacao = Date.now();
+
+  return mensagens.map((mensagem, indiceMensagem) => ({
+    sessionId,
+    role: mensagem.role,
+    content: mensagem.content,
+    tokenCount: mensagem.tokenCount,
+    metadata: mensagem.metadata,
+    createdAt: mensagem.createdAt
+      ? new Date(mensagem.createdAt)
+      : new Date(inicioImportacao + indiceMensagem),
+  }));
 }
 
 async function buscarChatComMensagens(
