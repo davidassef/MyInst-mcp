@@ -22,9 +22,10 @@ import {
   executarChatShow,
   executarChatSummarize,
 } from './commands/chat.js';
+import { avisarAtualizacaoDisponivel } from './update-check.js';
 
 const programa = new Command();
-const MYINST_VERSION = '0.1.0-beta.9';
+const MYINST_VERSION = '0.1.0-beta.10';
 
 programa
   .name('myinst')
@@ -173,5 +174,7 @@ chat
   .option('-w, --workspace <slug>', 'Slug do workspace')
   .option('-p, --project <slug>', 'Slug do projeto', 'default')
   .action((sessionId: string, options) => executarChatSummarize(sessionId, options));
+
+await avisarAtualizacaoDisponivel(MYINST_VERSION);
 
 programa.parse();

@@ -24,9 +24,9 @@ pnpm publish --access public --tag latest
 
 ## Publicar @myinst/cli
 
-Release atual preparada: `@myinst/cli@0.1.0-beta.9`.
+Release atual preparada: `@myinst/cli@0.1.0-beta.10`.
 
-Essa release depende também de `@myinst/shared@0.1.0-beta.9` e `@myinst/mcp-server@0.1.0-beta.9`, pois o sync multi-client, a validação de segredos, o login browser e o import dedicado de histórico compartilham código entre os pacotes.
+Essa release mantém `@myinst/shared@0.1.0-beta.9` como dependência publicada e não exige republicar `@myinst/mcp-server`, pois a mudança é específica do CLI.
 
 Essa release publica:
 
@@ -35,6 +35,7 @@ Essa release publica:
 - `myinst state pull` materializa memórias, decisões e sessões em `.myinst/state/`.
 - `myinst state search` busca Project State com `scope=state`.
 - `myinst chat push/import/list/show/export/summarize` gerencia histórico de chats por fonte explícita, sem varredura automática de transcripts. O import dedicado começa por `codex/history`; cache ainda fica bloqueado.
+- `myinst` avisa em `stderr` quando existir uma versão `latest` mais nova no npm e permite opt-out com `MYINST_DISABLE_UPDATE_CHECK=1`.
 - `myinst login` abre o fluxo browser por padrão e mantém `--api-key` para login manual.
 - `myinst pull/push/status` exigem `--client` quando múltiplos clients são detectados.
 - Sync bloqueia segredos prováveis e usa placeholders em configs sensíveis.
@@ -51,15 +52,7 @@ pnpm --filter @myinst/cli pack --pack-destination .tmp/npm-pack
 Publicação:
 
 ```bash
-pnpm release:check -- --skip-npm
-
-cd packages/shared
-pnpm publish --access public --tag latest
-
-cd ../mcp-server
-pnpm publish --access public --tag latest
-
-cd ../cli
+cd packages/cli
 pnpm publish --access public --tag latest
 ```
 
@@ -76,15 +69,11 @@ npx @myinst/cli state --help
 npx @myinst/cli chat --help
 ```
 
-Se a release beta atual também deve ficar disponível pelo dist-tag `beta`, alinhe os três pacotes depois da publicação:
+Se a release beta atual também deve ficar disponível pelo dist-tag `beta`, alinhe o pacote alterado depois da publicação:
 
 ```bash
-npm dist-tag add @myinst/shared@0.1.0-beta.9 beta
-npm dist-tag add @myinst/mcp-server@0.1.0-beta.9 beta
-npm dist-tag add @myinst/cli@0.1.0-beta.9 beta
-npm dist-tag add @myinst/shared@0.1.0-beta.9 latest
-npm dist-tag add @myinst/mcp-server@0.1.0-beta.9 latest
-npm dist-tag add @myinst/cli@0.1.0-beta.9 latest
+npm dist-tag add @myinst/cli@0.1.0-beta.10 beta
+npm dist-tag add @myinst/cli@0.1.0-beta.10 latest
 ```
 
 ## Atualizar versão
@@ -106,10 +95,10 @@ pnpm version patch
 ## Notas
 
 - Nunca use `npm publish` direto neste monorepo; use `pnpm publish` para que dependências `workspace:*` sejam reescritas no tarball publicado
-- Os manifests publicados não podem conter dependências `workspace:*`; rode `pnpm release:check -- --skip-npm` antes de publicar para validar pack e instalação local
-- Para esta release, publique `@myinst/shared@0.1.0-beta.9` antes de `@myinst/mcp-server@0.1.0-beta.9` e `@myinst/cli@0.1.0-beta.9`
+- Os manifests publicados não podem conter dependências `workspace:*`; rode `pnpm --filter @myinst/cli pack --pack-destination .tmp/npm-pack` antes de publicar quando a release for apenas do CLI
+- Para esta release, publique apenas `@myinst/cli@0.1.0-beta.10`
 - A validação `npx @myinst/cli --version` usa o dist-tag padrão `latest`; use outro tag somente se também ajustar o comando de validação
-- A release `0.1.0-beta.9` deve ficar publicada em `latest` e `beta`; revise `dist-tags` para evitar que qualquer tag continue apontando para uma versão anterior
+- A release `0.1.0-beta.10` deve ficar publicada em `latest` e `beta`; revise `dist-tags` para evitar que qualquer tag continue apontando para uma versão anterior
 - O campo `files` no package.json garante que apenas `dist/` é publicado
 - O `prepublishOnly` script garante que o build roda antes de publicar
 - A licença AGPL-3.0 é incluída automaticamente

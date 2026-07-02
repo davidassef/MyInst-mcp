@@ -281,6 +281,8 @@ myinst pull -> myinst status -> editar arquivos locais -> myinst status -> myins
 
 A CLI mantém `.myinst/sync-state.json` como manifesto local do último snapshot remoto conhecido. `myinst status` compara manifesto, arquivos locais e vault remoto para separar pendências de pull, push e conflitos antes do envio.
 
+No início de cada execução, a CLI consulta o npm com timeout curto e avisa em `stderr` quando existir uma versão `latest` mais nova de `@myinst/cli`. O aviso não bloqueia comandos, falhas de rede são ignoradas e automações podem desativar a checagem com `MYINST_DISABLE_UPDATE_CHECK=1`.
+
 `myinst st` é apenas um alias curto de `myinst status`. Use o comando completo em scripts e documentação formal; use `st` no terminal quando quiser inspecionar o estado mais rápido.
 
 Por padrão, a CLI lê todos os clients detectados no projeto atual, não apenas `.claude`. O escopo global da home do usuário só entra com `--scope global` ou `--scope all`, para evitar envio acidental de configuração pessoal.

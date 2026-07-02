@@ -2,7 +2,7 @@
 
 CLI oficial do MyInst para login, listagem, status, pull, push, Project State e histórico de chats do vault.
 
-Versão atual: `0.1.0-beta.9`.
+Versão atual: `0.1.0-beta.10`.
 
 ## Instalacao
 
@@ -35,6 +35,16 @@ myinst chat list --workspace meus-projetos --project myinst --client codex --tag
 myinst chat show sessao-1 --workspace meus-projetos --project myinst
 myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
 myinst chat summarize sessao-1 --workspace meus-projetos --project myinst
+```
+
+## Aviso de atualização
+
+A CLI consulta o npm no início de cada execução e avisa em `stderr` quando existir uma versão `latest` mais nova de `@myinst/cli`.
+
+O aviso não bloqueia o comando, falhas de rede são ignoradas e a checagem pode ser desativada em automações:
+
+```bash
+MYINST_DISABLE_UPDATE_CHECK=1 myinst status myinst --workspace meus-projetos
 ```
 
 ## Sync tipo repositorio remoto
