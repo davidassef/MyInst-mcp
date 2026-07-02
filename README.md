@@ -309,7 +309,7 @@ Fluxo de continuidade do projeto:
 myinst_state_capture -> revisão local -> myinst_state_push
 ```
 
-Project State não sincroniza cache bruto nem transcripts completos por padrão. Chats só entram por import explícito de arquivo JSON/Markdown e nunca são varridos automaticamente.
+Project State não sincroniza cache bruto nem transcripts completos por padrão. Chats só entram por fonte explícita, como arquivo JSON/Markdown revisado ou adapter dedicado do client, e nunca são varridos automaticamente.
 
 Quando mais de um client local for detectado, informe `--client` explicitamente nos comandos de sync. Configurações com segredos reais devem usar placeholders como `{{MYINST_API_KEY}}`; o push bloqueia padrões prováveis de segredo antes de gravar no vault.
 
@@ -326,10 +326,12 @@ myinst state search "deploy" --workspace meus-projetos --project myinst
 
 Histórico de chats é separado de `project_sessions`, tem retenção padrão de 180 dias e bloqueia padrões prováveis de segredo antes de persistir. Ele não entra no `myinst pull/push` de arquivos nativos: chats usam um fluxo próprio, sempre com `workspace`, `project`, `client` e `session` explícitos.
 
-O MyInst não varre automaticamente diretórios internos como `.codex/sessions`, `.claude/projects`, `history/**` ou caches de clientes. Para sincronizar chats de um client, exporte ou normalize a sessão para JSON/Markdown revisado e envie com `myinst chat push`.
+O MyInst não varre automaticamente diretórios internos como `.codex/sessions`, `.claude/projects`, `history/**` ou caches de clientes. Para sincronizar chats de um client, escolha explicitamente a fonte: use `myinst chat push` para arquivo JSON/Markdown revisado, ou `myinst chat import` quando existir adapter dedicado para aquele client e categoria.
 
 ```bash
 myinst chat push --workspace meus-projetos --project myinst --client codex --session sessao-1 --file chat.json
+myinst chat import --workspace meus-projetos --project myinst --client codex --include history --path ~/.codex/sessions --dry-run
+myinst chat import --workspace meus-projetos --project myinst --client codex --include history --path ~/.codex/sessions --reviewed
 myinst chat list --workspace meus-projetos --project myinst --client codex --tag release
 myinst chat show sessao-1 --workspace meus-projetos --project myinst
 myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
@@ -359,13 +361,13 @@ Regras por client:
 
 | Client | Como sincronizar chats hoje | Observação |
 |--------|-----------------------------|------------|
-| `codex` | `myinst chat push --client codex --file chat.json` | Não importa `.codex/sessions` automaticamente. |
-| `claude` | `myinst chat push --client claude --file chat.json` | Use arquivo revisado; não envie transcripts brutos com segredos. |
+| `codex` | `myinst chat import --client codex --include history --path ~/.codex/sessions --reviewed` ou `myinst chat push --client codex --file chat.json` | `history` tem adapter dedicado. `cache` fica bloqueado até existir persistência segura. |
+| `claude` | `myinst chat push --client claude --file chat.json` | Adapter de histórico interno ainda planejado; use arquivo revisado. |
 | `cursor` | `myinst chat push --client cursor --file chat.md` | Markdown vira uma sessão com uma mensagem de usuário. |
 | `kimi` | `myinst chat push --client kimi --file chat.json` | Chats não fazem parte do adapter `.kimi-code`. |
 | outros | `--client <id>` | O valor do client é preservado para filtro e exportação. |
 
-Para levar contexto para outro notebook, use `myinst chat list/show/export` no projeto correto. O export cria Markdown em `.myinst/chats/`; ele não reescreve o histórico interno do client.
+Para levar contexto para outro notebook, use `myinst chat list/show/export` no projeto correto. O export cria Markdown em `.myinst/chats/`; ele não reescreve o histórico interno do client. Cada novo adapter precisa declarar quais categorias suporta (`history`, `cache` ou outros artefatos), porque cada client guarda dados em estrutura própria.
 
 ### MyInst como contexto de agente
 

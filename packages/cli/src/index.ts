@@ -16,6 +16,7 @@ import {
 } from './commands/state.js';
 import {
   executarChatExport,
+  executarChatImport,
   executarChatList,
   executarChatPush,
   executarChatShow,
@@ -114,6 +115,18 @@ state
 const chat = programa
   .command('chat')
   .description('Gerenciar histórico de chats importado explicitamente');
+
+chat
+  .command('import')
+  .description('Importar histórico/cache de client por seleção explícita')
+  .requiredOption('-w, --workspace <slug>', 'Slug do workspace')
+  .requiredOption('-p, --project <slug>', 'Slug do projeto')
+  .requiredOption('-c, --client <client>', 'Client de origem')
+  .requiredOption('--include <categorias>', 'Categorias separadas por vírgula: history,cache')
+  .requiredOption('--path <path>', 'Arquivo ou diretório fonte do client')
+  .option('--reviewed', 'Confirma revisão humana antes de enviar')
+  .option('--dry-run', 'Mostra o plano sem enviar ao servidor')
+  .action(executarChatImport);
 
 chat
   .command('push')

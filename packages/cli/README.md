@@ -29,6 +29,8 @@ myinst state push .myinst/state/drafts/memory-contexto-do-deploy.json --reviewed
 myinst state pull myinst --workspace meus-projetos
 myinst state search "deploy" --workspace meus-projetos --project myinst
 myinst chat push --workspace meus-projetos --project myinst --client codex --session sessao-1 --file chat.json
+myinst chat import --workspace meus-projetos --project myinst --client codex --include history --path ~/.codex/sessions --dry-run
+myinst chat import --workspace meus-projetos --project myinst --client codex --include history --path ~/.codex/sessions --reviewed
 myinst chat list --workspace meus-projetos --project myinst --client codex --tag release
 myinst chat show sessao-1 --workspace meus-projetos --project myinst
 myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
@@ -117,19 +119,20 @@ O push exige `metadata.reviewed=true` e bloqueia padrões prováveis de segredos
 
 ## Histórico de chats
 
-`myinst chat` importa histórico apenas por arquivo explícito. A CLI não varre transcripts locais, caches ou diretórios internos de clientes automaticamente.
+`myinst chat` importa histórico apenas por fonte explícita. A CLI não varre transcripts locais, caches ou diretórios internos de clientes automaticamente.
 
 Chats não entram no `myinst pull/push` de arquivos nativos. Eles usam um fluxo próprio por `{ workspace, project, client, session }`, permitindo filtrar e exportar conversas por cliente de origem.
 
 Comandos disponíveis:
 
 - `myinst chat push --project <slug> --client <client> --session <id> --file <json|md>` importa uma sessão.
+- `myinst chat import --project <slug> --client codex --include history --path <arquivo|diretorio> --reviewed` importa histórico Codex JSONL com adapter dedicado.
 - `myinst chat list --project <slug> [--client <client>] [--q <texto>] [--tag <tag>] [--from <iso>] [--to <iso>]` lista sessões importadas.
 - `myinst chat show <session-id>` mostra mensagens.
 - `myinst chat export <session-id> --format markdown` grava `.myinst/chats/<session-id>.md`.
 - `myinst chat summarize <session-id>` atualiza o resumo no servidor.
 
-Arquivos JSON devem conter `messages`; Markdown entra como uma mensagem única revisada. O backend bloqueia padrões prováveis de segredo antes de persistir.
+Arquivos JSON devem conter `messages`; Markdown entra como uma mensagem única revisada. O import dedicado de Codex aceita `.jsonl` do histórico e exige `--dry-run` ou `--reviewed`. A categoria `cache` existe no contrato, mas fica bloqueada até existir persistência segura por client. O backend bloqueia padrões prováveis de segredo antes de persistir.
 
 JSON recomendado:
 
@@ -148,7 +151,7 @@ JSON recomendado:
 }
 ```
 
-Use `--client codex`, `--client claude`, `--client cursor`, `--client kimi` ou outro ID controlado para preservar a origem da sessão. O export grava Markdown em `.myinst/chats/`; ele não reescreve o histórico interno do client.
+Use `--client codex`, `--client claude`, `--client cursor`, `--client kimi` ou outro ID controlado para preservar a origem da sessão. Suporte a `history` e `cache` é implementado client por client, porque cada ferramenta guarda dados em estrutura própria. O export grava Markdown em `.myinst/chats/`; ele não reescreve o histórico interno do client.
 
 ## Requisitos
 

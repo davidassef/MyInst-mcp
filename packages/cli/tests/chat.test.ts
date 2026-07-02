@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { carregarChatDeArquivo, materializarChatMarkdown } from '../src/commands/chat.js';
+import {
+  carregarChatDeArquivo,
+  materializarChatMarkdown,
+  planejarImportacaoChatClient,
+} from '../src/commands/chat.js';
 
 describe('Chat CLI', () => {
   it('carrega conversa de arquivo JSON explícito', async () => {
@@ -64,6 +68,90 @@ describe('Chat CLI', () => {
 
     expect(caminho.replace(/\\/g, '/')).toContain('.myinst/chats/sessao-1.md');
     expect(conteudo).toBe('# Sessão\n\nConteúdo');
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('planeja importação de histórico Codex a partir de diretório explícito', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'myinst-chat-codex-'));
+    const historicoDir = join(dir, '2026', '07');
+    await mkdir(historicoDir, { recursive: true });
+
+    const caminho = join(historicoDir, 'sessao-codex.jsonl');
+    const registrosJsonl = [
+      { type: 'turn_context', payload: { cwd: 'D:\\Documentos\\Projetos\\MyInst' } },
+      {
+        type: 'response_item',
+        item: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: 'MYINST_API_KEY=myinst_12345678901234567890123456789012' }],
+        },
+      },
+      {
+        type: 'response_item',
+        item: {
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: 'Configuração revisada.' }],
+        },
+      },
+    ];
+
+    await writeFile(caminho, registrosJsonl.map((registro) => JSON.stringify(registro)).join('\n'), 'utf-8');
+
+    const plano = await planejarImportacaoChatClient({
+      client: 'codex',
+      include: ['history'],
+      sourcePath: dir,
+    });
+
+    expect(plano.sessions).toHaveLength(1);
+    expect(plano.sessions[0]).toEqual(expect.objectContaining({
+      client: 'codex',
+      externalSessionId: 'sessao-codex',
+      title: 'MYINST_API_KEY={{MYINST_API_KEY}}',
+    }));
+    expect(plano.sessions[0].messages).toEqual([
+      expect.objectContaining({
+        role: 'user',
+        content: 'MYINST_API_KEY={{MYINST_API_KEY}}',
+      }),
+      expect.objectContaining({
+        role: 'assistant',
+        content: 'Configuração revisada.',
+      }),
+    ]);
+    expect(plano.sessions[0].metadata).toEqual(expect.objectContaining({
+      client: 'codex',
+      source: 'codex-jsonl',
+      sourceFile: caminho,
+      sourceCwd: 'D:\\Documentos\\Projetos\\MyInst',
+    }));
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('bloqueia cache enquanto não houver persistência segura por client', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'myinst-chat-cache-'));
+
+    await expect(planejarImportacaoChatClient({
+      client: 'codex',
+      include: ['cache'],
+      sourcePath: dir,
+    })).rejects.toThrow('cache ainda não possui persistência segura');
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('bloqueia histórico de clients sem adapter dedicado', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'myinst-chat-unsupported-'));
+
+    await expect(planejarImportacaoChatClient({
+      client: 'claude',
+      include: ['history'],
+      sourcePath: dir,
+    })).rejects.toThrow('Histórico do client claude ainda não possui adapter de importação');
 
     await rm(dir, { recursive: true, force: true });
   });

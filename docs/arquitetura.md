@@ -193,7 +193,7 @@ A retenção padrão é de 180 dias. A API rejeita padrões prováveis de segred
 
 O histórico de chats não usa os adapters de arquivo de `myinst pull`/`myinst push`. Ele é indexado por `{ workspace, project, client, session }` e permite filtrar ou exportar sessões por client, como `codex`, `claude`, `cursor`, `kimi` ou outro identificador informado na CLI.
 
-Nesta versão, o MyInst não varre automaticamente diretórios internos de clients, como `.codex/sessions`, `.claude/projects`, `history/**` ou caches locais. Para sincronizar chats, normalize a sessão para JSON/Markdown revisado e use `myinst chat push`.
+Nesta versão, o MyInst não varre automaticamente diretórios internos de clients, como `.codex/sessions`, `.claude/projects`, `history/**` ou caches locais. Para sincronizar chats, escolha a fonte explicitamente: normalize a sessão para JSON/Markdown revisado com `myinst chat push`, ou use `myinst chat import` quando houver adapter dedicado para o client e a categoria. O primeiro adapter dedicado cobre `codex/history`; cache permanece bloqueado até existir persistência segura por client.
 
 ## Sync Local da CLI
 

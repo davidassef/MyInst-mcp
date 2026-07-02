@@ -1,5 +1,6 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { extname, join } from 'node:path';
+import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import { basename, extname, join, resolve } from 'node:path';
+import { detectarSegredoProvavelEmTexto, redigirSegredosEmTexto } from '@myinst/shared/security';
 import { carregarConfig, type MyInstConfig } from '../config.js';
 
 const VERDE = '\x1b[32m';
@@ -9,6 +10,7 @@ const AMARELO = '\x1b[33m';
 const RESET = '\x1b[0m';
 
 type ChatRole = 'user' | 'assistant' | 'system' | 'tool';
+type ChatImportInclude = 'history' | 'cache';
 
 interface ChatMessageInput {
   role: ChatRole;
@@ -41,6 +43,30 @@ interface ChatPushOptions extends ChatArquivoOptions {
   file: string;
 }
 
+interface ChatImportOptions {
+  workspace?: string;
+  project?: string;
+  client: string;
+  include: string;
+  path: string;
+  reviewed?: boolean;
+  dryRun?: boolean;
+}
+
+export interface ChatImportPlanOptions {
+  client: string;
+  include: ChatImportInclude[];
+  sourcePath: string;
+}
+
+export interface ChatImportPlan {
+  client: string;
+  include: ChatImportInclude[];
+  sourcePath: string;
+  sessions: ChatArquivo[];
+  warnings: string[];
+}
+
 interface ChatListOptions {
   workspace?: string;
   project?: string;
@@ -68,28 +94,49 @@ export async function executarChatPush(options: ChatPushOptions): Promise<void> 
   const project = options.project || 'default';
   const chat = await carregarChatDeArquivo(options.file, options);
 
-  const resposta = await fetch(endpointChats(config, workspace, project), {
-    method: 'POST',
-    headers: headersJson(config),
-    body: JSON.stringify({
-      client: chat.client,
-      session: chat.externalSessionId,
-      title: chat.title,
-      summary: chat.summary,
-      startedAt: chat.startedAt,
-      updatedAt: chat.updatedAt,
-      retentionUntil: chat.retentionUntil,
-      metadata: chat.metadata,
-      messages: chat.messages,
-    }),
-  });
-
-  if (!resposta.ok) {
-    await encerrarComErroHttp(resposta);
-  }
-
-  const json = await resposta.json();
+  const json = await enviarChat(config, workspace, project, chat);
   console.log(`${VERDE}[SUCCESS] Chat salvo:${RESET} ${json.data.client}/${json.data.externalSessionId}`);
+}
+
+export async function executarChatImport(options: ChatImportOptions): Promise<void> {
+  try {
+    if (!options.dryRun && !options.reviewed) {
+      throw new Error('Importação de histórico/cache exige --reviewed ou --dry-run.');
+    }
+
+    const workspace = options.workspace || 'default';
+    const project = options.project || 'default';
+    const include = normalizarIncludes(options.include);
+    const plano = await planejarImportacaoChatClient({
+      client: options.client,
+      include,
+      sourcePath: options.path,
+    });
+
+    console.log(`${VERDE}[SUCCESS] Plano de importação:${RESET} ${plano.sessions.length} sessão(ões) encontradas`);
+
+    for (const aviso of plano.warnings) {
+      console.log(`${AMARELO}[WARN] ${aviso}${RESET}`);
+    }
+
+    if (options.dryRun) {
+      for (const session of plano.sessions) {
+        console.log(`${CINZA}${session.client}/${session.externalSessionId} ${session.messages.length} msg - ${session.title}${RESET}`);
+      }
+
+      return;
+    }
+
+    const config = carregarConfigObrigatoria();
+    for (const session of plano.sessions) {
+      const json = await enviarChat(config, workspace, project, session);
+      console.log(`${VERDE}[SUCCESS] Chat salvo:${RESET} ${json.data.client}/${json.data.externalSessionId}`);
+    }
+  } catch (erro) {
+    const mensagem = erro instanceof Error ? erro.message : 'Falha ao importar chats.';
+    console.error(`${VERMELHO}[ERROR] ${mensagem}${RESET}`);
+    process.exit(1);
+  }
 }
 
 export async function executarChatList(options: ChatListOptions): Promise<void> {
@@ -203,6 +250,35 @@ export async function carregarChatDeArquivo(caminho: string, options: ChatArquiv
   };
 }
 
+export async function planejarImportacaoChatClient(options: ChatImportPlanOptions): Promise<ChatImportPlan> {
+  const include = [...new Set(options.include)];
+
+  if (include.includes('cache')) {
+    throw new Error('A categoria cache ainda não possui persistência segura por client nesta versão.');
+  }
+
+  if (!include.includes('history')) {
+    throw new Error('Informe pelo menos uma categoria suportada: history.');
+  }
+
+  if (options.client !== 'codex') {
+    throw new Error(`Histórico do client ${options.client} ainda não possui adapter de importação dedicado.`);
+  }
+
+  const sourcePath = resolve(options.sourcePath);
+  const sessions = await carregarHistoricoCodex(sourcePath);
+
+  return {
+    client: options.client,
+    include,
+    sourcePath,
+    sessions,
+    warnings: sessions.length === 0
+      ? ['Nenhum arquivo .jsonl de histórico Codex com mensagens foi encontrado no caminho informado.']
+      : [],
+  };
+}
+
 export async function materializarChatMarkdown(targetDir: string, sessionId: string, markdown: string): Promise<string> {
   const dir = join(targetDir, '.myinst', 'chats');
   await mkdir(dir, { recursive: true });
@@ -210,6 +286,246 @@ export async function materializarChatMarkdown(targetDir: string, sessionId: str
   const caminho = join(dir, `${normalizarNomeArquivo(sessionId)}.md`);
   await writeFile(caminho, markdown, 'utf-8');
   return caminho;
+}
+
+async function carregarHistoricoCodex(sourcePath: string): Promise<ChatArquivo[]> {
+  const caminhos = await listarArquivosJsonl(sourcePath);
+  const sessions: ChatArquivo[] = [];
+
+  for (const caminho of caminhos) {
+    const session = await carregarSessaoCodexJsonl(caminho);
+    if (!session) continue;
+
+    sessions.push(session);
+  }
+
+  return sessions;
+}
+
+async function carregarSessaoCodexJsonl(caminho: string): Promise<ChatArquivo | null> {
+  const conteudo = await readFile(caminho, 'utf-8');
+  const messages: ChatMessageInput[] = [];
+  let sourceCwd: string | undefined;
+
+  for (const linha of conteudo.split(/\r?\n/)) {
+    if (!linha.trim()) continue;
+
+    const registro = parseJsonlRecord(linha);
+    if (!registro) continue;
+
+    const cwd = extrairCwdCodex(registro);
+    if (cwd) {
+      sourceCwd = cwd;
+    }
+
+    const message = extrairMensagemCodex(registro);
+    if (!message) continue;
+
+    messages.push(message);
+  }
+
+  if (messages.length === 0) {
+    return null;
+  }
+
+  const externalSessionId = basename(caminho, '.jsonl');
+  const titulo = extrairTituloChat(messages) || externalSessionId;
+
+  return {
+    client: 'codex',
+    externalSessionId,
+    title: titulo,
+    metadata: {
+      client: 'codex',
+      source: 'codex-jsonl',
+      sourceFile: caminho,
+      sourceCwd,
+      tags: ['codex', 'history'],
+      myinstRequiresReview: true,
+    },
+    messages,
+  };
+}
+
+async function listarArquivosJsonl(sourcePath: string): Promise<string[]> {
+  const detalhes = await stat(sourcePath);
+
+  if (detalhes.isFile()) {
+    return extname(sourcePath).toLowerCase() === '.jsonl' ? [sourcePath] : [];
+  }
+
+  const caminhos: string[] = [];
+  const entradas = await readdir(sourcePath, { withFileTypes: true });
+
+  for (const entrada of entradas) {
+    const caminho = join(sourcePath, entrada.name);
+
+    if (entrada.isDirectory()) {
+      caminhos.push(...await listarArquivosJsonl(caminho));
+      continue;
+    }
+
+    if (entrada.isFile() && extname(entrada.name).toLowerCase() === '.jsonl') {
+      caminhos.push(caminho);
+    }
+  }
+
+  return caminhos.sort((a, b) => a.localeCompare(b));
+}
+
+function parseJsonlRecord(linha: string): Record<string, unknown> | null {
+  try {
+    const registro = JSON.parse(linha) as unknown;
+    if (!registro || typeof registro !== 'object' || Array.isArray(registro)) {
+      return null;
+    }
+
+    return registro as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function extrairCwdCodex(registro: Record<string, unknown>): string | undefined {
+  const payload = lerObjeto(registro.payload);
+  if (typeof payload?.cwd === 'string') {
+    return payload.cwd;
+  }
+
+  return undefined;
+}
+
+function extrairMensagemCodex(registro: Record<string, unknown>): ChatMessageInput | null {
+  if (registro.type !== 'response_item') {
+    return null;
+  }
+
+  const responseItem = lerObjeto(registro.item);
+  if (responseItem?.type !== 'message') {
+    return null;
+  }
+
+  const role = normalizarRoleCodex(responseItem.role);
+  if (!role) {
+    return null;
+  }
+
+  const content = extrairTextoConteudoCodex(responseItem.content);
+  if (!content.trim()) {
+    return null;
+  }
+
+  const redacao = redigirSegredosEmTexto(content);
+  if (detectarSegredoProvavelEmTexto(redacao.texto)) {
+    throw new Error('Histórico contém segredo provável que não pôde ser redigido automaticamente. Revise o arquivo antes de importar.');
+  }
+
+  return {
+    role,
+    content: redacao.texto,
+    metadata: redacao.possuiSegredos
+      ? { myinstRedactedSecrets: redacao.chavesRedigidas }
+      : {},
+  };
+}
+
+function extrairTextoConteudoCodex(content: unknown): string {
+  if (typeof content === 'string') {
+    return content;
+  }
+
+  if (!Array.isArray(content)) {
+    return '';
+  }
+
+  return content
+    .map((parte) => {
+      const bloco = lerObjeto(parte);
+      if (!bloco) return '';
+      if (typeof bloco.text === 'string') return bloco.text;
+      if (typeof bloco.input_text === 'string') return bloco.input_text;
+      if (typeof bloco.output_text === 'string') return bloco.output_text;
+      if (typeof bloco.content === 'string') return bloco.content;
+      return '';
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+function lerObjeto(valor: unknown): Record<string, unknown> | null {
+  if (!valor || typeof valor !== 'object' || Array.isArray(valor)) {
+    return null;
+  }
+
+  return valor as Record<string, unknown>;
+}
+
+function normalizarRoleCodex(valor: unknown): ChatRole | null {
+  if (valor === 'user' || valor === 'assistant' || valor === 'system' || valor === 'tool') {
+    return valor;
+  }
+
+  return null;
+}
+
+function extrairTituloChat(messages: ChatMessageInput[]): string | null {
+  const primeiraMensagemUsuario = messages.find((mensagem) => mensagem.role === 'user');
+  if (!primeiraMensagemUsuario) {
+    return null;
+  }
+
+  const primeiraLinha = primeiraMensagemUsuario.content
+    .split(/\r?\n/)
+    .find((linha) => linha.trim());
+
+  if (!primeiraLinha) {
+    return null;
+  }
+
+  return primeiraLinha.trim().slice(0, 80);
+}
+
+function normalizarIncludes(valor: string): ChatImportInclude[] {
+  const include = valor
+    .split(',')
+    .map((entrada) => entrada.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (include.length === 0) {
+    throw new Error('Informe --include com history ou cache.');
+  }
+
+  for (const entrada of include) {
+    if (entrada !== 'history' && entrada !== 'cache') {
+      throw new Error(`Categoria de importação inválida: ${entrada}. Use history ou cache.`);
+    }
+  }
+
+  return include as ChatImportInclude[];
+}
+
+async function enviarChat(config: MyInstConfig, workspace: string, project: string, chat: ChatArquivo): Promise<{ data: { client: string; externalSessionId: string } }> {
+  const resposta = await fetch(endpointChats(config, workspace, project), {
+    method: 'POST',
+    headers: headersJson(config),
+    body: JSON.stringify({
+      client: chat.client,
+      session: chat.externalSessionId,
+      title: chat.title,
+      summary: chat.summary,
+      startedAt: chat.startedAt,
+      updatedAt: chat.updatedAt,
+      retentionUntil: chat.retentionUntil,
+      metadata: chat.metadata,
+      messages: chat.messages,
+    }),
+  });
+
+  if (!resposta.ok) {
+    await encerrarComErroHttp(resposta);
+  }
+
+  return await resposta.json() as { data: { client: string; externalSessionId: string } };
 }
 
 function normalizarChatJson(valor: Record<string, unknown>, options: ChatArquivoOptions): ChatArquivo {

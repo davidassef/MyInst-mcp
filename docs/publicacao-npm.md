@@ -34,7 +34,7 @@ Essa release publica:
 - `myinst state push --reviewed` envia somente conteúdo revisado.
 - `myinst state pull` materializa memórias, decisões e sessões em `.myinst/state/`.
 - `myinst state search` busca Project State com `scope=state`.
-- `myinst chat push/list/show/export/summarize` gerencia histórico de chats por arquivo explícito, sem varredura automática de transcripts.
+- `myinst chat push/import/list/show/export/summarize` gerencia histórico de chats por fonte explícita, sem varredura automática de transcripts. O import dedicado começa por `codex/history`; cache ainda fica bloqueado.
 - `myinst login` abre o fluxo browser por padrão e mantém `--api-key` para login manual.
 - `myinst pull/push/status` exigem `--client` quando múltiplos clients são detectados.
 - Sync bloqueia segredos prováveis e usa placeholders em configs sensíveis.

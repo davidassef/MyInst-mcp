@@ -275,7 +275,7 @@ myinst push api-supernosso --workspace meus-projetos --scope project --client co
           <div className="grid gap-4 md:grid-cols-3">
             <CartaoTexto
               titulo="Opt-in explicito"
-              texto="Chats entram apenas por arquivo JSON ou Markdown informado pelo usuario. A CLI nao varre transcripts locais, caches ou diretorios internos automaticamente."
+              texto="Chats entram apenas por fonte escolhida pelo usuario: arquivo revisado ou adapter dedicado do client. A CLI nao varre transcripts, caches ou diretorios internos automaticamente."
             />
             <CartaoTexto
               titulo="Client e projeto obrigatorios"
@@ -283,7 +283,7 @@ myinst push api-supernosso --workspace meus-projetos --scope project --client co
             />
             <CartaoTexto
               titulo="Fora do pull/push nativo"
-              texto="myinst pull e myinst push sincronizam arquivos de contexto. Historico de chats usa myinst chat push/list/show/export/summarize."
+              texto="myinst pull e myinst push sincronizam arquivos de contexto. Historico de chats usa myinst chat push/import/list/show/export/summarize."
             />
           </div>
 
@@ -291,6 +291,8 @@ myinst push api-supernosso --workspace meus-projetos --scope project --client co
             <BlocoCodigo
               titulo="Fluxo CLI"
               codigo={`myinst chat push --workspace meus-projetos --project myinst --client codex --session sessao-1 --file chat.json
+myinst chat import --workspace meus-projetos --project myinst --client codex --include history --path ~/.codex/sessions --dry-run
+myinst chat import --workspace meus-projetos --project myinst --client codex --include history --path ~/.codex/sessions --reviewed
 myinst chat list --workspace meus-projetos --project myinst --client codex --tag release
 myinst chat show sessao-1 --workspace meus-projetos --project myinst
 myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
@@ -314,8 +316,8 @@ myinst chat summarize sessao-1 --workspace meus-projetos --project myinst`}
           </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <CartaoTexto titulo="codex" texto="Use --client codex com arquivo revisado. O MyInst nao importa .codex/sessions automaticamente." />
-            <CartaoTexto titulo="claude" texto="Use --client claude com JSON ou Markdown revisado. Nao envie transcript bruto com segredos." />
+            <CartaoTexto titulo="codex" texto="Use --client codex com arquivo revisado ou --include history em caminho explicito. Cache ainda fica bloqueado." />
+            <CartaoTexto titulo="claude" texto="Use --client claude com JSON ou Markdown revisado. Adapter de historico interno ainda e planejado." />
             <CartaoTexto titulo="cursor" texto="Use --client cursor. Arquivo Markdown vira uma sessao importada com uma mensagem de usuario." />
             <CartaoTexto titulo="outros" texto="Use --client <id>. O valor e preservado para filtros, busca, exportacao e resumo." />
           </div>
