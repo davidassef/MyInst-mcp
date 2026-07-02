@@ -36,12 +36,13 @@ const SLIDES_LANDING: SlideLanding[] = [
       titulo: 'Instalação rápida',
       codigo: `npm install -g @myinst/cli
 myinst login
-myinst pull default --client codex`,
+cd D:\\Documentos\\Projetos\\MyInst
+myinst pull myinst --workspace meus-projetos --client codex`,
     },
     destaques: [
       {
         titulo: 'Estrutura local',
-        texto: 'Lê os formatos nativos detectados no projeto, incluindo .claude, .codex, .cursor e .kimi-code.',
+        texto: 'Lê os formatos nativos detectados no repositório atual, incluindo .claude, .codex, .cursor e .kimi-code.',
       },
       {
         titulo: 'Operação humana',
@@ -58,14 +59,14 @@ myinst pull default --client codex`,
     icone: GitCompareArrows,
     comando: {
       titulo: 'Fluxo tipo repositório remoto',
-      codigo: `myinst pull default --client codex
-myinst status default --client codex
-myinst push default --client codex`,
+      codigo: `myinst pull myinst --workspace meus-projetos --client codex
+myinst status myinst --workspace meus-projetos --client codex
+myinst push myinst --workspace meus-projetos --client codex`,
     },
     destaques: [
       {
         titulo: 'Manifesto local',
-        texto: 'O arquivo .myinst/sync-state.json guarda o último snapshot remoto aplicado no workspace.',
+        texto: 'O arquivo .myinst/sync-state.json guarda o último snapshot remoto aplicado ao projeto atual.',
       },
       {
         titulo: 'Sem merge automático',

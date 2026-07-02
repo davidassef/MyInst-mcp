@@ -12,14 +12,14 @@ O pacote shared é dependência do mcp-server, então precisa ser publicado prim
 
 ```bash
 cd packages/shared
-pnpm publish --access public --tag beta
+pnpm publish --access public --tag latest
 ```
 
 ## Publicar @myinst/mcp-server
 
 ```bash
 cd packages/mcp-server
-pnpm publish --access public --tag beta
+pnpm publish --access public --tag latest
 ```
 
 ## Publicar @myinst/cli
@@ -54,13 +54,13 @@ Publicação:
 pnpm release:check -- --skip-npm
 
 cd packages/shared
-pnpm publish --access public --tag beta
+pnpm publish --access public --tag latest
 
 cd ../mcp-server
-pnpm publish --access public --tag beta
+pnpm publish --access public --tag latest
 
 cd ../cli
-pnpm publish --access public --tag beta
+pnpm publish --access public --tag latest
 ```
 
 ## Verificar publicação
@@ -79,6 +79,9 @@ npx @myinst/cli chat --help
 Se a release beta atual também deve ficar disponível pelo dist-tag `beta`, alinhe os três pacotes depois da publicação:
 
 ```bash
+npm dist-tag add @myinst/shared@0.1.0-beta.8 beta
+npm dist-tag add @myinst/mcp-server@0.1.0-beta.8 beta
+npm dist-tag add @myinst/cli@0.1.0-beta.8 beta
 npm dist-tag add @myinst/shared@0.1.0-beta.8 latest
 npm dist-tag add @myinst/mcp-server@0.1.0-beta.8 latest
 npm dist-tag add @myinst/cli@0.1.0-beta.8 latest

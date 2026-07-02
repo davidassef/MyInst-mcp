@@ -130,7 +130,7 @@ Atualiza projeto (campos parciais).
 
 ### DELETE /projects/:slug
 
-Deleta projeto. Não permite deletar o projeto default.
+Deleta projeto. O backend pode bloquear projetos protegidos de compatibilidade.
 
 ### GET /projects/:slug/folders
 
@@ -243,7 +243,8 @@ Endpoint otimizado para o MCP server. Retorna todos os itens ativos de um projet
 **Body:**
 ```json
 {
-  "project": "default",
+  "workspace": "meus-projetos",
+  "project": "myinst",
   "types": ["skill", "instruction"],
   "tags": ["claude-opus"],
   "since": "2025-01-01T00:00:00Z"
@@ -275,7 +276,7 @@ Observação: o comando `myinst status` da CLI usa `/sync/pull` para buscar o sn
 
 ## Chats
 
-Histórico de chats é opt-in e separado de `project_sessions`. Nenhuma rota entra em sync automático.
+Histórico de chats é opt-in e separado de `project_sessions`. Nenhuma rota entra em sync automático. Cada sessão deve ser enviada para o projeto que representa o repositório ou produto de origem.
 
 ### POST /workspaces/:workspaceSlug/projects/:projectSlug/chats
 

@@ -182,14 +182,14 @@ O backend rejeita escrita via API key quando o conteúdo não estiver marcado co
 Chats ficam em tabelas próprias e não entram em sync automático. A origem inicial é arquivo explícito via CLI:
 
 ```text
-myinst chat push --project default --client codex --session sessao-1 --file chat.json
-myinst chat list --project default --client codex --q sync --tag release
-myinst chat show sessao-1 --project default
-myinst chat export sessao-1 --project default --format markdown
-myinst chat summarize sessao-1 --project default
+myinst chat push --workspace meus-projetos --project myinst --client codex --session sessao-1 --file chat.json
+myinst chat list --workspace meus-projetos --project myinst --client codex --q sync --tag release
+myinst chat show sessao-1 --workspace meus-projetos --project myinst
+myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
+myinst chat summarize sessao-1 --workspace meus-projetos --project myinst
 ```
 
-A retenção padrão é de 180 dias. A API rejeita padrões prováveis de segredo em mensagens e metadata antes de persistir.
+A retenção padrão é de 180 dias. A API rejeita padrões prováveis de segredo em mensagens e metadata antes de persistir. Cada histórico deve ser salvo no projeto que representa o repositório ou produto de origem; não use um projeto genérico para agrupar chats de contextos diferentes.
 
 ## Sync Local da CLI
 

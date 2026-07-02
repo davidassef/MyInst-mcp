@@ -286,7 +286,7 @@ export function WorkspacePage() {
             </div>
           </div>
           <p className="mt-5 text-sm leading-7 text-slate-400">
-            O fallback oficial do MyInst continua sendo workspace default e projeto default, mas você já pode organizar múltiplos contextos sem criar novas chaves por dispositivo.
+            Crie um projeto para cada repositório ou produto. Instruções, skills, chats e arquivos de contexto devem ficar no projeto que representa aquele trabalho.
           </p>
         </div>
       </section>
@@ -377,7 +377,7 @@ export function WorkspacePage() {
                             </h3>
                             {projeto.isDefault && (
                               <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                                default
+                                protegido
                               </span>
                             )}
                           </div>

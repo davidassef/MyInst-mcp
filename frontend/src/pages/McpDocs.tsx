@@ -4,13 +4,13 @@ import { useBrand } from '@/components/BrandProvider';
 
 const tools = [
   ['myinst_list_workspaces', 'Lista os workspaces disponiveis na conta.'],
-  ['myinst_create_workspace', 'Cria um workspace e seu projeto default.'],
+  ['myinst_create_workspace', 'Cria um workspace para agrupar projetos relacionados.'],
   ['myinst_update_workspace', 'Edita nome, slug ou descricao de workspace.'],
-  ['myinst_delete_workspace', 'Apaga workspace nao default com confirmacao explicita.'],
+  ['myinst_delete_workspace', 'Apaga workspace com confirmacao explicita, respeitando protecoes do backend.'],
   ['myinst_list_projects', 'Lista projetos de um workspace.'],
   ['myinst_create_project', 'Cria projeto dentro de um workspace.'],
   ['myinst_update_project', 'Edita nome, slug ou descricao de projeto.'],
-  ['myinst_delete_project', 'Apaga projeto nao default com confirmacao explicita.'],
+  ['myinst_delete_project', 'Apaga projeto com confirmacao explicita, respeitando protecoes do backend.'],
   ['myinst_list_sync_targets', 'Detecta clientes locais e mostra escopo global ou projeto antes de sincronizar.'],
   ['myinst_pull', 'Materializa conteudo do vault no formato canonico ou nativo. Use targetFormat="native" com clients explicitos para layouts de cliente.'],
   ['myinst_push', 'Sincroniza alteracoes locais reconhecidas de volta para o vault.'],
@@ -109,9 +109,10 @@ myinst login`}
           <Etapa
             numero="2"
             titulo="Sincronize o projeto"
-            codigo={`myinst pull default --client codex
-myinst status default --client codex
-myinst push default --client codex`}
+            codigo={`cd D:\\Documentos\\Projetos\\MyInst
+myinst pull myinst --workspace meus-projetos --client codex
+myinst status myinst --workspace meus-projetos --client codex
+myinst push myinst --workspace meus-projetos --client codex`}
           />
           <Etapa
             numero="3"
@@ -203,6 +204,26 @@ MYINST_SERVER = "https://api-myinst.lotoscore.com.br"`}
           </div>
         </Secao>
 
+        <Secao titulo="MyInst como documento de contexto">
+          <div className="grid gap-4 md:grid-cols-[0.95fr_1.05fr]">
+            <CartaoTexto
+              titulo="No AGENTS.md, CLAUDE.md ou documento equivalente"
+              texto="Inclua o MyInst como fonte de contexto operacional do projeto. Diferente de uma biblioteca de docs como context7, o MyInst deve materializar primeiro os arquivos do projeto atual e só usar busca MCP para descoberta pontual."
+            />
+            <BlocoCodigo
+              titulo="Bloco recomendado para agentes"
+              codigo={`## Contexto via MyInst
+
+- Use o MCP server myinst quando estiver disponivel.
+- Antes de alterar instrucoes, skills, agents, hooks, snippets, settings ou mcp_config, rode myinst_list_sync_targets para confirmar clients e escopos.
+- Para trabalho recorrente, materialize contexto local com myinst_pull targetFormat="native" scope="project" clients=["codex"] no diretorio deste repositorio.
+- Use sempre o projeto MyInst correspondente ao repositorio atual. Nao use o projeto default como deposito geral.
+- Use myinst_search apenas para descoberta pontual; depois traga o conteudo relevante para arquivos locais do projeto.
+- Ao modificar contexto versionavel, revise segredos e finalize com myinst_push com clients e scope explicitos.`}
+            />
+          </div>
+        </Secao>
+
         <Secao titulo="CLI standalone e status local">
           <div className="grid gap-4 md:grid-cols-[0.95fr_1.05fr]">
             <div className="vault-panel rounded-[24px] border border-white/8 p-5">
@@ -229,15 +250,15 @@ MYINST_SERVER = "https://api-myinst.lotoscore.com.br"`}
 
             <BlocoCodigo
               titulo="Fluxo CLI recomendado"
-              codigo={`myinst pull default --client codex
-myinst status default --client codex
+              codigo={`myinst pull myinst --workspace meus-projetos --client codex
+myinst status myinst --workspace meus-projetos --client codex
 myinst st
 # editar arquivos locais
-myinst status default --client codex
-myinst push default --client codex
+myinst status myinst --workspace meus-projetos --client codex
+myinst push myinst --workspace meus-projetos --client codex
 
-myinst status default --client codex kimi
-myinst push default --scope project --client codex`}
+myinst status api-supernosso --workspace meus-projetos --client codex kimi
+myinst push api-supernosso --workspace meus-projetos --scope project --client codex`}
             />
           </div>
         </Secao>
@@ -258,11 +279,11 @@ myinst push default --scope project --client codex`}
             />
             <BlocoCodigo
               titulo="Fluxo CLI"
-              codigo={`myinst chat push --project default --client codex --session sessao-1 --file chat.json
-myinst chat list --project default --client codex --tag release
-myinst chat show sessao-1 --project default
-myinst chat export sessao-1 --project default --format markdown
-myinst chat summarize sessao-1 --project default`}
+              codigo={`myinst chat push --workspace meus-projetos --project myinst --client codex --session sessao-1 --file chat.json
+myinst chat list --workspace meus-projetos --project myinst --client codex --tag release
+myinst chat show sessao-1 --workspace meus-projetos --project myinst
+myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
+myinst chat summarize sessao-1 --workspace meus-projetos --project myinst`}
             />
           </div>
         </Secao>
@@ -351,7 +372,7 @@ myinst_pull targetFormat="native" scope="project" clients=["kimi"]`}
 3. Se nao houver credencial local, aguardar o navegador abrir /connect-mcp, fazer login e autorizar.
 4. Rodar myinst_list_sync_targets para detectar clients e escopos.
 5. Rodar myinst_pull com scope e clients explicitos quando necessario.
-6. Ler .myinst/MYINST.md no repositorio alvo.
+6. Ler os arquivos materializados no layout nativo do client ou em .myinst/MYINST.md quando usar formato canonico.
 7. Trabalhar nos arquivos locais materializados.
 8. Rodar myinst_push somente apos revisar que nao ha segredos reais.`}
           />

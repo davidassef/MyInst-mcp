@@ -172,7 +172,7 @@ Lista workspaces da conta autenticada.
 
 ### `myinst_create_workspace`
 
-Cria um workspace e deixa o backend criar o projeto default dentro dele.
+Cria um workspace para agrupar projetos relacionados. Depois crie projetos explícitos para cada repositório, produto ou contexto operacional.
 
 Parâmetros:
 
@@ -195,11 +195,11 @@ Parâmetros:
 - `workspace`
 - `confirm`
 
-`confirm=true` é obrigatório para evitar exclusão acidental por agente. O backend bloqueia exclusão do workspace default.
+`confirm=true` é obrigatório para evitar exclusão acidental por agente. O backend bloqueia exclusão de workspaces protegidos de compatibilidade.
 
 ### `myinst_list_projects`
 
-Lista projetos do workspace informado ou do workspace default.
+Lista projetos do workspace informado. O fallback sem workspace existe apenas para compatibilidade com clientes antigos.
 
 ### `myinst_create_project`
 
@@ -212,7 +212,7 @@ Parâmetros:
 - `description?`
 - `workspace?`
 
-Se `workspace` for omitido, usa o workspace default.
+Informe `workspace` no uso normal. O fallback sem workspace existe apenas para compatibilidade com clientes antigos.
 
 ### `myinst_update_project`
 
@@ -238,7 +238,7 @@ Parâmetros:
 - `workspace?`
 - `confirm`
 
-`confirm=true` é obrigatório. O backend bloqueia exclusão do projeto default.
+`confirm=true` é obrigatório. O backend bloqueia exclusão de projetos protegidos de compatibilidade.
 
 ### `myinst_list_sync_targets`
 
@@ -415,9 +415,9 @@ Busca memórias, decisões e sessões do projeto com `scope=state`.
 A CLI standalone tem um fluxo complementar ao MCP para trabalho local-first:
 
 ```bash
-myinst pull default --client codex
-myinst status default --client codex
-myinst push default --client codex
+myinst pull myinst --workspace meus-projetos --client codex
+myinst status myinst --workspace meus-projetos --client codex
+myinst push myinst --workspace meus-projetos --client codex
 ```
 
 Após `myinst pull` ou `myinst push` bem-sucedido, a CLI grava `.myinst/sync-state.json` no repositório. Esse manifesto guarda o último snapshot remoto conhecido e permite que `myinst status` compare três estados:
@@ -433,9 +433,9 @@ A CLI usa os mesmos adapters multi-cliente do MCP. Quando mais de um client for 
 Exemplos:
 
 ```bash
-myinst status default --client codex kimi
-myinst push default --scope project --client codex
-myinst pull default --scope all --client codex
+myinst status myinst --workspace meus-projetos --client codex kimi
+myinst push myinst --workspace meus-projetos --scope project --client codex
+myinst pull myinst --workspace meus-projetos --scope all --client codex
 ```
 
 O login da CLI abre o fluxo browser por padrão:
@@ -531,6 +531,6 @@ Limites do v1:
 
 ## Observações
 
-- o formato canônico MyInst continua sendo o default operacional
+- o formato canônico MyInst continua sendo o padrão operacional
 - exportação nativa não garante paridade total entre todos os clientes
 - clients experimentais retornam aviso explícito e não entram em sync silencioso

@@ -187,7 +187,7 @@ export function DashboardPage() {
           </div>
           <div className="mt-5 grid gap-3 text-sm text-slate-400">
             <div className="rounded-2xl border border-white/7 bg-white/[0.02] p-4">
-              O workspace default continua como fallback de compatibilidade para rotas legadas e ferramentas MCP.
+              Cada repositório deve ter um projeto próprio no workspace correto. Evite usar um projeto genérico para misturar contextos.
             </div>
             <div className="rounded-2xl border border-white/7 bg-white/[0.02] p-4">
               Renomeações atualizam `name` e `slug` com redirecionamento imediato no frontend.
@@ -267,7 +267,7 @@ export function DashboardPage() {
                             </h2>
                             {workspace.isDefault && (
                               <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                                default
+                                protegido
                               </span>
                             )}
                           </div>

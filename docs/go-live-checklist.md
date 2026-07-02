@@ -99,7 +99,7 @@ Valide também:
 - `myinst_pull`;
 - `myinst_push`;
 - `myinst_search`;
-- `myinst chat list --project default --client codex`;
+- `myinst chat list --workspace meus-projetos --project myinst --client codex`;
 - versionamento no web.
 
 ## 6. Backup inicial

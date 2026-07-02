@@ -298,9 +298,9 @@ Exemplos:
 
 ```bash
 myinst st
-myinst status default --client codex kimi
-myinst push default --scope project --client codex
-myinst status default --scope all --client codex
+myinst status myinst --workspace meus-projetos --client codex kimi
+myinst push myinst --workspace meus-projetos --scope project --client codex
+myinst status myinst --workspace meus-projetos --scope all --client codex
 ```
 
 Fluxo de continuidade do projeto:
@@ -318,18 +318,35 @@ Na CLI, o fluxo equivalente é:
 ```bash
 myinst state capture memory "Contexto do deploy" --body "Deploy ocorre por push e pull na VPS."
 myinst state push .myinst/state/drafts/memory-contexto-do-deploy.json --reviewed
-myinst state pull default
-myinst state search "deploy" --project default
+myinst state pull myinst --workspace meus-projetos
+myinst state search "deploy" --workspace meus-projetos --project myinst
 ```
 
 Histórico de chats é separado de `project_sessions`, tem retenção padrão de 180 dias e bloqueia padrões prováveis de segredo antes de persistir:
 
 ```bash
-myinst chat push --project default --client codex --session sessao-1 --file chat.json
-myinst chat list --project default --client codex --tag release
-myinst chat show sessao-1 --project default
-myinst chat export sessao-1 --project default --format markdown
-myinst chat summarize sessao-1 --project default
+myinst chat push --workspace meus-projetos --project myinst --client codex --session sessao-1 --file chat.json
+myinst chat list --workspace meus-projetos --project myinst --client codex --tag release
+myinst chat show sessao-1 --workspace meus-projetos --project myinst
+myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
+myinst chat summarize sessao-1 --workspace meus-projetos --project myinst
+```
+
+### MyInst como contexto de agente
+
+Inclua o MyInst no documento de contexto do projeto, como `AGENTS.md`, `CLAUDE.md` ou equivalente. O papel dele é diferente de uma fonte de documentação como `context7`: o MyInst é o vault versionado do seu contexto operacional, e deve materializar arquivos locais do projeto antes de virar base de trabalho recorrente.
+
+Bloco recomendado:
+
+```md
+## Contexto via MyInst
+
+- Use o MCP server `myinst` quando estiver disponível.
+- Antes de alterar instruções, skills, agents, hooks, snippets, settings ou mcp_config, rode `myinst_list_sync_targets` para confirmar clients e escopos.
+- Para trabalho recorrente, materialize contexto local com `myinst_pull targetFormat="native" scope="project" clients=["codex"]` no diretório deste repositório.
+- Use sempre o projeto MyInst correspondente ao repositório atual. Não use o projeto `default` como depósito geral.
+- Use `myinst_search` apenas para descoberta pontual; depois traga o conteúdo relevante para arquivos locais do projeto.
+- Ao modificar contexto versionável, revise segredos e finalize com `myinst_push` com `clients` e `scope` explícitos.
 ```
 
 ### 2. Descoberta multi-cliente antes do sync
@@ -389,7 +406,7 @@ usuário -> workspaces -> projetos -> pastas -> conteúdos
 Padrões do sistema:
 
 - API keys continuam no nível da conta
-- rotas legadas ainda usam `workspace default -> project default`
+- rotas legadas mantêm fallback interno de compatibilidade, mas o fluxo público recomendado exige workspace e projeto explícitos
 - o MCP pode acessar todos os workspaces da conta com uma única API key
 
 ## Branding local não versionado
