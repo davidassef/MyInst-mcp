@@ -71,6 +71,8 @@ export interface EnvVaultFileResumo {
   sourcePath: string;
   environment?: string | null;
   metadata: EnvVaultFileMetadata;
+  version: number;
+  recoveryEnvelopeCount: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -86,6 +88,7 @@ export interface CriarEnvVaultFileInput {
 
 export interface EnvVaultFileDetalhado extends EnvVaultFileResumo {
   encryptedPayload: EnvVaultEncryptedPayload;
+  recoveryEnvelopes: EnvVaultRecoveryEnvelope[];
 }
 
 function normalizarBaseApi(base: string): string {

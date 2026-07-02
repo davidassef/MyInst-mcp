@@ -328,6 +328,50 @@ export const chatMessages = pgTable('chat_messages', {
   ),
 ]);
 
+export const envVaultFiles = pgTable('env_vault_files', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 120 }).notNull(),
+  sourcePath: text('source_path').notNull(),
+  environment: varchar('environment', { length: 80 }).default('default').notNull(),
+  metadata: jsonb('metadata').default({}).notNull(),
+  version: integer('version').default(1).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('env_vault_files_project_name_environment_idx').on(table.projectId, table.name, table.environment),
+  index('env_vault_files_project_idx').on(table.projectId),
+  index('env_vault_files_user_idx').on(table.userId),
+]);
+
+export const envVaultFileVersions = pgTable('env_vault_file_versions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  envFileId: uuid('env_file_id').notNull().references(() => envVaultFiles.id, { onDelete: 'cascade' }),
+  version: integer('version').notNull(),
+  encryptedPayload: jsonb('encrypted_payload').notNull(),
+  metadata: jsonb('metadata').default({}).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('env_vault_file_versions_file_version_idx').on(table.envFileId, table.version),
+  index('env_vault_file_versions_file_idx').on(table.envFileId),
+]);
+
+export const envVaultRecoveryEnvelopes = pgTable('env_vault_recovery_envelopes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  envFileId: uuid('env_file_id').notNull().references(() => envVaultFiles.id, { onDelete: 'cascade' }),
+  method: varchar('method', { length: 40 }).notNull(),
+  label: varchar('label', { length: 120 }).notNull(),
+  encryptedVaultSecret: jsonb('encrypted_vault_secret').notNull(),
+  stepUpFactors: text('step_up_factors').array().default([]).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('env_vault_recovery_envelopes_file_label_idx').on(table.envFileId, table.label),
+  index('env_vault_recovery_envelopes_file_idx').on(table.envFileId),
+]);
+
 export const modelProfiles = pgTable('model_profiles', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),

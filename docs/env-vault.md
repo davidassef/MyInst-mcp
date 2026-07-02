@@ -4,7 +4,7 @@ Env Vault é o fluxo dedicado para armazenar arquivos `.env` por projeto sem mis
 
 O objetivo é resolver troca de máquina sem transformar o backend em um cofre capaz de ler segredos. O backend deve armazenar somente envelopes criptografados e metadados seguros; descriptografia acontece localmente na CLI, MCP local ou navegador.
 
-> Status: em rollout. O núcleo criptográfico compartilhado, contratos e CLI já existem. A persistência backend depende da alteração de schema aprovada pelo fluxo do projeto. Até a API existir no servidor, comandos da CLI exigem `MYINST_ENABLE_ENV_VAULT=1` para execução experimental.
+> Status: disponível via CLI e API própria. A publicação em produção depende dos gates, push, deploy por `git pull` e aplicação do schema no backend.
 
 ## Modelo de segurança
 
@@ -51,7 +51,7 @@ Comandos previstos:
 ```bash
 myinst env push --workspace meus-projetos --project myinst --file .env.local --name local
 myinst env push --workspace meus-projetos --project myinst --file .env.local --name local --create-recovery-key
-myinst env pull --workspace meus-projetos --project myinst --name local --output .env.local
+myinst env pull --workspace meus-projetos --project myinst --name local --environment local --output .env.local
 
 myinst env list --workspace meus-projetos --project myinst
 myinst env show --workspace meus-projetos --project myinst --name local
@@ -60,9 +60,11 @@ myinst env delete --workspace meus-projetos --project myinst --name local
 
 `--project` é obrigatório para impedir gravação em projeto genérico. O segredo pode vir de `MYINST_ENV_VAULT_SECRET` ou do prompt local oculto. Evite informar segredo na mesma linha do comando para não vazar em histórico, logs ou listagem de processos. Para criar envelope com uma recovery key já existente, use `MYINST_ENV_VAULT_RECOVERY_KEY`.
 
-## Backend esperado
+Se houver mais de um env com o mesmo `--name`, informe `--environment` em `pull`, `show` e `delete`. `sourcePath` é tratado como nome de arquivo seguro, não como caminho absoluto local.
 
-As rotas devem ficar fora do sync genérico:
+## Backend
+
+As rotas ficam fora do sync genérico:
 
 ```text
 POST   /api/v1/workspaces/:workspaceSlug/projects/:projectSlug/env-files
@@ -80,7 +82,7 @@ Requisitos mínimos:
 - isolamento por usuário, workspace e projeto.
 - resposta nunca contém valores reais como `DATABASE_URL`, tokens ou segredos.
 
-## Rollout
+## Validação operacional
 
 Antes de publicar:
 

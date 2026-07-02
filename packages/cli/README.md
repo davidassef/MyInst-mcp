@@ -176,18 +176,18 @@ O import grava todas as sessões encontradas no `--path` dentro do projeto infor
 
 `myinst env` é o fluxo dedicado para arquivos `.env` de projeto. Ele não faz parte do `myinst pull/push` normal, porque `.env` continua bloqueado nos fluxos de conteúdo, chats e Project State.
 
-Enquanto a API do Env Vault não estiver habilitada no servidor, os comandos exigem `MYINST_ENABLE_ENV_VAULT=1` para execução experimental.
-
 Comandos disponíveis:
 
 - `myinst env push --project <slug> --file .env.local --name local` criptografa localmente e envia somente o envelope cifrado.
 - `myinst env push --project <slug> --file .env.local --create-recovery-key` gera uma recovery key local e envia um envelope cifrado do segredo de vault.
-- `myinst env pull --project <slug> --name local --output .env.local` baixa o envelope, descriptografa localmente e cria backup se o destino já existir.
+- `myinst env pull --project <slug> --name local --environment local --output .env.local` baixa o envelope, descriptografa localmente e cria backup se o destino já existir.
 - `myinst env list --project <slug>` lista metadados seguros.
 - `myinst env show --project <slug> --name local` mostra metadados seguros sem revelar valores.
 - `myinst env delete --project <slug> --name local` remove o env cifrado do projeto.
 
 `--project` é obrigatório para evitar gravar `.env` em um projeto genérico. O segredo do Env Vault deve ser informado por `MYINST_ENV_VAULT_SECRET` ou pelo prompt local oculto. Evite exportar o segredo na mesma linha do comando para não vazar em histórico, logs ou listagem de processos. O segredo não é salvo em `~/.myinst/config.json` e não deve ser enviado ao backend. O backend recebe apenas `encryptedPayload`, envelopes de recuperação cifrados e metadados operacionais do ciphertext.
+
+Se houver mais de um env com o mesmo `--name`, informe `--environment` em `pull`, `show` e `delete` para evitar operar no ambiente errado.
 
 Recovery por e-mail ou 2FA só valida identidade e autoriza step-up; ela não descriptografa `.env` sozinha. Para recuperação real, guarde a recovery key gerada por `--create-recovery-key` ou informe uma recovery key existente por `MYINST_ENV_VAULT_RECOVERY_KEY`. No futuro, outros materiais criptográficos locais podem ser suportados, como dispositivo confiável, passphrase forte ou passkey. Se todos os fatores criptográficos forem perdidos, o MyInst não deve conseguir restaurar o plaintext.
 

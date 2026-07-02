@@ -213,6 +213,7 @@ env
   .requiredOption('-n, --name <name>', 'Nome lógico ou id do env')
   .option('-w, --workspace <slug>', 'Slug do workspace')
   .requiredOption('-p, --project <slug>', 'Slug do projeto')
+  .option('--environment <name>', 'Ambiente associado')
   .requiredOption('-o, --output <path>', 'Destino local do arquivo')
   .option('--overwrite', 'Sobrescrever destino sem criar backup')
   .action(executarEnvPull);
@@ -230,6 +231,7 @@ env
   .requiredOption('-n, --name <name>', 'Nome lógico ou id do env')
   .option('-w, --workspace <slug>', 'Slug do workspace')
   .requiredOption('-p, --project <slug>', 'Slug do projeto')
+  .option('--environment <name>', 'Ambiente associado')
   .action(executarEnvShow);
 
 env
@@ -238,6 +240,7 @@ env
   .requiredOption('-n, --name <name>', 'Nome lógico ou id do env')
   .option('-w, --workspace <slug>', 'Slug do workspace')
   .requiredOption('-p, --project <slug>', 'Slug do projeto')
+  .option('--environment <name>', 'Ambiente associado')
   .action(executarEnvDelete);
 
 await avisarAtualizacaoDisponivel(MYINST_VERSION);

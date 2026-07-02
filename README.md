@@ -6,7 +6,7 @@ Ele centraliza `skills`, `instructions`, `agents`, `hooks`, `memory`, `snippets`
 
 Também preserva continuidade de trabalho por projeto com Project State: memórias revisadas, decisões técnicas, resumos seguros de sessões e histórico de chats importado com opt-in explícito.
 
-O suporte a arquivos `.env` fica em um fluxo separado, o Env Vault. Ele está em rollout para armazenar `.env` por projeto com criptografia local e recuperação por material criptográfico do usuário, sem misturar segredos ao sync normal. Consulte [docs/env-vault.md](./docs/env-vault.md).
+O suporte a arquivos `.env` fica em um fluxo separado, o Env Vault. Ele armazena `.env` por projeto com criptografia local e recuperação por material criptográfico do usuário, sem misturar segredos ao sync normal. Consulte [docs/env-vault.md](./docs/env-vault.md).
 
 ## O que o MyInst resolve
 

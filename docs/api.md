@@ -336,6 +336,60 @@ Remove uma sessão de chat importada e suas mensagens. `sessionId` pode ser o UU
 
 ---
 
+## Env Vault
+
+Env Vault armazena arquivos `.env` por projeto em um fluxo separado do sync comum. O backend nunca recebe plaintext, segredo local, recovery key em claro ou valores de variáveis; ele persiste apenas payloads criptografados e metadados seguros.
+
+### POST /workspaces/:workspaceSlug/projects/:projectSlug/env-files
+
+Cria um arquivo criptografado ou versiona um arquivo existente com o mesmo `name` e `environment` no projeto.
+
+**Body:**
+```json
+{
+  "name": ".env.local",
+  "sourcePath": ".env.local",
+  "environment": "local",
+  "encryptedPayload": {
+    "version": "env-vault-v1",
+    "algorithm": "AES-GCM",
+    "kdf": {
+      "algorithm": "pbkdf2-sha256",
+      "iterations": 210000,
+      "keyLength": 32,
+      "digest": "sha256"
+    },
+    "salt": "base64url",
+    "iv": "base64url",
+    "authTag": "base64url",
+    "ciphertext": "base64url"
+  },
+  "metadata": {
+    "ciphertextByteLength": 2048,
+    "ciphertextSha256": "64_hex_chars"
+  },
+  "recoveryEnvelopes": []
+}
+```
+
+Campos desconhecidos, como `plaintext`, são rejeitados por validação. Quando `environment` é omitido, a API usa `default`. `sourcePath` deve ser apenas um nome de arquivo seguro, sem caminho absoluto, barras ou diretórios locais.
+
+### GET /workspaces/:workspaceSlug/projects/:projectSlug/env-files
+
+Lista somente metadados seguros: `id`, `name`, `sourcePath`, `environment`, `metadata`, `version`, `recoveryEnvelopeCount`, `createdAt` e `updatedAt`.
+
+A listagem não retorna `encryptedPayload` nem `recoveryEnvelopes`.
+
+### GET /workspaces/:workspaceSlug/projects/:projectSlug/env-files/:id
+
+Retorna o arquivo do projeto com a versão criptografada atual e envelopes de recuperação cifrados. A descriptografia continua acontecendo localmente no cliente.
+
+### DELETE /workspaces/:workspaceSlug/projects/:projectSlug/env-files/:id
+
+Remove o arquivo do projeto, suas versões criptografadas e envelopes de recuperação.
+
+---
+
 ## Erros
 
 Formato padrão:

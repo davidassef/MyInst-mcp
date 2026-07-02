@@ -112,6 +112,7 @@ const nomeEnvVaultSchema = z.string()
 const caminhoEnvVaultSchema = z.string()
   .min(1)
   .max(500)
+  .regex(/^[^\\/:]+$/)
   .refine((valor) => !valor.includes('\0'))
   .refine((valor) => !valor.includes('..'));
 

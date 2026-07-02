@@ -18,6 +18,7 @@ import { clientProfileRoutes } from './routes/client-profiles.js';
 import { mcpConnectRoutes } from './routes/mcp-connect.js';
 import { projectStateRoutes } from './routes/project-state.js';
 import { chatRoutes } from './routes/chats.js';
+import { envVaultRoutes } from './routes/env-vault.js';
 import { carregarAmbiente, type ConfiguracaoAmbiente } from './env.js';
 
 export async function criarApp(configuracao: ConfiguracaoAmbiente = carregarAmbiente()) {
@@ -75,6 +76,7 @@ export async function criarApp(configuracao: ConfiguracaoAmbiente = carregarAmbi
   await app.register(clientProfileRoutes, { prefix: '/api/v1' });
   await app.register(projectStateRoutes, { prefix: '/api/v1' });
   await app.register(chatRoutes, { prefix: '/api/v1' });
+  await app.register(envVaultRoutes, { prefix: '/api/v1' });
   await app.register(usageRoutes, { prefix: '/api/v1/usage' });
   await app.register(mcpConnectRoutes, { prefix: '/api/v1/mcp' });
 

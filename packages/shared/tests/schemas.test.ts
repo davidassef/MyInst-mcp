@@ -95,6 +95,31 @@ describe('schemas', () => {
     })).toThrow();
   });
 
+  it('rejeita caminho local absoluto em sourcePath do env vault', async () => {
+    const encryptedPayload = await criptografarEnvVault({
+      plaintext: 'DATABASE_URL=postgresql://local',
+      segredo: 'segredo-local-do-usuario-com-entropia',
+    });
+
+    expect(() => criarEnvVaultFileSchema.parse({
+      name: 'local',
+      sourcePath: 'C:\\Users\\usuario\\projeto\\.env.local',
+      encryptedPayload,
+      metadata: {
+        ciphertextByteLength: 128,
+      },
+    })).toThrow();
+
+    expect(() => criarEnvVaultFileSchema.parse({
+      name: 'local',
+      sourcePath: 'config/.env.local',
+      encryptedPayload,
+      metadata: {
+        ciphertextByteLength: 128,
+      },
+    })).toThrow();
+  });
+
   it('rejeita payload de env vault com KDF fora do padrao', async () => {
     const encryptedPayload = await criptografarEnvVault({
       plaintext: 'DATABASE_URL=postgresql://local',

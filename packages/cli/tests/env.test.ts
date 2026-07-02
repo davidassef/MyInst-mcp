@@ -217,6 +217,32 @@ describe('Env Vault CLI', () => {
     expect(JSON.stringify(envFile)).not.toContain('DATABASE_URL');
   });
 
+  it('exige environment quando nome do env é ambiguo', async () => {
+    const fetchImpl = async () => new Response(JSON.stringify({
+      data: [
+        { id: 'env-local', name: 'local', environment: 'local', sourcePath: '.env.local' },
+        { id: 'env-prod', name: 'local', environment: 'production', sourcePath: '.env.production' },
+      ],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+
+    await expect(buscarEnvVaultFile({
+      config: CONFIG,
+      workspace: 'default',
+      project: 'myinst',
+      name: 'local',
+      fetchImpl,
+    })).rejects.toThrow('Informe --environment');
+
+    await expect(buscarEnvVaultFile({
+      config: CONFIG,
+      workspace: 'default',
+      project: 'myinst',
+      name: 'local',
+      environment: 'production',
+      fetchImpl,
+    })).resolves.toEqual(expect.objectContaining({ id: 'env-prod' }));
+  });
+
   it('deleta env por nome usando rota dedicada', async () => {
     const urls: Array<{ url: string; method?: string }> = [];
     const fetchImpl = async (input: string | URL | Request, init?: RequestInit) => {

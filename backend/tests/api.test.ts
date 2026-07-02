@@ -1525,6 +1525,172 @@ describe('MyInst API', () => {
     });
   });
 
+  describe('Env Vault', () => {
+    let envVaultFileId: string;
+    const primeiroPayloadCriptografado = criarPayloadCriptografadoFake('primeiro');
+    const segundoPayloadCriptografado = criarPayloadCriptografadoFake('segundo');
+
+    it('POST /workspaces/:workspaceSlug/projects/:projectSlug/env-files cria arquivo criptografado', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/workspaces/default/projects/default/env-files',
+        headers: { authorization: `Bearer ${apiKey}` },
+        payload: {
+          name: '.env.local',
+          sourcePath: '.env.local',
+          encryptedPayload: primeiroPayloadCriptografado,
+          metadata: criarMetadataEnvVault(42),
+          recoveryEnvelopes: [
+            {
+              method: 'recovery_key',
+              label: 'Recovery key principal',
+              encryptedVaultSecret: criarPayloadCriptografadoFake('recovery'),
+              stepUpFactors: ['email', 'totp'],
+            },
+          ],
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+      const responseBody = res.json();
+      expect(responseBody.data).toEqual(expect.objectContaining({
+        name: '.env.local',
+        sourcePath: '.env.local',
+        environment: 'default',
+        version: 1,
+        recoveryEnvelopeCount: 1,
+      }));
+      expect(responseBody.data.encryptedPayload).toBeUndefined();
+      envVaultFileId = responseBody.data.id;
+    });
+
+    it('GET /workspaces/:workspaceSlug/projects/:projectSlug/env-files lista sem payload criptografado', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/workspaces/default/projects/default/env-files',
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: envVaultFileId,
+            name: '.env.local',
+            version: 1,
+            recoveryEnvelopeCount: 1,
+          }),
+        ]),
+      );
+      expect(res.json().data[0].encryptedPayload).toBeUndefined();
+      expect(res.json().data[0].recoveryEnvelopes).toBeUndefined();
+    });
+
+    it('GET /workspaces/:workspaceSlug/projects/:projectSlug/env-files/:envId retorna versão atual criptografada', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/api/v1/workspaces/default/projects/default/env-files/${envVaultFileId}`,
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().data.encryptedPayload).toEqual(primeiroPayloadCriptografado);
+      expect(res.json().data.recoveryEnvelopes).toHaveLength(1);
+      expect(res.json().data.recoveryEnvelopes[0]).toEqual(expect.objectContaining({
+        method: 'recovery_key',
+        label: 'Recovery key principal',
+        stepUpFactors: ['email', 'totp'],
+      }));
+    });
+
+    it('POST /workspaces/:workspaceSlug/projects/:projectSlug/env-files versiona arquivo existente', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/workspaces/default/projects/default/env-files',
+        headers: { authorization: `Bearer ${apiKey}` },
+        payload: {
+          name: '.env.local',
+          sourcePath: '.env.local',
+          encryptedPayload: segundoPayloadCriptografado,
+          metadata: criarMetadataEnvVault(51),
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+      expect(res.json().data.id).toBe(envVaultFileId);
+      expect(res.json().data.version).toBe(2);
+
+      const consulta = await app.inject({
+        method: 'GET',
+        url: `/api/v1/workspaces/default/projects/default/env-files/${envVaultFileId}`,
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(consulta.statusCode).toBe(200);
+      expect(consulta.json().data.version).toBe(2);
+      expect(consulta.json().data.encryptedPayload).toEqual(segundoPayloadCriptografado);
+      expect(consulta.json().data.recoveryEnvelopeCount).toBe(1);
+    });
+
+    it('POST /workspaces/:workspaceSlug/projects/:projectSlug/env-files rejeita plaintext e campos desconhecidos', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/workspaces/default/projects/default/env-files',
+        headers: { authorization: `Bearer ${apiKey}` },
+        payload: {
+          name: '.env.vazado',
+          sourcePath: '.env',
+          encryptedPayload: segundoPayloadCriptografado,
+          metadata: criarMetadataEnvVault(51),
+          plaintext: 'DATABASE_URL=postgresql://usuario:senha@localhost:5432/app',
+        },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('GET /workspaces/:workspaceSlug/projects/:projectSlug/env-files isola arquivos por usuário', async () => {
+      const cadastro = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/register',
+        payload: {
+          email: `outro-env-${Date.now()}@myinst.dev`,
+          password: 'senha12345',
+          displayName: 'Outro Env',
+        },
+      });
+      const outroToken = cadastro.json().data.token;
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/workspaces/default/projects/default/env-files',
+        headers: { authorization: `Bearer ${outroToken}` },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().data).toEqual([]);
+    });
+
+    it('DELETE /workspaces/:workspaceSlug/projects/:projectSlug/env-files/:envId remove arquivo e versões', async () => {
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/api/v1/workspaces/default/projects/default/env-files/${envVaultFileId}`,
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(res.statusCode).toBe(204);
+
+      const consulta = await app.inject({
+        method: 'GET',
+        url: `/api/v1/workspaces/default/projects/default/env-files/${envVaultFileId}`,
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(consulta.statusCode).toBe(404);
+    });
+  });
+
   describe('Profiles', () => {
     let perfilId: string;
 
@@ -1668,3 +1834,35 @@ describe('MyInst API', () => {
     });
   });
 });
+
+function criarPayloadCriptografadoFake(sufixo: string) {
+  return {
+    version: 'env-vault-v1',
+    algorithm: 'AES-GCM',
+    kdf: {
+      algorithm: 'pbkdf2-sha256',
+      iterations: 210000,
+      keyLength: 32,
+      digest: 'sha256',
+    },
+    salt: codificarBase64Url(Buffer.from(`salt-${sufixo}`.padEnd(16, '.'))),
+    iv: codificarBase64Url(Buffer.from(`iv-${sufixo}`.padEnd(12, '.'))),
+    authTag: codificarBase64Url(Buffer.from(`tag-${sufixo}`.padEnd(16, '.'))),
+    ciphertext: codificarBase64Url(Buffer.from(`ciphertext-${sufixo}`)),
+  };
+}
+
+function criarMetadataEnvVault(ciphertextByteLength: number) {
+  return {
+    ciphertextByteLength,
+    ciphertextSha256: 'a'.repeat(64),
+  };
+}
+
+function codificarBase64Url(buffer: Buffer): string {
+  return buffer
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}

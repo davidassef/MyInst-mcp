@@ -36,12 +36,14 @@ interface EnvPushOptions extends EnvBaseOptions {
 
 interface EnvPullOptions extends EnvBaseOptions {
   name: string;
+  environment?: string;
   output?: string;
   overwrite?: boolean;
 }
 
 interface EnvNameOptions extends EnvBaseOptions {
   name: string;
+  environment?: string;
 }
 
 interface EnvListOptions {
@@ -68,6 +70,8 @@ export interface EnvVaultFileResumo {
   name: string;
   sourcePath: string;
   environment?: string | null;
+  version?: number;
+  recoveryEnvelopeCount?: number;
   metadata?: Record<string, unknown>;
   encryptedPayload?: EnvVaultEncryptedPayload;
   recoveryEnvelopes?: EnvVaultRecoveryEnvelope[];
@@ -84,6 +88,7 @@ interface EnvVaultRequestParams {
 
 interface BuscarEnvVaultFileParams extends EnvVaultRequestParams {
   name: string;
+  environment?: string;
 }
 
 interface BaixarEnvVaultFileParams extends BuscarEnvVaultFileParams {
@@ -99,8 +104,6 @@ interface BaixarEnvVaultFileResult {
 
 export async function executarEnvPush(options: EnvPushOptions): Promise<void> {
   try {
-    garantirEnvVaultExperimentalHabilitado();
-
     const config = carregarConfigObrigatoria();
     const workspace = options.workspace || 'default';
     const project = obterProjetoObrigatorio(options.project);
@@ -136,8 +139,6 @@ export async function executarEnvPush(options: EnvPushOptions): Promise<void> {
 
 export async function executarEnvPull(options: EnvPullOptions): Promise<void> {
   try {
-    garantirEnvVaultExperimentalHabilitado();
-
     const config = carregarConfigObrigatoria();
     const workspace = options.workspace || 'default';
     const project = obterProjetoObrigatorio(options.project);
@@ -147,6 +148,7 @@ export async function executarEnvPull(options: EnvPullOptions): Promise<void> {
       workspace,
       project,
       name: options.name,
+      environment: options.environment,
       output: options.output,
       overwrite: options.overwrite,
       segredo,
@@ -163,8 +165,6 @@ export async function executarEnvPull(options: EnvPullOptions): Promise<void> {
 
 export async function executarEnvList(options: EnvListOptions): Promise<void> {
   try {
-    garantirEnvVaultExperimentalHabilitado();
-
     const config = carregarConfigObrigatoria();
     const workspace = options.workspace || 'default';
     const project = obterProjetoObrigatorio(options.project);
@@ -194,8 +194,6 @@ export async function executarEnvList(options: EnvListOptions): Promise<void> {
 
 export async function executarEnvShow(options: EnvNameOptions): Promise<void> {
   try {
-    garantirEnvVaultExperimentalHabilitado();
-
     const config = carregarConfigObrigatoria();
     const workspace = options.workspace || 'default';
     const project = obterProjetoObrigatorio(options.project);
@@ -204,6 +202,7 @@ export async function executarEnvShow(options: EnvNameOptions): Promise<void> {
       workspace,
       project,
       name: options.name,
+      environment: options.environment,
     });
 
     console.log(`${VERDE}${env.name}${RESET} ${CINZA}${env.sourcePath}${RESET}`);
@@ -218,8 +217,6 @@ export async function executarEnvShow(options: EnvNameOptions): Promise<void> {
 
 export async function executarEnvDelete(options: EnvNameOptions): Promise<void> {
   try {
-    garantirEnvVaultExperimentalHabilitado();
-
     const config = carregarConfigObrigatoria();
     const workspace = options.workspace || 'default';
     const project = obterProjetoObrigatorio(options.project);
@@ -228,6 +225,7 @@ export async function executarEnvDelete(options: EnvNameOptions): Promise<void> 
       workspace,
       project,
       name: options.name,
+      environment: options.environment,
     });
 
     console.log(`${VERDE}[SUCCESS] Env removido:${RESET} ${options.name}`);
@@ -312,7 +310,7 @@ export async function buscarEnvVaultFile(params: BuscarEnvVaultFileParams): Prom
   const envs = Array.isArray(data)
     ? data as EnvVaultFileResumo[]
     : [data as EnvVaultFileResumo];
-  const env = envs.find((entrada) => entrada.name === params.name || entrada.id === params.name);
+  const env = selecionarEnvVaultFile(envs, params.name, params.environment);
   if (!env) {
     throw new Error(`Env não encontrado: ${params.name}`);
   }
@@ -322,6 +320,23 @@ export async function buscarEnvVaultFile(params: BuscarEnvVaultFileParams): Prom
   }
 
   return env;
+}
+
+function selecionarEnvVaultFile(
+  envs: EnvVaultFileResumo[],
+  name: string,
+  environment?: string,
+): EnvVaultFileResumo | undefined {
+  const candidatos = envs.filter((env) => env.name === name || env.id === name);
+  if (environment) {
+    return candidatos.find((env) => env.environment === environment);
+  }
+
+  if (candidatos.length > 1) {
+    throw new Error(`Mais de um env encontrado para ${name}. Informe --environment.`);
+  }
+
+  return candidatos[0];
 }
 
 async function obterEnvVaultFileDetalhado(params: EnvVaultRequestParams & { id: string }): Promise<EnvVaultFileResumo> {
@@ -493,14 +508,6 @@ function obterProjetoObrigatorio(project?: string): string {
   }
 
   throw new Error('Informe --project para associar o env a um projeto especifico.');
-}
-
-function garantirEnvVaultExperimentalHabilitado(): void {
-  if (process.env.MYINST_ENABLE_ENV_VAULT === '1') {
-    return;
-  }
-
-  throw new Error('Env Vault ainda está em rollout. Defina MYINST_ENABLE_ENV_VAULT=1 apenas após habilitar a API no servidor.');
 }
 
 async function encerrarComErroHttp(resposta: Response): Promise<never> {
