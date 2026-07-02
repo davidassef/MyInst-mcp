@@ -1,5 +1,41 @@
 const API_BASE = import.meta.env.VITE_MYINST_API_BASE?.trim();
 
+export interface ChatResumo {
+  id: string;
+  client: string;
+  externalSessionId: string;
+  title: string;
+  summary: string | null;
+  startedAt: string | null;
+  updatedAt: string;
+  retentionUntil: string;
+  metadata: Record<string, unknown>;
+  messageCount: number;
+}
+
+export interface ChatMensagem {
+  id: string;
+  role: 'user' | 'assistant' | 'system' | 'tool';
+  content: string;
+  tokenCount?: number | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface ChatDetalhado extends ChatResumo {
+  messages: ChatMensagem[];
+}
+
+export interface FiltrosChat {
+  client?: string;
+  q?: string;
+  tag?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+  offset?: number;
+}
+
 function normalizarBaseApi(base: string): string {
   let baseNormalizada = base.replace(/\/+$/, '');
 
@@ -167,6 +203,24 @@ export const api = {
       request<any[]>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/state/sessions`),
     criarSessao: (workspaceSlug: string, projetoSlug: string, body: any) =>
       request<any>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/state/sessions`, { method: 'POST', body: JSON.stringify(body) }),
+  },
+  chats: {
+    listar: (workspaceSlug: string, projetoSlug: string, params?: FiltrosChat) => {
+      const searchParams = new URLSearchParams();
+
+      if (params?.client) searchParams.set('client', params.client);
+      if (params?.q) searchParams.set('q', params.q);
+      if (params?.tag) searchParams.set('tag', params.tag);
+      if (params?.from) searchParams.set('from', params.from);
+      if (params?.to) searchParams.set('to', params.to);
+      if (params?.limit !== undefined) searchParams.set('limit', String(params.limit));
+      if (params?.offset !== undefined) searchParams.set('offset', String(params.offset));
+
+      const query = searchParams.toString() ? `?${searchParams}` : '';
+      return request<ChatResumo[]>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/chats${query}`);
+    },
+    obter: (workspaceSlug: string, projetoSlug: string, sessionId: string) =>
+      request<ChatDetalhado>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/chats/${encodeURIComponent(sessionId)}`),
   },
   tags: {
     listar: () => request<any[]>('/tags'),

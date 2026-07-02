@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Plus, FileText, Trash2, Save, Search, Folder, FolderPlus, X, Brain, GitBranch, MessagesSquare } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, type ChatResumo } from '@/lib/api';
 
 const TIPOS_LABEL: Record<string, string> = {
   skill: 'Skill',
@@ -59,7 +59,7 @@ interface ProjectStateItem {
   updatedAt: string;
 }
 
-type AbaProjeto = 'conteudo' | 'memorias' | 'decisoes' | 'sessoes';
+type AbaProjeto = 'conteudo' | 'memorias' | 'decisoes' | 'sessoes' | 'chats';
 
 export function ProjetoPage() {
   const { workspaceSlug, slug } = useParams<{ workspaceSlug: string; slug: string }>();
@@ -91,6 +91,7 @@ export function ProjetoPage() {
   const [memorias, setMemorias] = useState<ProjectStateItem[]>([]);
   const [decisoes, setDecisoes] = useState<ProjectStateItem[]>([]);
   const [sessoes, setSessoes] = useState<ProjectStateItem[]>([]);
+  const [chats, setChats] = useState<ChatResumo[]>([]);
   const [mostrarFormState, setMostrarFormState] = useState(false);
   const [stateTitulo, setStateTitulo] = useState('');
   const [stateBody, setStateBody] = useState('');
@@ -214,6 +215,7 @@ export function ProjetoPage() {
     setMemorias(memoriasCarregadas);
     setDecisoes(decisoesCarregadas);
     setSessoes(sessoesCarregadas);
+    setChats(await api.chats.listar(workspaceSlug, slug, { limit: 100 }));
   }
 
   async function criarState(e: React.FormEvent) {
@@ -266,9 +268,14 @@ export function ProjetoPage() {
         <BotaoAbaProjeto label="Memórias" active={abaAtiva === 'memorias'} onClick={() => setAbaAtiva('memorias')} icon={<Brain size={14} />} />
         <BotaoAbaProjeto label="Decisões" active={abaAtiva === 'decisoes'} onClick={() => setAbaAtiva('decisoes')} icon={<GitBranch size={14} />} />
         <BotaoAbaProjeto label="Sessões" active={abaAtiva === 'sessoes'} onClick={() => setAbaAtiva('sessoes')} icon={<MessagesSquare size={14} />} />
+        <BotaoAbaProjeto label="Chats" active={abaAtiva === 'chats'} onClick={() => setAbaAtiva('chats')} icon={<MessagesSquare size={14} />} />
       </div>
 
-      {abaAtiva !== 'conteudo' && (
+      {abaAtiva === 'chats' && (
+        <ChatHistoryPanel chats={chats} />
+      )}
+
+      {abaAtiva !== 'conteudo' && abaAtiva !== 'chats' && (
         <ProjectStatePanel
           aba={abaAtiva}
           items={itensState}
@@ -575,6 +582,49 @@ export function ProjetoPage() {
   );
 }
 
+function ChatHistoryPanel({ chats }: { chats: ChatResumo[] }) {
+  return (
+    <section className="space-y-4">
+      <div>
+        <h3 className="text-xl font-semibold text-zinc-100">Histórico de chats</h3>
+        <p className="mt-1 text-sm text-zinc-500">Transcripts importados explicitamente por client, separados dos resumos de Project State.</p>
+      </div>
+
+      <div className="grid gap-3">
+        {chats.map((chat) => {
+          const tags = extrairTagsChat(chat.metadata);
+
+          return (
+            <article key={chat.id} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h4 className="font-medium text-zinc-100">{chat.title}</h4>
+                  <p className="mt-1 break-all text-xs text-zinc-500">{chat.externalSessionId}</p>
+                </div>
+                <span className="text-xs text-zinc-600">{new Date(chat.updatedAt).toLocaleDateString('pt-BR')}</span>
+              </div>
+
+              {chat.summary && <p className="mt-3 text-sm leading-6 text-blue-200">{chat.summary}</p>}
+
+              <div className="mt-4 flex flex-wrap gap-2 text-xs text-zinc-500">
+                <span className="rounded bg-zinc-800 px-2 py-1">client: {chat.client}</span>
+                <span className="rounded bg-zinc-800 px-2 py-1">mensagens: {chat.messageCount}</span>
+                {tags.map((tag) => (
+                  <span key={tag} className="rounded bg-zinc-800 px-2 py-1">tag: {tag}</span>
+                ))}
+              </div>
+            </article>
+          );
+        })}
+
+        {chats.length === 0 && (
+          <p className="rounded-xl border border-zinc-800 bg-zinc-900 py-10 text-center text-sm text-zinc-500">Nenhum chat importado encontrado.</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function BotaoAbaProjeto({ label, active, onClick, icon }: { label: string; active: boolean; onClick: () => void; icon: React.ReactNode }) {
   return (
     <button
@@ -691,4 +741,12 @@ function ProjectStatePanel({
       </div>
     </section>
   );
+}
+
+function extrairTagsChat(metadata: Record<string, unknown>): string[] {
+  const tags = metadata.tags;
+
+  if (!Array.isArray(tags)) return [];
+
+  return tags.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0);
 }
