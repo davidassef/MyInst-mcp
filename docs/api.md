@@ -314,7 +314,13 @@ Lista sessões. Filtros opcionais: `client`, `q`, `tag`, `from`, `to`, `limit`, 
 
 ### GET /workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId
 
-Retorna a sessão com mensagens. `sessionId` pode ser o UUID interno ou o ID externo informado no push.
+Retorna uma sessão única com mensagens paginadas. `sessionId` pode ser o UUID interno ou o ID externo informado no push.
+
+Query params opcionais:
+- `messageLimit` — quantidade de mensagens retornadas, de 1 a 500; padrão 100.
+- `messageOffset` — deslocamento inicial das mensagens; padrão 0.
+
+`messageCount` sempre informa o total da sessão. Não divida uma conversa longa em sessões `--part-*`; use paginação de mensagens.
 
 ### GET /workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId/export?format=markdown
 

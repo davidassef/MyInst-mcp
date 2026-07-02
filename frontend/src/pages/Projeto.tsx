@@ -23,6 +23,8 @@ const TIPOS_COR: Record<string, string> = {
   snippet: 'bg-zinc-500/20 text-zinc-300',
 };
 
+const TAMANHO_PAGINA_MENSAGENS_CHAT = 50;
+
 interface PastaItem {
   id: string;
   name: string;
@@ -594,21 +596,48 @@ function ChatHistoryPanel({
   const [chatSelecionadoId, setChatSelecionadoId] = useState<string | null>(null);
   const [chatSelecionado, setChatSelecionado] = useState<ChatDetalhado | null>(null);
   const [carregandoChat, setCarregandoChat] = useState(false);
+  const [carregandoMaisMensagens, setCarregandoMaisMensagens] = useState(false);
   const [erroChat, setErroChat] = useState('');
 
   async function selecionarChat(chat: ChatResumo) {
     setChatSelecionadoId(chat.externalSessionId);
+    setChatSelecionado(null);
     setCarregandoChat(true);
     setErroChat('');
 
     try {
-      const chatDetalhado = await api.chats.obter(workspaceSlug, projectSlug, chat.externalSessionId);
+      const chatDetalhado = await api.chats.obter(workspaceSlug, projectSlug, chat.externalSessionId, {
+        messageLimit: TAMANHO_PAGINA_MENSAGENS_CHAT,
+        messageOffset: 0,
+      });
       setChatSelecionado(chatDetalhado);
     } catch (err) {
       setChatSelecionado(null);
       setErroChat(err instanceof Error ? err.message : 'Erro ao carregar chat.');
     } finally {
       setCarregandoChat(false);
+    }
+  }
+
+  async function carregarMaisMensagens() {
+    if (!chatSelecionado) return;
+
+    setCarregandoMaisMensagens(true);
+    setErroChat('');
+
+    try {
+      const proximaPagina = await api.chats.obter(workspaceSlug, projectSlug, chatSelecionado.externalSessionId, {
+        messageLimit: TAMANHO_PAGINA_MENSAGENS_CHAT,
+        messageOffset: chatSelecionado.messages.length,
+      });
+      setChatSelecionado({
+        ...proximaPagina,
+        messages: [...chatSelecionado.messages, ...proximaPagina.messages],
+      });
+    } catch (err) {
+      setErroChat(err instanceof Error ? err.message : 'Erro ao carregar mensagens.');
+    } finally {
+      setCarregandoMaisMensagens(false);
     }
   }
 
@@ -662,7 +691,13 @@ function ChatHistoryPanel({
           )}
         </div>
 
-        <ChatDetailPanel chat={chatSelecionado} carregando={carregandoChat} erro={erroChat} />
+        <ChatDetailPanel
+          chat={chatSelecionado}
+          carregando={carregandoChat}
+          carregandoMais={carregandoMaisMensagens}
+          erro={erroChat}
+          onCarregarMais={carregarMaisMensagens}
+        />
       </div>
     </section>
   );
@@ -671,11 +706,15 @@ function ChatHistoryPanel({
 function ChatDetailPanel({
   chat,
   carregando,
+  carregandoMais,
   erro,
+  onCarregarMais,
 }: {
   chat: ChatDetalhado | null;
   carregando: boolean;
+  carregandoMais: boolean;
   erro: string;
+  onCarregarMais: () => void;
 }) {
   if (carregando) {
     return (
@@ -709,7 +748,9 @@ function ChatDetailPanel({
             <h4 className="font-medium text-zinc-100">{chat.title}</h4>
             <p className="mt-1 break-all text-xs text-zinc-500">{chat.externalSessionId}</p>
           </div>
-          <span className="rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-500">{chat.messageCount} mensagens</span>
+          <span className="rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-500">
+            {chat.messages.length} de {chat.messageCount} mensagens
+          </span>
         </div>
       </div>
 
@@ -717,19 +758,41 @@ function ChatDetailPanel({
         {chat.messages.map((mensagem) => (
           <ChatMessageItem key={mensagem.id} mensagem={mensagem} />
         ))}
+
+        {chat.messages.length < chat.messageCount && (
+          <div className="flex justify-center border-t border-zinc-800 p-4">
+            <button
+              type="button"
+              onClick={onCarregarMais}
+              disabled={carregandoMais}
+              className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 transition-colors hover:border-blue-500 hover:text-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {carregandoMais ? 'Carregando...' : 'Carregar mais mensagens'}
+            </button>
+          </div>
+        )}
       </div>
     </article>
   );
 }
 
 function ChatMessageItem({ mensagem }: { mensagem: ChatMensagem }) {
+  const ehUsuario = mensagem.role === 'user';
+  const ehAssistente = mensagem.role === 'assistant';
+  const rotulo = ehUsuario ? 'Usuário' : ehAssistente ? 'Assistente' : mensagem.role;
+  const alinhamento = ehUsuario ? 'justify-end' : 'justify-start';
+  const largura = ehUsuario ? 'max-w-[88%] border-blue-500/30 bg-blue-950/30' : 'max-w-[92%] border-zinc-800 bg-zinc-950/60';
+  const corRotulo = ehUsuario ? 'text-blue-200' : ehAssistente ? 'text-zinc-200' : 'text-zinc-500';
+
   return (
-    <div className="border-b border-zinc-800 px-4 py-3 last:border-b-0">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <span className="rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-400">{mensagem.role}</span>
-        <span className="text-xs text-zinc-600">{new Date(mensagem.createdAt).toLocaleString('pt-BR')}</span>
+    <div className={`flex ${alinhamento} border-b border-zinc-800 px-4 py-3 last:border-b-0`}>
+      <div className={`rounded-lg border px-4 py-3 ${largura}`}>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+          <span className={`text-xs font-medium ${corRotulo}`}>{rotulo}</span>
+          <span className="text-xs text-zinc-600">{new Date(mensagem.createdAt).toLocaleString('pt-BR')}</span>
+        </div>
+        <p className="whitespace-pre-wrap break-words text-sm leading-6 text-zinc-300">{mensagem.content}</p>
       </div>
-      <p className="whitespace-pre-wrap break-words text-sm leading-6 text-zinc-300">{mensagem.content}</p>
     </div>
   );
 }

@@ -1396,6 +1396,25 @@ describe('MyInst API', () => {
       expect(res.json().data.messageCount).toBe(2);
     });
 
+    it('GET /workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId pagina mensagens sem dividir sessão', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/workspaces/default/projects/default/chats/codex-session-1?messageLimit=1&messageOffset=1',
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().data.messageCount).toBe(2);
+      expect(res.json().data.messageLimit).toBe(1);
+      expect(res.json().data.messageOffset).toBe(1);
+      expect(res.json().data.messages).toEqual([
+        expect.objectContaining({
+          role: 'assistant',
+          content: 'Ajustei o adapter nativo.',
+        }),
+      ]);
+    });
+
     it('GET /workspaces/:workspaceSlug/projects/:projectSlug/chats/:sessionId/export retorna markdown', async () => {
       const res = await app.inject({
         method: 'GET',

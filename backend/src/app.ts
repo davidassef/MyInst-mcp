@@ -22,6 +22,7 @@ import { carregarAmbiente, type ConfiguracaoAmbiente } from './env.js';
 
 export async function criarApp(configuracao: ConfiguracaoAmbiente = carregarAmbiente()) {
   const app = Fastify({
+    bodyLimit: 50 * 1024 * 1024,
     logger: configuracao.nodeEnv === 'test'
       ? false
       : {

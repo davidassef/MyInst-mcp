@@ -159,6 +159,8 @@ chat
   .description('Mostrar mensagens de uma sessão de chat')
   .option('-w, --workspace <slug>', 'Slug do workspace')
   .option('-p, --project <slug>', 'Slug do projeto', 'default')
+  .option('--message-limit <numero>', 'Quantidade de mensagens retornadas')
+  .option('--message-offset <numero>', 'Deslocamento das mensagens')
   .action((sessionId: string, options) => executarChatShow(sessionId, options));
 
 chat

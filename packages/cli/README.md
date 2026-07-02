@@ -140,11 +140,13 @@ Comandos disponíveis:
 - `myinst chat push --project <slug> --client <client> --session <id> --file <json|md>` importa uma sessão.
 - `myinst chat import --project <slug> --client codex --include history --path <arquivo|diretorio> --reviewed` importa histórico Codex JSONL com adapter dedicado.
 - `myinst chat list --project <slug> [--client <client>] [--q <texto>] [--tag <tag>] [--from <iso>] [--to <iso>]` lista sessões importadas.
-- `myinst chat show <session-id>` mostra mensagens.
+- `myinst chat show <session-id> [--message-limit <n>] [--message-offset <n>]` mostra mensagens paginadas.
 - `myinst chat export <session-id> --format markdown` grava `.myinst/chats/<session-id>.md`.
 - `myinst chat summarize <session-id>` atualiza o resumo no servidor.
 
 Arquivos JSON devem conter `messages`; Markdown entra como uma mensagem única revisada. O import dedicado de Codex aceita `.jsonl` do histórico, incluindo o formato `payload` do Codex desktop, e exige `--dry-run` ou `--reviewed`. Mensagens com segredo provável que não puderem ser redigidas granularmente viram `{{SECRET}}`. A categoria `cache` existe no contrato, mas fica bloqueada até existir persistência segura por client. O backend bloqueia padrões prováveis de segredo antes de persistir.
+
+Conversas longas continuam sendo uma única sessão. Use `--message-limit` e `--message-offset` para navegar pelas mensagens; não divida uma conversa em sessões `--part-*`.
 
 JSON recomendado:
 

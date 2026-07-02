@@ -73,10 +73,13 @@ describe('api.chats', () => {
       }),
     } as Response);
 
-    const chat = await api.chats.obter('meus-projetos', 'myinst', 'sessao-1');
+    const chat = await api.chats.obter('meus-projetos', 'myinst', 'sessao-1', {
+      messageLimit: 50,
+      messageOffset: 0,
+    });
 
     expect(chat.messages).toHaveLength(1);
-    expect(fetchMock).toHaveBeenCalledWith('/api/v1/workspaces/meus-projetos/projects/myinst/chats/sessao-1', {
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/workspaces/meus-projetos/projects/myinst/chats/sessao-1?messageLimit=50&messageOffset=0', {
       headers: expect.any(Headers),
     });
   });

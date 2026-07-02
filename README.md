@@ -337,11 +337,13 @@ myinst chat push --workspace meus-projetos --project myinst --client codex --ses
 myinst chat import --workspace meus-projetos --project myinst --client codex --include history --path ~/.codex/sessions --dry-run
 myinst chat import --workspace meus-projetos --project myinst --client codex --include history --path ~/.codex/sessions --reviewed
 myinst chat list --workspace meus-projetos --project myinst --client codex --tag release
-myinst chat show sessao-1 --workspace meus-projetos --project myinst
+myinst chat show sessao-1 --workspace meus-projetos --project myinst --message-limit 100 --message-offset 0
 myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
 myinst chat summarize sessao-1 --workspace meus-projetos --project myinst
 myinst chat delete sessao-1 --workspace meus-projetos --project myinst
 ```
+
+Cada conversa longa deve permanecer em uma única sessão. Use paginação (`messageLimit`/`messageOffset` na API ou `--message-limit`/`--message-offset` na CLI) para navegar pelas mensagens; não crie sessões `--part-*`.
 
 Formato JSON recomendado para importação:
 

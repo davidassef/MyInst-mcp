@@ -23,6 +23,8 @@ export interface ChatMensagem {
 }
 
 export interface ChatDetalhado extends ChatResumo {
+  messageLimit: number;
+  messageOffset: number;
   messages: ChatMensagem[];
 }
 
@@ -219,8 +221,19 @@ export const api = {
       const query = searchParams.toString() ? `?${searchParams}` : '';
       return request<ChatResumo[]>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/chats${query}`);
     },
-    obter: (workspaceSlug: string, projetoSlug: string, sessionId: string) =>
-      request<ChatDetalhado>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/chats/${encodeURIComponent(sessionId)}`),
+    obter: (
+      workspaceSlug: string,
+      projetoSlug: string,
+      sessionId: string,
+      params?: { messageLimit?: number; messageOffset?: number },
+    ) => {
+      const searchParams = new URLSearchParams();
+      if (params?.messageLimit !== undefined) searchParams.set('messageLimit', String(params.messageLimit));
+      if (params?.messageOffset !== undefined) searchParams.set('messageOffset', String(params.messageOffset));
+
+      const query = searchParams.toString() ? `?${searchParams}` : '';
+      return request<ChatDetalhado>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/chats/${encodeURIComponent(sessionId)}${query}`);
+    },
   },
   tags: {
     listar: () => request<any[]>('/tags'),

@@ -202,10 +202,13 @@ Chats dos clients não fazem parte do sync nativo de arquivos do MCP. Use a CLI 
 ```bash
 myinst chat push --workspace meus-projetos --project myinst --client codex --session sessao-1 --file chat.json
 myinst chat list --workspace meus-projetos --project myinst --client codex
+myinst chat show sessao-1 --workspace meus-projetos --project myinst --message-limit 100 --message-offset 0
 myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
 ```
 
 O MyInst preserva `client` e `session` para filtros, busca, exportação e resumo. Ele não varre `.codex/sessions`, `.claude/projects`, `history/**` ou caches internos automaticamente.
+
+Conversas longas ficam em uma sessão única; paginação acontece nas mensagens. Não use sessões `--part-*` em adapters oficiais.
 
 ## Tipos sincronizáveis
 

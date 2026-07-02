@@ -42,7 +42,11 @@ export async function chatRoutes(app: FastifyInstance) {
     const contexto = await resolverContextoProjeto(request);
     if (!contexto) return responderProjetoNaoEncontrado(reply);
 
-    const sessao = await buscarChatComMensagens(contexto.projectId, sessionIdParam(request));
+    const query = request.query as { messageLimit?: string; messageOffset?: string };
+    const sessao = await buscarChatComMensagens(contexto.projectId, sessionIdParam(request), {
+      messageLimit: limitarInteiro(query.messageLimit, 100, 1, 500),
+      messageOffset: limitarInteiro(query.messageOffset, 0, 0, 100_000),
+    });
     if (!sessao) return responderChatNaoEncontrado(reply);
 
     return { data: sessao };
@@ -52,7 +56,7 @@ export async function chatRoutes(app: FastifyInstance) {
     const contexto = await resolverContextoProjeto(request);
     if (!contexto) return responderProjetoNaoEncontrado(reply);
 
-    const sessao = await buscarChatComMensagens(contexto.projectId, sessionIdParam(request));
+  const sessao = await buscarChatComMensagens(contexto.projectId, sessionIdParam(request), { todasMensagens: true });
     if (!sessao) return responderChatNaoEncontrado(reply);
 
     reply.header('Content-Type', 'text/markdown; charset=utf-8');
@@ -63,7 +67,7 @@ export async function chatRoutes(app: FastifyInstance) {
     const contexto = await resolverContextoProjeto(request);
     if (!contexto) return responderProjetoNaoEncontrado(reply);
 
-    const sessao = await buscarChatComMensagens(contexto.projectId, sessionIdParam(request));
+    const sessao = await buscarChatComMensagens(contexto.projectId, sessionIdParam(request), { todasMensagens: true });
     if (!sessao) return responderChatNaoEncontrado(reply);
 
     await db.delete(chatMessages).where(eq(chatMessages.sessionId, sessao.id));
@@ -127,7 +131,7 @@ async function criarChat(request: FastifyRequest, reply: FastifyReply) {
     .returning();
 
   await db.delete(chatMessages).where(eq(chatMessages.sessionId, sessao.id));
-  await db.insert(chatMessages).values(body.messages.map((mensagem) => ({
+  await inserirMensagensChat(body.messages.map((mensagem) => ({
     sessionId: sessao.id,
     role: mensagem.role,
     content: mensagem.content,
@@ -149,7 +153,7 @@ async function resumirChat(request: FastifyRequest, reply: FastifyReply) {
   const contexto = await resolverContextoProjeto(request);
   if (!contexto) return responderProjetoNaoEncontrado(reply);
 
-  const sessao = await buscarChatComMensagens(contexto.projectId, sessionIdParam(request));
+    const sessao = await buscarChatComMensagens(contexto.projectId, sessionIdParam(request), { todasMensagens: true });
   if (!sessao) return responderChatNaoEncontrado(reply);
 
   const summary = body.summary || gerarResumoLocal(sessao.messages);
@@ -185,7 +189,19 @@ async function listarSessoesChat(
   }));
 }
 
-async function buscarChatComMensagens(projectId: string, sessionId: string) {
+async function inserirMensagensChat(mensagens: Array<typeof chatMessages.$inferInsert>): Promise<void> {
+  const tamanhoLote = 1000;
+
+  for (let indice = 0; indice < mensagens.length; indice += tamanhoLote) {
+    await db.insert(chatMessages).values(mensagens.slice(indice, indice + tamanhoLote));
+  }
+}
+
+async function buscarChatComMensagens(
+  projectId: string,
+  sessionId: string,
+  options: { messageLimit?: number; messageOffset?: number; todasMensagens?: boolean } = {},
+) {
   const filtroIdInterno = ehUuid(sessionId) ? eq(chatSessions.id, sessionId) : undefined;
   const filtroSessaoExterna = eq(chatSessions.externalSessionId, sessionId);
   const filtroIdentificador = filtroIdInterno
@@ -202,15 +218,23 @@ async function buscarChatComMensagens(projectId: string, sessionId: string) {
   const sessao = sessoes[0];
   if (!sessao) return null;
 
-  const mensagens = await db
+  const contagensPorSessao = await contarMensagensPorSessao([sessao.id]);
+  const queryMensagens = db
     .select()
     .from(chatMessages)
     .where(eq(chatMessages.sessionId, sessao.id))
-    .orderBy(asc(chatMessages.createdAt));
+    .orderBy(asc(chatMessages.createdAt), asc(chatMessages.id));
+  const mensagens = options.todasMensagens
+    ? await queryMensagens
+    : await queryMensagens
+      .limit(options.messageLimit ?? 100)
+      .offset(options.messageOffset ?? 0);
 
   return {
     ...sessao,
-    messageCount: mensagens.length,
+    messageCount: contagensPorSessao.get(sessao.id) ?? 0,
+    messageLimit: options.todasMensagens ? mensagens.length : options.messageLimit ?? 100,
+    messageOffset: options.todasMensagens ? 0 : options.messageOffset ?? 0,
     messages: mensagens,
   };
 }

@@ -186,12 +186,14 @@ Chats ficam em tabelas próprias e não entram em sync automático. A origem ini
 ```text
 myinst chat push --workspace meus-projetos --project myinst --client codex --session sessao-1 --file chat.json
 myinst chat list --workspace meus-projetos --project myinst --client codex --q sync --tag release
-myinst chat show sessao-1 --workspace meus-projetos --project myinst
+myinst chat show sessao-1 --workspace meus-projetos --project myinst --message-limit 100 --message-offset 0
 myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
 myinst chat summarize sessao-1 --workspace meus-projetos --project myinst
 ```
 
 A retenção padrão é de 180 dias. A API rejeita padrões prováveis de segredo em mensagens e metadata antes de persistir. Cada histórico deve ser salvo no projeto que representa o repositório ou produto de origem; não use um projeto genérico para agrupar chats de contextos diferentes.
+
+Uma conversa longa continua sendo uma única `chat_session`; as mensagens são paginadas por `messageLimit` e `messageOffset`. Sessões `--part-*` são consideradas legado operacional e não devem ser criadas por adapters oficiais.
 
 O histórico de chats não usa os adapters de arquivo de `myinst pull`/`myinst push`. Ele é indexado por `{ workspace, project, client, session }` e permite filtrar ou exportar sessões por client, como `codex`, `claude`, `cursor`, `kimi` ou outro identificador informado na CLI.
 

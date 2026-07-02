@@ -456,13 +456,15 @@ myinst chat push --workspace meus-projetos --project myinst --client codex --ses
 myinst chat import --workspace meus-projetos --project myinst --client codex --include history --path ~/.codex/sessions --dry-run
 myinst chat import --workspace meus-projetos --project myinst --client codex --include history --path ~/.codex/sessions --reviewed
 myinst chat list --workspace meus-projetos --project myinst --client codex --tag release
-myinst chat show sessao-1 --workspace meus-projetos --project myinst
+myinst chat show sessao-1 --workspace meus-projetos --project myinst --message-limit 100 --message-offset 0
 myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
 myinst chat summarize sessao-1 --workspace meus-projetos --project myinst
 myinst chat delete sessao-1 --workspace meus-projetos --project myinst
 ```
 
 O campo `client` preserva a origem do chat e permite listar, buscar e exportar por cliente (`codex`, `claude`, `cursor`, `kimi` ou outro ID controlado). A CLI aceita JSON normalizado com `messages`, Markdown revisado e, quando houver adapter dedicado, uma fonte interna escolhida explicitamente. Nesta versão, `codex/history` já pode ser importado de arquivos `.jsonl` com `myinst chat import`; `cache` fica bloqueado até existir persistência segura por client. O MyInst não varre `.codex/sessions`, `.claude/projects`, `history/**` ou caches internos automaticamente.
+
+Conversas longas devem permanecer em uma única sessão. A API e a CLI paginam mensagens com `messageLimit/messageOffset`; não crie sessões `--part-*` para contornar tamanho de transcript.
 
 O `myinst chat import` não roteia sessões automaticamente por `cwd`. Tudo que estiver no `--path` informado será salvo no `--workspace/--project` escolhido. Para preservar um projeto por repositório, rode `--dry-run` e importe apenas arquivos ou subdiretórios que pertencem ao projeto correto.
 

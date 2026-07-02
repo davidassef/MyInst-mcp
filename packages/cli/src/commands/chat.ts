@@ -82,6 +82,8 @@ interface ChatListOptions {
 interface ChatShowOptions {
   workspace?: string;
   project?: string;
+  messageLimit?: string;
+  messageOffset?: string;
 }
 
 interface ChatExportOptions extends ChatShowOptions {
@@ -178,7 +180,13 @@ export async function executarChatShow(sessionId: string, options: ChatShowOptio
   const config = carregarConfigObrigatoria();
   const workspace = options.workspace || 'default';
   const project = options.project || 'default';
-  const resposta = await fetch(endpointChat(config, workspace, project, sessionId), {
+  const params = new URLSearchParams();
+
+  if (options.messageLimit) params.set('messageLimit', options.messageLimit);
+  if (options.messageOffset) params.set('messageOffset', options.messageOffset);
+
+  const query = params.toString() ? `?${params}` : '';
+  const resposta = await fetch(`${endpointChat(config, workspace, project, sessionId)}${query}`, {
     headers: headersJson(config),
   });
 
@@ -187,9 +195,19 @@ export async function executarChatShow(sessionId: string, options: ChatShowOptio
   }
 
   const json = await resposta.json();
-  const chat = json.data as { title: string; client: string; externalSessionId: string; messages: ChatMessageInput[] };
+  const chat = json.data as {
+    title: string;
+    client: string;
+    externalSessionId: string;
+    messageCount: number;
+    messageLimit?: number;
+    messageOffset?: number;
+    messages: ChatMessageInput[];
+  };
 
-  console.log(`${VERDE}${chat.title}${RESET} ${CINZA}${chat.client}/${chat.externalSessionId}${RESET}`);
+  const offset = chat.messageOffset ?? 0;
+  const ate = offset + chat.messages.length;
+  console.log(`${VERDE}${chat.title}${RESET} ${CINZA}${chat.client}/${chat.externalSessionId} (${ate}/${chat.messageCount} msg)${RESET}`);
   for (const mensagem of chat.messages) {
     console.log(`\n${CINZA}[${mensagem.role}]${RESET}\n${mensagem.content}`);
   }
