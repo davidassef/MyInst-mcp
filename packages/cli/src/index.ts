@@ -201,10 +201,11 @@ env
   .description('Criptografar e enviar arquivo .env para o Env Vault')
   .requiredOption('-f, --file <path>', 'Arquivo .env local')
   .option('-w, --workspace <slug>', 'Slug do workspace')
-  .option('-p, --project <slug>', 'Slug do projeto', 'default')
+  .requiredOption('-p, --project <slug>', 'Slug do projeto')
   .option('-n, --name <name>', 'Nome lógico do env')
   .option('--environment <name>', 'Ambiente associado')
   .option('--secret <secret>', 'Segredo local do Env Vault')
+  .option('--create-recovery-key', 'Gerar recovery key local e enviar envelope de recuperação cifrado')
   .action(executarEnvPush);
 
 env
@@ -212,7 +213,7 @@ env
   .description('Baixar e descriptografar arquivo .env do Env Vault')
   .requiredOption('-n, --name <name>', 'Nome lógico ou id do env')
   .option('-w, --workspace <slug>', 'Slug do workspace')
-  .option('-p, --project <slug>', 'Slug do projeto', 'default')
+  .requiredOption('-p, --project <slug>', 'Slug do projeto')
   .option('-o, --output <path>', 'Destino local do arquivo')
   .option('--overwrite', 'Sobrescrever destino sem criar backup')
   .option('--secret <secret>', 'Segredo local do Env Vault')
@@ -222,7 +223,7 @@ env
   .command('list')
   .description('Listar envs criptografados do projeto')
   .option('-w, --workspace <slug>', 'Slug do workspace')
-  .option('-p, --project <slug>', 'Slug do projeto', 'default')
+  .requiredOption('-p, --project <slug>', 'Slug do projeto')
   .action(executarEnvList);
 
 env
@@ -230,7 +231,7 @@ env
   .description('Mostrar metadados seguros de um env')
   .requiredOption('-n, --name <name>', 'Nome lógico ou id do env')
   .option('-w, --workspace <slug>', 'Slug do workspace')
-  .option('-p, --project <slug>', 'Slug do projeto', 'default')
+  .requiredOption('-p, --project <slug>', 'Slug do projeto')
   .action(executarEnvShow);
 
 env
@@ -238,7 +239,7 @@ env
   .description('Remover env criptografado do projeto')
   .requiredOption('-n, --name <name>', 'Nome lógico ou id do env')
   .option('-w, --workspace <slug>', 'Slug do workspace')
-  .option('-p, --project <slug>', 'Slug do projeto', 'default')
+  .requiredOption('-p, --project <slug>', 'Slug do projeto')
   .action(executarEnvDelete);
 
 await avisarAtualizacaoDisponivel(MYINST_VERSION);

@@ -5,11 +5,14 @@ import { stdin as input, stdout as output } from 'node:process';
 import { emitKeypressEvents } from 'node:readline';
 import {
   calcularHashCiphertextEnvVault,
+  criarEnvVaultRecoveryEnvelope,
   criptografarEnvVault,
   descriptografarEnvVault,
   extrairMetadadosEnvSeguro,
+  gerarRecoveryKeyEnvVault,
   validarPayloadEnvVault,
   type EnvVaultEncryptedPayload,
+  type EnvVaultRecoveryEnvelope,
 } from '@myinst/shared/env-vault';
 import type { CriarEnvVaultFileInput } from '@myinst/shared';
 import { carregarConfig, type MyInstConfig } from '../config.js';
@@ -30,6 +33,7 @@ interface EnvPushOptions extends EnvBaseOptions {
   file: string;
   name?: string;
   environment?: string;
+  createRecoveryKey?: boolean;
 }
 
 interface EnvPullOptions extends EnvBaseOptions {
@@ -52,10 +56,13 @@ export interface PrepararEnvVaultPushParams {
   name?: string;
   environment?: string;
   segredo: string;
+  recoveryKey?: string;
+  createRecoveryKey?: boolean;
 }
 
 export interface PrepararEnvVaultPushResult {
   body: CriarEnvVaultFileInput;
+  generatedRecoveryKey?: string;
 }
 
 export interface EnvVaultFileResumo {
@@ -65,6 +72,7 @@ export interface EnvVaultFileResumo {
   environment?: string | null;
   metadata?: Record<string, unknown>;
   encryptedPayload?: EnvVaultEncryptedPayload;
+  recoveryEnvelopes?: EnvVaultRecoveryEnvelope[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -95,13 +103,15 @@ export async function executarEnvPush(options: EnvPushOptions): Promise<void> {
   try {
     const config = carregarConfigObrigatoria();
     const workspace = options.workspace || 'default';
-    const project = options.project || 'default';
+    const project = obterProjetoObrigatorio(options.project);
     const segredo = await resolverSegredoEnvVault(options.secret);
     const preparado = await prepararEnvVaultPush({
       file: options.file,
       name: options.name,
       environment: options.environment,
       segredo,
+      recoveryKey: process.env.MYINST_ENV_VAULT_RECOVERY_KEY,
+      createRecoveryKey: options.createRecoveryKey,
     });
 
     const resposta = await fetch(endpointEnvFiles(config, workspace, project), {
@@ -116,6 +126,9 @@ export async function executarEnvPush(options: EnvPushOptions): Promise<void> {
 
     const json = await resposta.json();
     console.log(`${VERDE}[SUCCESS] Env salvo:${RESET} ${json.data?.name ?? preparado.body.name}`);
+    if (preparado.generatedRecoveryKey) {
+      console.log(`${AMARELO}[WARN] Guarde esta recovery key. Ela nao sera exibida novamente:${RESET} ${preparado.generatedRecoveryKey}`);
+    }
   } catch (erro) {
     encerrarComErro(erro);
   }
@@ -125,7 +138,7 @@ export async function executarEnvPull(options: EnvPullOptions): Promise<void> {
   try {
     const config = carregarConfigObrigatoria();
     const workspace = options.workspace || 'default';
-    const project = options.project || 'default';
+    const project = obterProjetoObrigatorio(options.project);
     const segredo = await resolverSegredoEnvVault(options.secret);
     const resultado = await baixarEnvVaultFile({
       config,
@@ -150,7 +163,7 @@ export async function executarEnvList(options: EnvListOptions): Promise<void> {
   try {
     const config = carregarConfigObrigatoria();
     const workspace = options.workspace || 'default';
-    const project = options.project || 'default';
+    const project = obterProjetoObrigatorio(options.project);
     const resposta = await fetch(endpointEnvFiles(config, workspace, project), {
       headers: headersAuth(config),
     });
@@ -179,7 +192,7 @@ export async function executarEnvShow(options: EnvNameOptions): Promise<void> {
   try {
     const config = carregarConfigObrigatoria();
     const workspace = options.workspace || 'default';
-    const project = options.project || 'default';
+    const project = obterProjetoObrigatorio(options.project);
     const env = await buscarEnvVaultFile({
       config,
       workspace,
@@ -201,7 +214,7 @@ export async function executarEnvDelete(options: EnvNameOptions): Promise<void> 
   try {
     const config = carregarConfigObrigatoria();
     const workspace = options.workspace || 'default';
-    const project = options.project || 'default';
+    const project = obterProjetoObrigatorio(options.project);
     await deletarEnvVaultFile({
       config,
       workspace,
@@ -222,6 +235,17 @@ export async function prepararEnvVaultPush(params: PrepararEnvVaultPushParams): 
     segredo: params.segredo,
   });
   const ciphertextByteLength = tamanhoCiphertext(encryptedPayload);
+  const recoveryKey = params.createRecoveryKey
+    ? gerarRecoveryKeyEnvVault()
+    : params.recoveryKey;
+  const recoveryEnvelopes = recoveryKey
+    ? [await criarEnvVaultRecoveryEnvelope({
+      vaultSecret: params.segredo,
+      segredoRecuperacao: recoveryKey,
+      method: 'recovery_key',
+      label: 'Recovery key principal',
+    })]
+    : undefined;
 
   return {
     body: {
@@ -233,7 +257,9 @@ export async function prepararEnvVaultPush(params: PrepararEnvVaultPushParams): 
         ciphertextByteLength,
         ciphertextSha256: calcularHashCiphertextEnvVault(encryptedPayload),
       },
+      recoveryEnvelopes,
     },
+    generatedRecoveryKey: params.createRecoveryKey ? recoveryKey : undefined,
   };
 }
 
@@ -447,6 +473,14 @@ function carregarConfigObrigatoria(): MyInstConfig {
   }
 
   return config;
+}
+
+function obterProjetoObrigatorio(project?: string): string {
+  if (project?.trim()) {
+    return project;
+  }
+
+  throw new Error('Informe --project para associar o env a um projeto especifico.');
 }
 
 async function encerrarComErroHttp(resposta: Response): Promise<never> {

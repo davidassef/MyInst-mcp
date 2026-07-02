@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { criarEnvVaultFileSchema } from '@myinst/shared';
+import { abrirEnvVaultRecoveryEnvelope } from '@myinst/shared/env-vault';
 import {
   buscarEnvVaultFile,
   baixarEnvVaultFile,
@@ -38,6 +39,30 @@ describe('Env Vault CLI', () => {
     expect(serializado).not.toContain('postgresql://local');
     expect(serializado).not.toContain('abc123456');
     expect(serializado).not.toContain('byteLength');
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('prepara envelope de recuperação sem enviar segredo local', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'myinst-env-recovery-'));
+    const caminho = join(dir, '.env.local');
+    await writeFile(caminho, 'DATABASE_URL=postgresql://local\n', 'utf-8');
+
+    const payload = await prepararEnvVaultPush({
+      file: caminho,
+      name: 'local',
+      segredo: SEGREDO,
+      createRecoveryKey: true,
+    });
+
+    expect(payload.generatedRecoveryKey).toMatch(/^myinst-env-rk_/);
+    expect(payload.body.recoveryEnvelopes).toHaveLength(1);
+    expect(criarEnvVaultFileSchema.parse(payload.body)).toEqual(payload.body);
+    expect(JSON.stringify(payload.body)).not.toContain(SEGREDO);
+    await expect(abrirEnvVaultRecoveryEnvelope({
+      envelope: payload.body.recoveryEnvelopes![0],
+      segredoRecuperacao: payload.generatedRecoveryKey!,
+    })).resolves.toBe(SEGREDO);
 
     await rm(dir, { recursive: true, force: true });
   });

@@ -36,6 +36,7 @@ myinst chat show sessao-1 --workspace meus-projetos --project myinst
 myinst chat export sessao-1 --workspace meus-projetos --project myinst --format markdown
 myinst chat summarize sessao-1 --workspace meus-projetos --project myinst
 MYINST_ENV_VAULT_SECRET="segredo-local-forte-com-entropia" myinst env push --workspace meus-projetos --project myinst --file .env.local --name local
+MYINST_ENV_VAULT_SECRET="segredo-local-forte-com-entropia" myinst env push --workspace meus-projetos --project myinst --file .env.local --name local --create-recovery-key
 MYINST_ENV_VAULT_SECRET="segredo-local-forte-com-entropia" myinst env pull --workspace meus-projetos --project myinst --name local --output .env.local
 ```
 
@@ -178,12 +179,15 @@ O import grava todas as sessões encontradas no `--path` dentro do projeto infor
 Comandos disponíveis:
 
 - `myinst env push --project <slug> --file .env.local --name local` criptografa localmente e envia somente o envelope cifrado.
+- `myinst env push --project <slug> --file .env.local --create-recovery-key` gera uma recovery key local e envia um envelope cifrado do segredo de vault.
 - `myinst env pull --project <slug> --name local --output .env.local` baixa o envelope, descriptografa localmente e cria backup se o destino já existir.
 - `myinst env list --project <slug>` lista metadados seguros.
 - `myinst env show --project <slug> --name local` mostra metadados seguros sem revelar valores.
 - `myinst env delete --project <slug> --name local` remove o env cifrado do projeto.
 
-O segredo do Env Vault deve ser informado por `MYINST_ENV_VAULT_SECRET` ou pelo prompt local oculto. A opção `--secret` existe para automação controlada, mas pode ficar no histórico do shell. O segredo não é salvo em `~/.myinst/config.json` e não deve ser enviado ao backend. O backend recebe apenas `encryptedPayload` e metadados operacionais do ciphertext.
+`--project` é obrigatório para evitar gravar `.env` em um projeto genérico. O segredo do Env Vault deve ser informado por `MYINST_ENV_VAULT_SECRET` ou pelo prompt local oculto. A opção `--secret` existe para automação controlada, mas pode ficar no histórico do shell. O segredo não é salvo em `~/.myinst/config.json` e não deve ser enviado ao backend. O backend recebe apenas `encryptedPayload`, envelopes de recuperação cifrados e metadados operacionais do ciphertext.
+
+Recovery por e-mail ou 2FA só valida identidade e autoriza step-up; ela não descriptografa `.env` sozinha. Para recuperação real, guarde a recovery key gerada por `--create-recovery-key` ou use outro material criptográfico local suportado no futuro, como dispositivo confiável, passphrase forte ou passkey. Se todos os fatores criptográficos forem perdidos, o MyInst não deve conseguir restaurar o plaintext.
 
 Por padrão, `env pull` nunca sobrescreve silenciosamente: se o arquivo de destino existir, a CLI cria `<arquivo>.bak` antes de gravar. Use `--overwrite` apenas quando quiser substituir sem backup.
 
