@@ -62,6 +62,20 @@ myinst env delete --workspace meus-projetos --project myinst --name local
 
 Se houver mais de um env com o mesmo `--name`, informe `--environment` em `pull`, `show` e `delete`. `sourcePath` é tratado como nome de arquivo seguro, não como caminho absoluto local.
 
+## Painel web
+
+O painel web mostra somente metadados seguros do Env Vault por projeto:
+
+- nome lógico;
+- ambiente;
+- arquivo de origem;
+- versão;
+- tamanho do ciphertext;
+- quantidade de recovery envelopes;
+- data de atualização.
+
+O painel não descriptografa `.env`, não renderiza valores, não solicita `MYINST_ENV_VAULT_SECRET` e não baixa `encryptedPayload` para visualização. As ações de desbloqueio e materialização continuam na CLI local. A interface apenas copia comandos seguros de `myinst env push` e `myinst env pull`, sem segredo embutido.
+
 ## Backend
 
 As rotas ficam fora do sync genérico:

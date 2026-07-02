@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, FileText, Trash2, Save, Search, Folder, FolderPlus, X, Brain, GitBranch, MessagesSquare, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react';
-import { api, type ChatDetalhado, type ChatMensagem, type ChatResumo } from '@/lib/api';
+import { ArrowLeft, Plus, FileText, Trash2, Save, Search, Folder, FolderPlus, X, Brain, GitBranch, MessagesSquare, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ShieldCheck, Copy } from 'lucide-react';
+import { api, type ChatDetalhado, type ChatMensagem, type ChatResumo, type EnvVaultFileResumo } from '@/lib/api';
+import { montarComandoEnvVaultPull, montarComandoEnvVaultPush } from '@/lib/envVaultCommands';
 
 const TIPOS_LABEL: Record<string, string> = {
   skill: 'Skill',
@@ -61,7 +62,7 @@ interface ProjectStateItem {
   updatedAt: string;
 }
 
-type AbaProjeto = 'conteudo' | 'memorias' | 'decisoes' | 'sessoes' | 'chats';
+type AbaProjeto = 'conteudo' | 'memorias' | 'decisoes' | 'sessoes' | 'chats' | 'env-vault';
 
 export function ProjetoPage() {
   const { workspaceSlug, slug } = useParams<{ workspaceSlug: string; slug: string }>();
@@ -96,6 +97,7 @@ export function ProjetoPage() {
   const [decisoes, setDecisoes] = useState<ProjectStateItem[]>([]);
   const [sessoes, setSessoes] = useState<ProjectStateItem[]>([]);
   const [chats, setChats] = useState<ChatResumo[]>([]);
+  const [envVaultFiles, setEnvVaultFiles] = useState<EnvVaultFileResumo[]>([]);
   const [mostrarFormState, setMostrarFormState] = useState(false);
   const [stateTitulo, setStateTitulo] = useState('');
   const [stateBody, setStateBody] = useState('');
@@ -248,7 +250,13 @@ export function ProjetoPage() {
     setMemorias(memoriasCarregadas);
     setDecisoes(decisoesCarregadas);
     setSessoes(sessoesCarregadas);
-    setChats(await api.chats.listar(workspaceSlug, slug, { limit: 100 }));
+    const [chatsCarregados, envsCarregados] = await Promise.all([
+      api.chats.listar(workspaceSlug, slug, { limit: 100 }),
+      api.envVault.listar(workspaceSlug, slug),
+    ]);
+
+    setChats(chatsCarregados);
+    setEnvVaultFiles(envsCarregados);
   }
 
   async function criarState(e: React.FormEvent) {
@@ -324,6 +332,17 @@ export function ProjetoPage() {
     return true;
   }
 
+  async function deletarEnvVaultFile(env: EnvVaultFileResumo): Promise<boolean> {
+    if (!workspaceSlug || !slug) return false;
+
+    const confirmado = window.confirm(`Remover o env criptografado "${env.name}" do projeto?`);
+    if (!confirmado) return false;
+
+    await api.envVault.deletar(workspaceSlug, slug, env.id);
+    setEnvVaultFiles((atuais) => atuais.filter((item) => item.id !== env.id));
+    return true;
+  }
+
   const itensState = abaAtiva === 'memorias' ? memorias : abaAtiva === 'decisoes' ? decisoes : sessoes;
 
   return (
@@ -341,13 +360,23 @@ export function ProjetoPage() {
         <BotaoAbaProjeto label="Decisões" active={abaAtiva === 'decisoes'} onClick={() => setAbaAtiva('decisoes')} icon={<GitBranch size={14} />} />
         <BotaoAbaProjeto label="Sessões" active={abaAtiva === 'sessoes'} onClick={() => setAbaAtiva('sessoes')} icon={<MessagesSquare size={14} />} />
         <BotaoAbaProjeto label="Chats" active={abaAtiva === 'chats'} onClick={() => setAbaAtiva('chats')} icon={<MessagesSquare size={14} />} />
+        <BotaoAbaProjeto label="Env Vault" active={abaAtiva === 'env-vault'} onClick={() => setAbaAtiva('env-vault')} icon={<ShieldCheck size={14} />} />
       </div>
 
       {abaAtiva === 'chats' && workspaceSlug && slug && (
         <ChatHistoryPanel workspaceSlug={workspaceSlug} projectSlug={slug} chats={chats} onDeleteChat={deletarChat} />
       )}
 
-      {abaAtiva !== 'conteudo' && abaAtiva !== 'chats' && (
+      {abaAtiva === 'env-vault' && workspaceSlug && slug && (
+        <EnvVaultPanel
+          workspaceSlug={workspaceSlug}
+          projectSlug={slug}
+          envs={envVaultFiles}
+          onDeleteEnv={deletarEnvVaultFile}
+        />
+      )}
+
+      {abaAtiva !== 'conteudo' && abaAtiva !== 'chats' && abaAtiva !== 'env-vault' && (
         <ProjectStatePanel
           aba={abaAtiva}
           items={itensState}
@@ -666,6 +695,183 @@ export function ProjetoPage() {
       )}
     </div>
   );
+}
+
+function EnvVaultPanel({
+  workspaceSlug,
+  projectSlug,
+  envs,
+  onDeleteEnv,
+}: {
+  workspaceSlug: string;
+  projectSlug: string;
+  envs: EnvVaultFileResumo[];
+  onDeleteEnv: (env: EnvVaultFileResumo) => Promise<boolean>;
+}) {
+  const [copiadoId, setCopiadoId] = useState<string | null>(null);
+  const [excluindoEnvId, setExcluindoEnvId] = useState<string | null>(null);
+  const [erroEnv, setErroEnv] = useState('');
+
+  async function copiarComando(comando: string, id: string) {
+    setErroEnv('');
+
+    try {
+      await copiarTextoParaClipboard(comando);
+      setCopiadoId(id);
+      setTimeout(() => setCopiadoId(null), 2500);
+    } catch {
+      setErroEnv('Não foi possível acessar o clipboard. Copie o comando exibido no painel.');
+    }
+  }
+
+  async function excluirEnv(env: EnvVaultFileResumo) {
+    setExcluindoEnvId(env.id);
+    setErroEnv('');
+
+    try {
+      await onDeleteEnv(env);
+    } catch (err) {
+      setErroEnv(err instanceof Error ? err.message : 'Erro ao remover env.');
+    } finally {
+      setExcluindoEnvId(null);
+    }
+  }
+
+  const comandoPush = montarComandoEnvVaultPush({
+    workspaceSlug,
+    projectSlug,
+    name: 'local',
+    environment: 'local',
+  });
+
+  return (
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-xl font-semibold text-zinc-100">Env Vault</h3>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-zinc-500">
+            Metadados seguros dos arquivos .env criptografados do projeto. O painel não descriptografa, não exibe valores e não solicita segredo local.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => copiarComando(comandoPush, 'push')}
+          className="flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-300 transition-colors hover:border-blue-500 hover:text-blue-200"
+        >
+          <Copy size={14} />
+          {copiadoId === 'push' ? 'Comando copiado' : 'Copiar push'}
+        </button>
+      </div>
+
+      <div className="rounded-xl border border-blue-900/40 bg-blue-950/10 p-4 text-sm leading-6 text-blue-100">
+        Use a CLI local para desbloquear e materializar envs. O comando copiado não inclui `MYINST_ENV_VAULT_SECRET` nem recovery key.
+      </div>
+
+      <pre className="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-xs leading-6 text-zinc-300">
+        <code>{comandoPush}</code>
+      </pre>
+
+      {erroEnv && (
+        <div className="rounded-xl border border-red-900/60 bg-red-950/20 p-4 text-sm text-red-300">
+          {erroEnv}
+        </div>
+      )}
+
+      <div className="grid gap-3">
+        {envs.map((env) => {
+          const comandoPull = montarComandoEnvVaultPull({
+            workspaceSlug,
+            projectSlug,
+            name: env.name,
+            environment: env.environment,
+          });
+
+          return (
+            <article key={env.id} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h4 className="font-medium text-zinc-100">{env.name}</h4>
+                  <p className="mt-1 break-all text-xs text-zinc-500">{env.sourcePath}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => copiarComando(comandoPull, env.id)}
+                    className="flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-300 transition-colors hover:border-blue-500 hover:text-blue-200"
+                  >
+                    <Copy size={14} />
+                    {copiadoId === env.id ? 'Copiado' : 'Copiar pull'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => excluirEnv(env)}
+                    disabled={excluindoEnvId === env.id}
+                    className="rounded-lg border border-zinc-800 p-2 text-zinc-500 transition-colors hover:border-red-500/30 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label={`Remover env ${env.name}`}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2 text-xs text-zinc-500">
+                <span className="rounded bg-zinc-800 px-2 py-1">ambiente: {env.environment || 'default'}</span>
+                <span className="rounded bg-zinc-800 px-2 py-1">versão: {env.version ?? '-'}</span>
+                <span className="rounded bg-zinc-800 px-2 py-1">ciphertext: {formatarBytes(env.metadata?.ciphertextByteLength)}</span>
+                <span className="rounded bg-zinc-800 px-2 py-1">recovery: {env.recoveryEnvelopeCount ?? 0}</span>
+                {env.updatedAt && <span className="rounded bg-zinc-800 px-2 py-1">atualizado: {new Date(env.updatedAt).toLocaleDateString('pt-BR')}</span>}
+              </div>
+
+              <pre className="mt-4 overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-xs leading-6 text-zinc-300">
+                <code>{comandoPull}</code>
+              </pre>
+            </article>
+          );
+        })}
+
+        {envs.length === 0 && (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+            <h4 className="font-medium text-zinc-100">Nenhum env criptografado neste projeto</h4>
+            <p className="mt-2 text-sm leading-6 text-zinc-500">
+              Cadastre pela CLI local para manter o plaintext fora do navegador e do backend.
+            </p>
+            <pre className="mt-4 overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-xs text-zinc-300">
+              {comandoPush}
+            </pre>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+async function copiarTextoParaClipboard(texto: string) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(texto);
+      return;
+    } catch {
+      // Alguns webviews bloqueiam Clipboard API mesmo após clique do usuário.
+    }
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = texto;
+  textarea.setAttribute('readonly', 'true');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  textarea.style.top = '0';
+
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+
+  const copiado = document.execCommand('copy');
+  document.body.removeChild(textarea);
+
+  if (!copiado) {
+    throw new Error('clipboard_indisponivel');
+  }
 }
 
 function ChatHistoryPanel({
@@ -1146,4 +1352,11 @@ function extrairTagsChat(metadata: Record<string, unknown>): string[] {
   if (!Array.isArray(tags)) return [];
 
   return tags.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0);
+}
+
+function formatarBytes(valor: unknown): string {
+  if (typeof valor !== 'number' || Number.isNaN(valor)) return '-';
+  if (valor < 1024) return `${valor} B`;
+
+  return `${(valor / 1024).toFixed(1)} KB`;
 }
