@@ -384,6 +384,35 @@ A listagem não retorna `encryptedPayload` nem `recoveryEnvelopes`.
 
 Retorna o arquivo do projeto com a versão criptografada atual e envelopes de recuperação cifrados. A descriptografia continua acontecendo localmente no cliente: CLI, MCP local autorizado ou navegador do usuário após ele informar o segredo do Env Vault.
 
+### POST /workspaces/:workspaceSlug/projects/:projectSlug/env-files/:id/recovery-envelopes
+
+Adiciona ou substitui um envelope de recuperação cifrado para um env existente. Use este endpoint depois de criptografar localmente o segredo do Env Vault com a recovery key, passphrase, passkey ou outro método suportado. O body não pode conter `vaultSecret`, `recoveryKey`, `plaintext` ou valores de variáveis.
+
+**Body:**
+```json
+{
+  "method": "recovery_key",
+  "label": "Recovery key web",
+  "encryptedVaultSecret": {
+    "version": "env-vault-v1",
+    "algorithm": "AES-GCM",
+    "kdf": {
+      "algorithm": "pbkdf2-sha256",
+      "iterations": 210000,
+      "keyLength": 32,
+      "digest": "sha256"
+    },
+    "salt": "base64url",
+    "iv": "base64url",
+    "authTag": "base64url",
+    "ciphertext": "base64url"
+  },
+  "stepUpFactors": []
+}
+```
+
+**Response:** retorna o resumo do env com `recoveryEnvelopeCount` atualizado e sem `encryptedPayload`.
+
 ### DELETE /workspaces/:workspaceSlug/projects/:projectSlug/env-files/:id
 
 Remove o arquivo do projeto, suas versões criptografadas e envelopes de recuperação.

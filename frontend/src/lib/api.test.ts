@@ -267,6 +267,44 @@ describe('api.envVault', () => {
     });
   });
 
+  it('adiciona recovery envelope cifrado a env existente', async () => {
+    localStorage.setItem('myinst_token', 'token-local');
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({ data: { id: 'env-1', name: 'local', recoveryEnvelopeCount: 1 } }),
+    } as Response);
+
+    await api.envVault.adicionarRecoveryEnvelope('meus-projetos', 'myinst', 'env-1', {
+      method: 'recovery_key',
+      label: 'Recovery key web',
+      encryptedVaultSecret: {
+        version: 'env-vault-v1',
+        algorithm: 'AES-GCM',
+        kdf: {
+          algorithm: 'pbkdf2-sha256',
+          iterations: 210000,
+          keyLength: 32,
+          digest: 'sha256',
+        },
+        salt: 'AAAAAAAAAAAAAAAAAAAAAA',
+        iv: 'AAAAAAAAAAAAAAAA',
+        authTag: 'AAAAAAAAAAAAAAAAAAAAAA',
+        ciphertext: 'BBBBBBBB',
+      },
+      stepUpFactors: ['password'],
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string);
+    expect(body).not.toHaveProperty('vaultSecret');
+    expect(body).not.toHaveProperty('recoveryKey');
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/workspaces/meus-projetos/projects/myinst/env-files/env-1/recovery-envelopes', {
+      method: 'POST',
+      body: expect.any(String),
+      headers: expect.any(Headers),
+    });
+  });
+
   it('remove env por id em rota dedicada', async () => {
     localStorage.setItem('myinst_token', 'token-local');
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({

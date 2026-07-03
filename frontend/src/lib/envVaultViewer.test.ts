@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { criptografarEnvVault } from '@myinst/shared/env-vault';
+import { criarEnvVaultRecoveryEnvelope, criptografarEnvVault } from '@myinst/shared/env-vault';
 import {
   desbloquearEnvVaultParaVisualizacao,
+  desbloquearEnvVaultComRecoveryKeyParaVisualizacao,
   mascararValorEnvVault,
   parsearEnvParaVisualizacao,
+  prepararRecoveryEnvelopeEnvVaultWeb,
 } from './envVaultViewer';
 
 const SEGREDO_TESTE = 'segredo-local-para-env-vault';
+const RECOVERY_KEY_TESTE = 'recovery-key-local-para-env-vault';
 
 describe('envVaultViewer', () => {
   it('parseia variaveis, comentarios e linhas nao suportadas sem executar interpolacao', () => {
@@ -56,6 +59,63 @@ describe('envVaultViewer', () => {
       nome: 'API_URL',
       valor: 'https://api.example.com',
     });
+  });
+
+  it('desbloqueia payload criptografado usando recovery key sem expor segredo do vault', async () => {
+    const payloadCriptografado = await criptografarEnvVault({
+      plaintext: 'DATABASE_URL=postgres://localhost/myinst',
+      segredo: SEGREDO_TESTE,
+    });
+    const recoveryEnvelope = await criarEnvVaultRecoveryEnvelope({
+      vaultSecret: SEGREDO_TESTE,
+      segredoRecuperacao: RECOVERY_KEY_TESTE,
+      method: 'recovery_key',
+      label: 'Recovery key web',
+    });
+
+    const visualizacao = await desbloquearEnvVaultComRecoveryKeyParaVisualizacao({
+      encryptedPayload: payloadCriptografado,
+      recoveryEnvelope,
+      recoveryKey: RECOVERY_KEY_TESTE,
+    });
+
+    expect(visualizacao.variaveis).toEqual([
+      {
+        nome: 'DATABASE_URL',
+        valor: 'postgres://localhost/myinst',
+        linha: 1,
+      },
+    ]);
+  });
+
+  it('falha com recovery key incorreta sem retornar plaintext', async () => {
+    const payloadCriptografado = await criptografarEnvVault({
+      plaintext: 'TOKEN=token-local',
+      segredo: SEGREDO_TESTE,
+    });
+    const recoveryEnvelope = await criarEnvVaultRecoveryEnvelope({
+      vaultSecret: SEGREDO_TESTE,
+      segredoRecuperacao: RECOVERY_KEY_TESTE,
+      method: 'recovery_key',
+      label: 'Recovery key web',
+    });
+
+    await expect(desbloquearEnvVaultComRecoveryKeyParaVisualizacao({
+      encryptedPayload: payloadCriptografado,
+      recoveryEnvelope,
+      recoveryKey: 'recovery-key-incorreta-local',
+    })).rejects.toThrow('Não foi possível descriptografar o Env Vault.');
+  });
+
+  it('prepara recovery envelope web sem serializar o segredo do vault', async () => {
+    const recovery = await prepararRecoveryEnvelopeEnvVaultWeb({
+      vaultSecret: SEGREDO_TESTE,
+      label: 'Recovery key web',
+    });
+
+    expect(recovery.recoveryKey).toMatch(/^myinst-env-rk_/);
+    expect(recovery.envelope.label).toBe('Recovery key web');
+    expect(JSON.stringify(recovery)).not.toContain(SEGREDO_TESTE);
   });
 
   it('mascara valores sem expor tamanho exato quando o usuario ainda nao revelou', () => {

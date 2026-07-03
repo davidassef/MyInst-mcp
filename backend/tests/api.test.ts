@@ -1632,6 +1632,57 @@ describe('MyInst API', () => {
       expect(consulta.json().data.recoveryEnvelopeCount).toBe(1);
     });
 
+    it('POST /workspaces/:workspaceSlug/projects/:projectSlug/env-files/:envId/recovery-envelopes adiciona recovery sem plaintext', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/v1/workspaces/default/projects/default/env-files/${envVaultFileId}/recovery-envelopes`,
+        headers: { authorization: `Bearer ${apiKey}` },
+        payload: {
+          method: 'recovery_key',
+          label: 'Recovery key web',
+          encryptedVaultSecret: criarPayloadCriptografadoFake('recovery-web'),
+          stepUpFactors: ['password'],
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+      expect(res.json().data).toEqual(expect.objectContaining({
+        id: envVaultFileId,
+        recoveryEnvelopeCount: 2,
+      }));
+      expect(JSON.stringify(res.json())).not.toContain('segredo');
+      expect(res.json().data.encryptedPayload).toBeUndefined();
+
+      const consulta = await app.inject({
+        method: 'GET',
+        url: `/api/v1/workspaces/default/projects/default/env-files/${envVaultFileId}`,
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+
+      expect(consulta.statusCode).toBe(200);
+      expect(consulta.json().data.recoveryEnvelopes).toEqual(expect.arrayContaining([
+        expect.objectContaining({ label: 'Recovery key web' }),
+      ]));
+    });
+
+    it('POST /workspaces/:workspaceSlug/projects/:projectSlug/env-files/:envId/recovery-envelopes rejeita plaintext', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/v1/workspaces/default/projects/default/env-files/${envVaultFileId}/recovery-envelopes`,
+        headers: { authorization: `Bearer ${apiKey}` },
+        payload: {
+          method: 'recovery_key',
+          label: 'Recovery vazado',
+          encryptedVaultSecret: criarPayloadCriptografadoFake('recovery-vazado'),
+          stepUpFactors: ['password'],
+          vaultSecret: 'segredo-em-claro-nao-pode',
+        },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error.code).toBe('VALIDATION_ERROR');
+    });
+
     it('POST /workspaces/:workspaceSlug/projects/:projectSlug/env-files rejeita plaintext e campos desconhecidos', async () => {
       const res = await app.inject({
         method: 'POST',
@@ -1845,9 +1896,9 @@ function criarPayloadCriptografadoFake(sufixo: string) {
       keyLength: 32,
       digest: 'sha256',
     },
-    salt: codificarBase64Url(Buffer.from(`salt-${sufixo}`.padEnd(16, '.'))),
-    iv: codificarBase64Url(Buffer.from(`iv-${sufixo}`.padEnd(12, '.'))),
-    authTag: codificarBase64Url(Buffer.from(`tag-${sufixo}`.padEnd(16, '.'))),
+    salt: codificarBase64Url(criarBufferEnvVaultFake(`salt-${sufixo}`, 16)),
+    iv: codificarBase64Url(criarBufferEnvVaultFake(`iv-${sufixo}`, 12)),
+    authTag: codificarBase64Url(criarBufferEnvVaultFake(`tag-${sufixo}`, 16)),
     ciphertext: codificarBase64Url(Buffer.from(`ciphertext-${sufixo}`)),
   };
 }
@@ -1865,4 +1916,8 @@ function codificarBase64Url(buffer: Buffer): string {
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/g, '');
+}
+
+function criarBufferEnvVaultFake(valor: string, tamanho: number): Buffer {
+  return Buffer.from(valor.padEnd(tamanho, '.').slice(0, tamanho));
 }

@@ -136,6 +136,8 @@ export const criarEnvVaultFileSchema = z.object({
   recoveryEnvelopes: z.array(envVaultRecoveryEnvelopeSchema).max(5).optional(),
 }).strict();
 
+export const adicionarEnvVaultRecoveryEnvelopeSchema = envVaultRecoveryEnvelopeSchema;
+
 export const criarFolderSchema = z.object({
   name: z.string().min(1).max(100),
   slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),

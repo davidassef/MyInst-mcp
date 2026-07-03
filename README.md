@@ -398,9 +398,9 @@ myinst env pull --workspace meus-projetos --project myinst --name local --enviro
 
 O MyInst ainda não infere automaticamente o projeto remoto pelo diretório atual. A pasta atual define qual arquivo local será lido por `--file` ou escrito por `--output`; `--workspace` e `--project` definem onde o envelope criptografado será salvo no vault. Se você executar o comando fora da pasta correta, `--file .env` pode apontar para outro arquivo.
 
-O segredo do Env Vault deve ser informado pelo prompt oculto da CLI ou por `MYINST_ENV_VAULT_SECRET` em ambiente local controlado. Não passe segredo na linha do comando e não armazene esse segredo em `~/.myinst/config.json`, README, scripts ou arquivos versionados.
+O segredo do Env Vault deve ser informado pelo prompt oculto da CLI ou por `MYINST_ENV_VAULT_SECRET` em ambiente local controlado. Não passe segredo na linha do comando e não armazene esse segredo em `~/.myinst/config.json`, README, scripts ou arquivos versionados. Esse segredo não é a senha da conta MyInst.
 
-No painel web, a aba Env Vault lista apenas metadados por padrão. Para consulta pontual, clique em `Desbloquear`, informe o segredo local e revele ou copie valores individualmente. A descriptografia acontece no navegador; o segredo e o plaintext não são enviados ao backend. Para restaurar o arquivo no notebook, use `myinst env pull --output ...` na pasta do projeto.
+No painel web, a aba Env Vault lista apenas metadados por padrão. Para consulta pontual, clique em `Desbloquear` e escolha `Segredo do Env Vault` ou `Recovery key`. Se o env ainda não tiver recovery, informe o segredo atual uma vez em `Configurar recovery key`; o navegador valida o env, gera uma recovery key e envia ao backend somente um envelope cifrado. A descriptografia acontece no navegador; segredo, recovery key e plaintext não são enviados ao backend. Para restaurar o arquivo no notebook, use `myinst env pull --output ...` na pasta do projeto.
 
 ### MyInst como contexto de agente
 

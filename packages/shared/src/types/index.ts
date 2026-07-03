@@ -18,6 +18,7 @@ import type {
   atualizarProjectStateSchema,
   criarChatSessionSchema,
   criarEnvVaultFileSchema,
+  adicionarEnvVaultRecoveryEnvelopeSchema,
   envVaultFileMetadataSchema,
   resumirChatSessionSchema,
   syncPullSchema,
@@ -43,6 +44,7 @@ export type AtualizarProjectStateInput = z.infer<typeof atualizarProjectStateSch
 export type CriarChatSessionInput = z.infer<typeof criarChatSessionSchema>;
 export type EnvVaultFileMetadataInput = z.infer<typeof envVaultFileMetadataSchema>;
 export type CriarEnvVaultFileInput = z.infer<typeof criarEnvVaultFileSchema>;
+export type AdicionarEnvVaultRecoveryEnvelopeInput = z.infer<typeof adicionarEnvVaultRecoveryEnvelopeSchema>;
 export type ResumirChatSessionInput = z.infer<typeof resumirChatSessionSchema>;
 export type SyncPullInput = z.infer<typeof syncPullSchema>;
 export type SyncPushInput = z.infer<typeof syncPushSchema>;

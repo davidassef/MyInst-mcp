@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, FileText, Trash2, Save, Search, Folder, FolderPlus, X, Brain, GitBranch, MessagesSquare, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ShieldCheck, Copy, Eye, EyeOff, Lock, Unlock } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Trash2, Save, Search, Folder, FolderPlus, X, Brain, GitBranch, MessagesSquare, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ShieldCheck, Copy, Eye, EyeOff, Lock, Unlock, KeyRound } from 'lucide-react';
 import { api, type ChatDetalhado, type ChatMensagem, type ChatResumo, type EnvVaultFileResumo } from '@/lib/api';
 import { montarComandoEnvVaultPull, montarComandoEnvVaultPush } from '@/lib/envVaultCommands';
-import { desbloquearEnvVaultParaVisualizacao, mascararValorEnvVault, type EnvVaultVisualizacao } from '@/lib/envVaultViewer';
+import {
+  desbloquearEnvVaultComRecoveryKeyParaVisualizacao,
+  desbloquearEnvVaultParaVisualizacao,
+  mascararValorEnvVault,
+  prepararRecoveryEnvelopeEnvVaultWeb,
+  type EnvVaultVisualizacao,
+} from '@/lib/envVaultViewer';
 
 const TIPOS_LABEL: Record<string, string> = {
   skill: 'Skill',
@@ -65,6 +71,7 @@ interface ProjectStateItem {
 }
 
 type AbaProjeto = 'conteudo' | 'memorias' | 'decisoes' | 'sessoes' | 'chats' | 'env-vault';
+type MetodoDesbloqueioEnvVault = 'segredo' | 'recovery';
 
 export function ProjetoPage() {
   const { workspaceSlug, slug } = useParams<{ workspaceSlug: string; slug: string }>();
@@ -345,6 +352,12 @@ export function ProjetoPage() {
     return true;
   }
 
+  function atualizarEnvVaultFile(envAtualizado: EnvVaultFileResumo) {
+    setEnvVaultFiles((envsAtuais) => envsAtuais.map((env) => (
+      env.id === envAtualizado.id ? envAtualizado : env
+    )));
+  }
+
   const itensState = abaAtiva === 'memorias' ? memorias : abaAtiva === 'decisoes' ? decisoes : sessoes;
 
   return (
@@ -375,6 +388,7 @@ export function ProjetoPage() {
           projectSlug={slug}
           envs={envVaultFiles}
           onDeleteEnv={deletarEnvVaultFile}
+          onUpdateEnv={atualizarEnvVaultFile}
         />
       )}
 
@@ -704,11 +718,13 @@ function EnvVaultPanel({
   projectSlug,
   envs,
   onDeleteEnv,
+  onUpdateEnv,
 }: {
   workspaceSlug: string;
   projectSlug: string;
   envs: EnvVaultFileResumo[];
   onDeleteEnv: (env: EnvVaultFileResumo) => Promise<boolean>;
+  onUpdateEnv: (env: EnvVaultFileResumo) => void;
 }) {
   const [copiadoId, setCopiadoId] = useState<string | null>(null);
   const [excluindoEnvId, setExcluindoEnvId] = useState<string | null>(null);
@@ -719,6 +735,11 @@ function EnvVaultPanel({
     visualizacao: EnvVaultVisualizacao;
   } | null>(null);
   const [segredoEnv, setSegredoEnv] = useState('');
+  const [recoveryKeyEnv, setRecoveryKeyEnv] = useState('');
+  const [metodoDesbloqueio, setMetodoDesbloqueio] = useState<MetodoDesbloqueioEnvVault>('segredo');
+  const [segredoConfiguracaoRecovery, setSegredoConfiguracaoRecovery] = useState('');
+  const [configurandoRecoveryEnvId, setConfigurandoRecoveryEnvId] = useState<string | null>(null);
+  const [recoveryGerado, setRecoveryGerado] = useState<{ envId: string; recoveryKey: string } | null>(null);
   const [desbloqueandoEnvId, setDesbloqueandoEnvId] = useState<string | null>(null);
   const [valoresRevelados, setValoresRevelados] = useState<Set<string>>(new Set());
   const [erroEnv, setErroEnv] = useState('');
@@ -757,8 +778,11 @@ function EnvVaultPanel({
   function selecionarEnvParaDesbloqueio(env: EnvVaultFileResumo) {
     setErroEnv('');
     setSegredoEnv('');
+    setRecoveryKeyEnv('');
+    setSegredoConfiguracaoRecovery('');
     setValoresRevelados(new Set());
     setEnvDesbloqueado(null);
+    setRecoveryGerado(null);
 
     if (envSelecionado?.id === env.id) {
       setEnvSelecionado(null);
@@ -766,6 +790,7 @@ function EnvVaultPanel({
     }
 
     setEnvSelecionado(env);
+    setMetodoDesbloqueio(env.recoveryEnvelopeCount > 0 ? 'recovery' : 'segredo');
   }
 
   async function desbloquearEnvSelecionado(event: React.FormEvent<HTMLFormElement>) {
@@ -774,8 +799,13 @@ function EnvVaultPanel({
 
     if (!envSelecionado) return;
 
-    if (!segredoEnv.trim()) {
+    if (metodoDesbloqueio === 'segredo' && !segredoEnv.trim()) {
       setErroEnv('Informe o segredo local do Env Vault para desbloquear este arquivo no navegador.');
+      return;
+    }
+
+    if (metodoDesbloqueio === 'recovery' && !recoveryKeyEnv.trim()) {
+      setErroEnv('Informe a recovery key deste env para desbloquear no navegador.');
       return;
     }
 
@@ -783,10 +813,7 @@ function EnvVaultPanel({
 
     try {
       const envDetalhado = await api.envVault.obter(workspaceSlug, projectSlug, envSelecionado.id);
-      const visualizacao = await desbloquearEnvVaultParaVisualizacao({
-        encryptedPayload: envDetalhado.encryptedPayload,
-        secret: segredoEnv,
-      });
+      const visualizacao = await desbloquearEnvVaultDetalhado(envDetalhado, metodoDesbloqueio);
 
       setEnvDesbloqueado({
         envId: envSelecionado.id,
@@ -795,17 +822,65 @@ function EnvVaultPanel({
       });
       setValoresRevelados(new Set());
       setSegredoEnv('');
+      setRecoveryKeyEnv('');
     } catch {
       setEnvDesbloqueado(null);
-      setErroEnv('Não foi possível desbloquear o env. Verifique o segredo local e tente novamente.');
+      setErroEnv('Não foi possível desbloquear o env. Verifique o segredo local ou a recovery key e tente novamente.');
     } finally {
       setDesbloqueandoEnvId(null);
+    }
+  }
+
+  async function configurarRecoveryKey(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setErroEnv('');
+    setRecoveryGerado(null);
+
+    if (!envSelecionado) return;
+
+    if (!segredoConfiguracaoRecovery.trim()) {
+      setErroEnv('Informe o segredo atual do Env Vault para gerar uma recovery key deste env.');
+      return;
+    }
+
+    setConfigurandoRecoveryEnvId(envSelecionado.id);
+
+    try {
+      const envDetalhado = await api.envVault.obter(workspaceSlug, projectSlug, envSelecionado.id);
+      await desbloquearEnvVaultParaVisualizacao({
+        encryptedPayload: envDetalhado.encryptedPayload,
+        secret: segredoConfiguracaoRecovery,
+      });
+
+      const recovery = await prepararRecoveryEnvelopeEnvVaultWeb({
+        vaultSecret: segredoConfiguracaoRecovery,
+      });
+      const envAtualizado = await api.envVault.adicionarRecoveryEnvelope(
+        workspaceSlug,
+        projectSlug,
+        envSelecionado.id,
+        recovery.envelope,
+      );
+
+      onUpdateEnv(envAtualizado);
+      setEnvSelecionado(envAtualizado);
+      setMetodoDesbloqueio('recovery');
+      setSegredoConfiguracaoRecovery('');
+      setRecoveryGerado({
+        envId: envSelecionado.id,
+        recoveryKey: recovery.recoveryKey,
+      });
+    } catch {
+      setErroEnv('Não foi possível configurar a recovery key. Verifique o segredo atual do Env Vault.');
+    } finally {
+      setConfigurandoRecoveryEnvId(null);
     }
   }
 
   function bloquearEnvDesbloqueado() {
     setEnvDesbloqueado(null);
     setSegredoEnv('');
+    setRecoveryKeyEnv('');
     setValoresRevelados(new Set());
   }
 
@@ -827,6 +902,7 @@ function EnvVaultPanel({
     setExcluindoEnvId(env.id);
     setErroEnv('');
     bloquearEnvDesbloqueado();
+    setRecoveryGerado(null);
 
     try {
       await onDeleteEnv(env);
@@ -835,6 +911,30 @@ function EnvVaultPanel({
     } finally {
       setExcluindoEnvId(null);
     }
+  }
+
+  async function desbloquearEnvVaultDetalhado(
+    envDetalhado: Awaited<ReturnType<typeof api.envVault.obter>>,
+    metodo: MetodoDesbloqueioEnvVault,
+  ) {
+    if (metodo === 'segredo') {
+      return desbloquearEnvVaultParaVisualizacao({
+        encryptedPayload: envDetalhado.encryptedPayload,
+        secret: segredoEnv,
+      });
+    }
+
+    const recoveryEnvelope = envDetalhado.recoveryEnvelopes.find((envelope) => envelope.method === 'recovery_key');
+
+    if (!recoveryEnvelope) {
+      throw new Error('env_sem_recovery_key');
+    }
+
+    return desbloquearEnvVaultComRecoveryKeyParaVisualizacao({
+      encryptedPayload: envDetalhado.encryptedPayload,
+      recoveryEnvelope,
+      recoveryKey: recoveryKeyEnv,
+    });
   }
 
   const comandoPush = montarComandoEnvVaultPush({
@@ -850,7 +950,7 @@ function EnvVaultPanel({
         <div>
           <h3 className="text-xl font-semibold text-zinc-100">Env Vault</h3>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-zinc-500">
-            Arquivos .env criptografados por projeto. O painel pode desbloquear um env no navegador quando você informa o segredo local; o segredo e o plaintext não são enviados ao servidor.
+            Arquivos .env criptografados por projeto. O painel desbloqueia no navegador com o segredo do Env Vault ou com uma recovery key cadastrada para este env; o segredo, a recovery key e o plaintext não são enviados ao servidor.
           </p>
         </div>
         <button
@@ -864,7 +964,7 @@ function EnvVaultPanel({
       </div>
 
       <div className="rounded-xl border border-blue-900/40 bg-blue-950/10 p-4 text-sm leading-6 text-blue-100">
-        Para restaurar em disco, use a CLI local. Para consulta pontual, desbloqueie no painel e bloqueie novamente ao terminar.
+        O segredo local é criado no uso da CLI, não é a senha da sua conta MyInst. Se quiser consultar pelo painel sem lembrar o segredo principal, abra o env uma vez com esse segredo e gere uma recovery key para guardar fora do MyInst.
       </div>
 
       <pre className="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-xs leading-6 text-zinc-300">
@@ -937,33 +1037,139 @@ function EnvVaultPanel({
               {envSelecionado?.id === env.id && (
                 <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-950 p-4">
                   {envDesbloqueado?.envId !== env.id ? (
-                    <form onSubmit={desbloquearEnvSelecionado} className="space-y-3">
-                      <div>
-                        <label htmlFor={`env-secret-${env.id}`} className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
-                          Segredo local
-                        </label>
-                        <input
-                          id={`env-secret-${env.id}`}
-                          type="password"
-                          value={segredoEnv}
-                          onChange={(event) => setSegredoEnv(event.target.value)}
-                          autoComplete="off"
-                          className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition-colors focus:border-blue-500"
-                          placeholder="Informe o segredo do Env Vault"
-                        />
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="submit"
-                          disabled={desbloqueandoEnvId === env.id}
-                          className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          <Unlock size={14} />
-                          {desbloqueandoEnvId === env.id ? 'Desbloqueando...' : 'Desbloquear localmente'}
-                        </button>
-                        <span className="text-xs text-zinc-500">O backend entrega apenas o payload cifrado; a descriptografia ocorre neste navegador.</span>
-                      </div>
-                    </form>
+                    <div className="space-y-4">
+                      <form onSubmit={desbloquearEnvSelecionado} className="space-y-3">
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setMetodoDesbloqueio('segredo')}
+                            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                              metodoDesbloqueio === 'segredo'
+                                ? 'border-blue-500 bg-blue-600/20 text-blue-200'
+                                : 'border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'
+                            }`}
+                          >
+                            <Lock size={14} />
+                            Segredo do Env Vault
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMetodoDesbloqueio('recovery')}
+                            disabled={(env.recoveryEnvelopeCount ?? 0) === 0}
+                            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                              metodoDesbloqueio === 'recovery'
+                                ? 'border-emerald-500 bg-emerald-600/20 text-emerald-200'
+                                : 'border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'
+                            }`}
+                          >
+                            <KeyRound size={14} />
+                            Recovery key
+                          </button>
+                        </div>
+
+                        {metodoDesbloqueio === 'segredo' ? (
+                          <div>
+                            <label htmlFor={`env-secret-${env.id}`} className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
+                              Segredo local
+                            </label>
+                            <input
+                              id={`env-secret-${env.id}`}
+                              type="password"
+                              value={segredoEnv}
+                              onChange={(event) => setSegredoEnv(event.target.value)}
+                              autoComplete="off"
+                              className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition-colors focus:border-blue-500"
+                              placeholder="Segredo criado no myinst env push/pull"
+                            />
+                          </div>
+                        ) : (
+                          <div>
+                            <label htmlFor={`env-recovery-${env.id}`} className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
+                              Recovery key deste env
+                            </label>
+                            <input
+                              id={`env-recovery-${env.id}`}
+                              type="password"
+                              value={recoveryKeyEnv}
+                              onChange={(event) => setRecoveryKeyEnv(event.target.value)}
+                              autoComplete="off"
+                              className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition-colors focus:border-emerald-500"
+                              placeholder="myinst-env-rk_..."
+                            />
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="submit"
+                            disabled={desbloqueandoEnvId === env.id}
+                            className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <Unlock size={14} />
+                            {desbloqueandoEnvId === env.id ? 'Desbloqueando...' : 'Desbloquear no navegador'}
+                          </button>
+                          <span className="text-xs text-zinc-500">O backend entrega apenas envelopes cifrados; a descriptografia ocorre neste navegador.</span>
+                        </div>
+                      </form>
+
+                      <form onSubmit={configurarRecoveryKey} className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <h5 className="text-sm font-medium text-zinc-100">Configurar recovery key</h5>
+                            <p className="mt-1 max-w-2xl text-xs leading-5 text-zinc-500">
+                              Informe o segredo atual uma vez. O navegador valida o env, gera uma recovery key e envia ao backend somente um envelope cifrado.
+                            </p>
+                          </div>
+                          <span className="rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-500">
+                            recovery: {env.recoveryEnvelopeCount ?? 0}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                          <div>
+                            <label htmlFor={`env-recovery-secret-${env.id}`} className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
+                              Segredo atual do Env Vault
+                            </label>
+                            <input
+                              id={`env-recovery-secret-${env.id}`}
+                              type="password"
+                              value={segredoConfiguracaoRecovery}
+                              onChange={(event) => setSegredoConfiguracaoRecovery(event.target.value)}
+                              autoComplete="off"
+                              className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition-colors focus:border-blue-500"
+                              placeholder="Usado só neste navegador"
+                            />
+                          </div>
+                          <button
+                            type="submit"
+                            disabled={configurandoRecoveryEnvId === env.id}
+                            className="flex items-center justify-center gap-2 rounded-lg border border-emerald-700 px-3 py-2 text-sm text-emerald-200 transition-colors hover:border-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <KeyRound size={14} />
+                            {configurandoRecoveryEnvId === env.id ? 'Gerando...' : 'Gerar recovery key'}
+                          </button>
+                        </div>
+
+                        {recoveryGerado?.envId === env.id && (
+                          <div className="mt-3 rounded-lg border border-emerald-900/50 bg-emerald-950/20 p-3">
+                            <p className="text-sm font-medium text-emerald-100">Recovery key gerada. Guarde agora; ela não será exibida novamente.</p>
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <code className="min-w-0 break-all rounded bg-zinc-950 px-3 py-2 text-xs text-emerald-100">
+                                {recoveryGerado.recoveryKey}
+                              </code>
+                              <button
+                                type="button"
+                                onClick={() => copiarComando(recoveryGerado.recoveryKey, `${env.id}:recovery-gerada`)}
+                                className="flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-300 transition-colors hover:border-emerald-500 hover:text-emerald-200"
+                              >
+                                <Copy size={14} />
+                                {copiadoId === `${env.id}:recovery-gerada` ? 'Copiada' : 'Copiar'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </form>
+                    </div>
                   ) : (
                     <div className="space-y-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">

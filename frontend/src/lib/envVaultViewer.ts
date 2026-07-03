@@ -1,5 +1,10 @@
-import { descriptografarEnvVault } from '@myinst/shared/env-vault';
-import type { EnvVaultEncryptedPayload } from './api';
+import {
+  abrirEnvVaultRecoveryEnvelope,
+  criarEnvVaultRecoveryEnvelope,
+  descriptografarEnvVault,
+  gerarRecoveryKeyEnvVault,
+} from '@myinst/shared/env-vault';
+import type { EnvVaultEncryptedPayload, EnvVaultRecoveryEnvelope } from './api';
 
 export interface EnvVaultVariavelVisualizacao {
   nome: string;
@@ -32,6 +37,50 @@ export async function desbloquearEnvVaultParaVisualizacao({
   });
 
   return parsearEnvParaVisualizacao(plaintext);
+}
+
+export async function desbloquearEnvVaultComRecoveryKeyParaVisualizacao({
+  encryptedPayload,
+  recoveryEnvelope,
+  recoveryKey,
+}: {
+  encryptedPayload: EnvVaultEncryptedPayload;
+  recoveryEnvelope: EnvVaultRecoveryEnvelope;
+  recoveryKey: string;
+}): Promise<EnvVaultVisualizacao> {
+  const vaultSecret = await abrirEnvVaultRecoveryEnvelope({
+    envelope: recoveryEnvelope,
+    segredoRecuperacao: recoveryKey,
+  });
+
+  return desbloquearEnvVaultParaVisualizacao({
+    encryptedPayload,
+    secret: vaultSecret,
+  });
+}
+
+export async function prepararRecoveryEnvelopeEnvVaultWeb({
+  vaultSecret,
+  recoveryKey,
+  label = 'Recovery key web',
+}: {
+  vaultSecret: string;
+  recoveryKey?: string;
+  label?: string;
+}) {
+  const recoveryKeyGerada = recoveryKey ?? gerarRecoveryKeyEnvVault();
+  const envelope = await criarEnvVaultRecoveryEnvelope({
+    vaultSecret,
+    segredoRecuperacao: recoveryKeyGerada,
+    method: 'recovery_key',
+    label,
+    stepUpFactors: [],
+  });
+
+  return {
+    recoveryKey: recoveryKeyGerada,
+    envelope,
+  };
 }
 
 export function parsearEnvParaVisualizacao(plaintext: string): EnvVaultVisualizacao {

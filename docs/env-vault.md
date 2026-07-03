@@ -77,7 +77,14 @@ O painel web lista somente metadados seguros do Env Vault por projeto:
 - quantidade de recovery envelopes;
 - data de atualização.
 
-Ao clicar em `Desbloquear`, o painel busca o `encryptedPayload` por rota dedicada e descriptografa no próprio navegador usando o segredo informado naquele momento. O segredo não é salvo em configuração, não é enviado ao backend e é limpo do estado após a tentativa. Os valores ficam mascarados por padrão, podem ser revelados ou copiados individualmente e são bloqueados manualmente ou por timeout local.
+Ao clicar em `Desbloquear`, o painel busca o `encryptedPayload` por rota dedicada e descriptografa no próprio navegador. Existem dois caminhos:
+
+- `Segredo do Env Vault`: usa o segredo criado no `myinst env push/pull`. Esse segredo não é a senha da conta MyInst.
+- `Recovery key`: usa um envelope de recuperação já cadastrado para aquele env.
+
+Para cadastrar uma recovery key pelo painel, abra o env, informe o segredo atual uma vez em `Configurar recovery key` e clique em `Gerar recovery key`. O navegador valida o segredo, gera a recovery key e envia ao backend somente o envelope cifrado do segredo de vault. A recovery key é exibida uma única vez; guarde fora do MyInst.
+
+O segredo, a recovery key e o plaintext não são salvos em configuração, não são enviados ao backend e são limpos do estado após a tentativa. Os valores ficam mascarados por padrão, podem ser revelados ou copiados individualmente e são bloqueados manualmente ou por timeout local.
 
 Use a visualização web para consulta pontual. Para materializar arquivo em disco, continue usando `myinst env pull --output ...` dentro da raiz do projeto. A interface também copia comandos seguros de `myinst env push` e `myinst env pull`, sem segredo embutido.
 
@@ -89,6 +96,7 @@ As rotas ficam fora do sync genérico:
 POST   /api/v1/workspaces/:workspaceSlug/projects/:projectSlug/env-files
 GET    /api/v1/workspaces/:workspaceSlug/projects/:projectSlug/env-files
 GET    /api/v1/workspaces/:workspaceSlug/projects/:projectSlug/env-files/:id
+POST   /api/v1/workspaces/:workspaceSlug/projects/:projectSlug/env-files/:id/recovery-envelopes
 DELETE /api/v1/workspaces/:workspaceSlug/projects/:projectSlug/env-files/:id
 ```
 
@@ -97,6 +105,7 @@ Requisitos mínimos:
 - `POST` rejeita qualquer campo de plaintext.
 - `GET /env-files` lista somente metadados.
 - `GET /env-files/:id` retorna o payload criptografado.
+- `POST /env-files/:id/recovery-envelopes` aceita somente envelope cifrado já gerado no cliente.
 - `DELETE` remove somente envs do projeto do usuário autenticado.
 - isolamento por usuário, workspace e projeto.
 - resposta nunca contém valores reais como `DATABASE_URL`, tokens ou segredos.

@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { and, count, desc, eq, inArray, sql } from 'drizzle-orm';
-import { criarEnvVaultFileSchema } from '@myinst/shared';
-import type { CriarEnvVaultFileInput } from '@myinst/shared';
+import { adicionarEnvVaultRecoveryEnvelopeSchema, criarEnvVaultFileSchema } from '@myinst/shared';
+import type { AdicionarEnvVaultRecoveryEnvelopeInput, CriarEnvVaultFileInput } from '@myinst/shared';
 import { db } from '../db/index.js';
 import { envVaultFiles, envVaultFileVersions, envVaultRecoveryEnvelopes, projects } from '../db/schema.js';
 import { autenticar } from '../middleware/auth.js';
@@ -30,6 +30,12 @@ export async function envVaultRoutes(app: FastifyInstance) {
     async (request, reply) => criarEnvVaultFile(request, reply),
   );
 
+  app.post(
+    '/workspaces/:workspaceSlug/projects/:projectSlug/env-files/:envId/recovery-envelopes',
+    { preHandler: [validar(adicionarEnvVaultRecoveryEnvelopeSchema)] },
+    async (request, reply) => adicionarRecoveryEnvelope(request, reply),
+  );
+
   app.get('/workspaces/:workspaceSlug/projects/:projectSlug/env-files/:envId', async (request, reply) => {
     const contexto = await resolverContextoProjeto(request);
     if (!contexto) return responderProjetoNaoEncontrado(reply);
@@ -52,6 +58,37 @@ export async function envVaultRoutes(app: FastifyInstance) {
     if (!envRemovido) return responderEnvNaoEncontrado(reply);
 
     return reply.status(204).send();
+  });
+}
+
+async function adicionarRecoveryEnvelope(request: FastifyRequest, reply: FastifyReply) {
+  const body = request.body as AdicionarEnvVaultRecoveryEnvelopeInput;
+  const contexto = await resolverContextoProjeto(request);
+  if (!contexto) return responderProjetoNaoEncontrado(reply);
+
+  const [env] = await db
+    .select()
+    .from(envVaultFiles)
+    .where(and(eq(envVaultFiles.projectId, contexto.projectId), eq(envVaultFiles.id, envIdParam(request))))
+    .limit(1);
+
+  if (!env) return responderEnvNaoEncontrado(reply);
+
+  await db.transaction(async (transacao) => {
+    await transacao
+      .delete(envVaultRecoveryEnvelopes)
+      .where(and(
+        eq(envVaultRecoveryEnvelopes.envFileId, env.id),
+        eq(envVaultRecoveryEnvelopes.label, body.label),
+      ));
+
+    await inserirRecoveryEnvelopes(transacao, env.id, [body]);
+  });
+
+  const recoveryEnvelopeCount = await contarRecoveryEnvelopes(env.id);
+
+  return reply.status(201).send({
+    data: formatarResumoEnvVaultFile(env, recoveryEnvelopeCount),
   });
 }
 

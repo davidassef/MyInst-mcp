@@ -306,6 +306,16 @@ export const api = {
       }),
     obter: (workspaceSlug: string, projetoSlug: string, envId: string) =>
       request<EnvVaultFileDetalhado>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/env-files/${encodeURIComponent(envId)}`),
+    adicionarRecoveryEnvelope: (
+      workspaceSlug: string,
+      projetoSlug: string,
+      envId: string,
+      body: EnvVaultRecoveryEnvelope,
+    ) =>
+      request<EnvVaultFileResumo>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/env-files/${encodeURIComponent(envId)}/recovery-envelopes`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
     deletar: (workspaceSlug: string, projetoSlug: string, envId: string) =>
       request<void>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/env-files/${encodeURIComponent(envId)}`, { method: 'DELETE' }),
   },
