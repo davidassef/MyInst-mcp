@@ -2,9 +2,9 @@
 
 Env Vault é o fluxo dedicado para armazenar arquivos `.env` por projeto sem misturá-los com instruções, skills, chats, Project State ou configurações de clientes.
 
-O objetivo é resolver troca de máquina sem transformar o backend em um cofre capaz de ler segredos. O backend deve armazenar somente envelopes criptografados e metadados seguros; descriptografia acontece localmente na CLI ou em clientes locais autorizados. O painel web atual mostra apenas metadados e comandos seguros.
+O objetivo é resolver troca de máquina sem transformar o backend em um cofre capaz de ler segredos. O backend deve armazenar somente envelopes criptografados e metadados seguros; descriptografia acontece localmente na CLI, em clientes locais autorizados ou no navegador do usuário quando ele informa o segredo do Env Vault.
 
-> Status: disponível via CLI, API própria e painel web com metadados seguros.
+> Status: disponível via CLI, API própria e painel web com consulta zero-knowledge.
 
 ## Modelo de segurança
 
@@ -67,7 +67,7 @@ Se houver mais de um env com o mesmo `--name`, informe `--environment` em `pull`
 
 ## Painel web
 
-O painel web mostra somente metadados seguros do Env Vault por projeto:
+O painel web lista somente metadados seguros do Env Vault por projeto:
 
 - nome lógico;
 - ambiente;
@@ -77,7 +77,9 @@ O painel web mostra somente metadados seguros do Env Vault por projeto:
 - quantidade de recovery envelopes;
 - data de atualização.
 
-O painel não descriptografa `.env`, não renderiza valores, não solicita `MYINST_ENV_VAULT_SECRET` e não baixa `encryptedPayload` para visualização. As ações de desbloqueio e materialização continuam na CLI local. A interface apenas copia comandos seguros de `myinst env push` e `myinst env pull`, sem segredo embutido.
+Ao clicar em `Desbloquear`, o painel busca o `encryptedPayload` por rota dedicada e descriptografa no próprio navegador usando o segredo informado naquele momento. O segredo não é salvo em configuração, não é enviado ao backend e é limpo do estado após a tentativa. Os valores ficam mascarados por padrão, podem ser revelados ou copiados individualmente e são bloqueados manualmente ou por timeout local.
+
+Use a visualização web para consulta pontual. Para materializar arquivo em disco, continue usando `myinst env pull --output ...` dentro da raiz do projeto. A interface também copia comandos seguros de `myinst env push` e `myinst env pull`, sem segredo embutido.
 
 ## Backend
 

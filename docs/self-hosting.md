@@ -86,7 +86,7 @@ pnpm --filter @myinst/backend start
 
 ## Frontend na Vercel (monorepo)
 
-O frontend em `frontend/` é independente do backend: não importa `@myinst/shared` nem `@myinst/backend`. O Turborepo só orquestra o desenvolvimento local; na Vercel você publica apenas a pasta frontend.
+O frontend em `frontend/` é independente do backend, mas usa `@myinst/shared` para contratos browser-safe como Env Vault. A Vercel publica apenas a pasta frontend, enquanto o build sobe um nível para instalar o workspace e compilar o pacote compartilhado antes do Vite.
 
 ### Configuração do projeto
 
@@ -101,7 +101,7 @@ VITE_MYINST_API_BASE=https://api-myinst.lotoscore.com.br
 
 ### Por que funciona com Root Directory
 
-Mesmo compartilhando o repositório com o backend, o `frontend/` tem dependências próprias (React, Vite, Tailwind). O `installCommand` sobe um nível (`..`) para rodar `pnpm install` na raiz do workspace e resolver o lockfile. O `buildCommand` compila só o frontend e gera `dist/`.
+Mesmo compartilhando o repositório com o backend, o `frontend/` tem dependências próprias (React, Vite, Tailwind). O `installCommand` sobe um nível (`..`) para rodar `pnpm install` na raiz do workspace e resolver o lockfile. O `buildCommand` compila `@myinst/shared` e depois `@myinst/frontend`, gerando `frontend/dist/`.
 
 ## Backup
 

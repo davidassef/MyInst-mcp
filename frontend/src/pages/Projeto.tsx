@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, FileText, Trash2, Save, Search, Folder, FolderPlus, X, Brain, GitBranch, MessagesSquare, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ShieldCheck, Copy } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Trash2, Save, Search, Folder, FolderPlus, X, Brain, GitBranch, MessagesSquare, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ShieldCheck, Copy, Eye, EyeOff, Lock, Unlock } from 'lucide-react';
 import { api, type ChatDetalhado, type ChatMensagem, type ChatResumo, type EnvVaultFileResumo } from '@/lib/api';
 import { montarComandoEnvVaultPull, montarComandoEnvVaultPush } from '@/lib/envVaultCommands';
+import { desbloquearEnvVaultParaVisualizacao, mascararValorEnvVault, type EnvVaultVisualizacao } from '@/lib/envVaultViewer';
 
 const TIPOS_LABEL: Record<string, string> = {
   skill: 'Skill',
@@ -25,6 +26,7 @@ const TIPOS_COR: Record<string, string> = {
 };
 
 const TAMANHO_PAGINA_MENSAGENS_CHAT = 50;
+const TEMPO_BLOQUEIO_ENV_VAULT_MS = 5 * 60 * 1000;
 
 interface PastaItem {
   id: string;
@@ -710,7 +712,23 @@ function EnvVaultPanel({
 }) {
   const [copiadoId, setCopiadoId] = useState<string | null>(null);
   const [excluindoEnvId, setExcluindoEnvId] = useState<string | null>(null);
+  const [envSelecionado, setEnvSelecionado] = useState<EnvVaultFileResumo | null>(null);
+  const [envDesbloqueado, setEnvDesbloqueado] = useState<{
+    envId: string;
+    desbloqueadoEm: number;
+    visualizacao: EnvVaultVisualizacao;
+  } | null>(null);
+  const [segredoEnv, setSegredoEnv] = useState('');
+  const [desbloqueandoEnvId, setDesbloqueandoEnvId] = useState<string | null>(null);
+  const [valoresRevelados, setValoresRevelados] = useState<Set<string>>(new Set());
   const [erroEnv, setErroEnv] = useState('');
+
+  useEffect(() => {
+    if (!envDesbloqueado) return;
+
+    const bloqueioId = window.setTimeout(() => bloquearEnvDesbloqueado(), TEMPO_BLOQUEIO_ENV_VAULT_MS);
+    return () => window.clearTimeout(bloqueioId);
+  }, [envDesbloqueado?.envId, envDesbloqueado?.desbloqueadoEm]);
 
   async function copiarComando(comando: string, id: string) {
     setErroEnv('');
@@ -724,9 +742,91 @@ function EnvVaultPanel({
     }
   }
 
+  async function copiarValorEnv(valor: string, id: string) {
+    setErroEnv('');
+
+    try {
+      await copiarTextoParaClipboard(valor);
+      setCopiadoId(id);
+      setTimeout(() => setCopiadoId(null), 2500);
+    } catch {
+      setErroEnv('Não foi possível acessar o clipboard. Revele o valor e copie manualmente.');
+    }
+  }
+
+  function selecionarEnvParaDesbloqueio(env: EnvVaultFileResumo) {
+    setErroEnv('');
+    setSegredoEnv('');
+    setValoresRevelados(new Set());
+    setEnvDesbloqueado(null);
+
+    if (envSelecionado?.id === env.id) {
+      setEnvSelecionado(null);
+      return;
+    }
+
+    setEnvSelecionado(env);
+  }
+
+  async function desbloquearEnvSelecionado(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setErroEnv('');
+
+    if (!envSelecionado) return;
+
+    if (!segredoEnv.trim()) {
+      setErroEnv('Informe o segredo local do Env Vault para desbloquear este arquivo no navegador.');
+      return;
+    }
+
+    setDesbloqueandoEnvId(envSelecionado.id);
+
+    try {
+      const envDetalhado = await api.envVault.obter(workspaceSlug, projectSlug, envSelecionado.id);
+      const visualizacao = await desbloquearEnvVaultParaVisualizacao({
+        encryptedPayload: envDetalhado.encryptedPayload,
+        secret: segredoEnv,
+      });
+
+      setEnvDesbloqueado({
+        envId: envSelecionado.id,
+        desbloqueadoEm: Date.now(),
+        visualizacao,
+      });
+      setValoresRevelados(new Set());
+      setSegredoEnv('');
+    } catch {
+      setEnvDesbloqueado(null);
+      setErroEnv('Não foi possível desbloquear o env. Verifique o segredo local e tente novamente.');
+    } finally {
+      setDesbloqueandoEnvId(null);
+    }
+  }
+
+  function bloquearEnvDesbloqueado() {
+    setEnvDesbloqueado(null);
+    setSegredoEnv('');
+    setValoresRevelados(new Set());
+  }
+
+  function alternarValorRevelado(nomeVariavel: string) {
+    setValoresRevelados((nomesRevelados) => {
+      const proximosNomes = new Set(nomesRevelados);
+
+      if (proximosNomes.has(nomeVariavel)) {
+        proximosNomes.delete(nomeVariavel);
+        return proximosNomes;
+      }
+
+      proximosNomes.add(nomeVariavel);
+      return proximosNomes;
+    });
+  }
+
   async function excluirEnv(env: EnvVaultFileResumo) {
     setExcluindoEnvId(env.id);
     setErroEnv('');
+    bloquearEnvDesbloqueado();
 
     try {
       await onDeleteEnv(env);
@@ -750,7 +850,7 @@ function EnvVaultPanel({
         <div>
           <h3 className="text-xl font-semibold text-zinc-100">Env Vault</h3>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-zinc-500">
-            Metadados seguros dos arquivos .env criptografados do projeto. O painel não descriptografa, não exibe valores e não solicita segredo local.
+            Arquivos .env criptografados por projeto. O painel pode desbloquear um env no navegador quando você informa o segredo local; o segredo e o plaintext não são enviados ao servidor.
           </p>
         </div>
         <button
@@ -764,7 +864,7 @@ function EnvVaultPanel({
       </div>
 
       <div className="rounded-xl border border-blue-900/40 bg-blue-950/10 p-4 text-sm leading-6 text-blue-100">
-        Use a CLI local para desbloquear e materializar envs. O comando copiado não inclui `MYINST_ENV_VAULT_SECRET` nem recovery key.
+        Para restaurar em disco, use a CLI local. Para consulta pontual, desbloqueie no painel e bloqueie novamente ao terminar.
       </div>
 
       <pre className="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-xs leading-6 text-zinc-300">
@@ -796,6 +896,14 @@ function EnvVaultPanel({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
+                    onClick={() => selecionarEnvParaDesbloqueio(env)}
+                    className="flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-300 transition-colors hover:border-emerald-500 hover:text-emerald-200"
+                  >
+                    {envSelecionado?.id === env.id ? <Lock size={14} /> : <Unlock size={14} />}
+                    {envSelecionado?.id === env.id ? 'Fechar' : 'Desbloquear'}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => copiarComando(comandoPull, env.id)}
                     className="flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-300 transition-colors hover:border-blue-500 hover:text-blue-200"
                   >
@@ -825,6 +933,107 @@ function EnvVaultPanel({
               <pre className="mt-4 overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-xs leading-6 text-zinc-300">
                 <code>{comandoPull}</code>
               </pre>
+
+              {envSelecionado?.id === env.id && (
+                <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-950 p-4">
+                  {envDesbloqueado?.envId !== env.id ? (
+                    <form onSubmit={desbloquearEnvSelecionado} className="space-y-3">
+                      <div>
+                        <label htmlFor={`env-secret-${env.id}`} className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
+                          Segredo local
+                        </label>
+                        <input
+                          id={`env-secret-${env.id}`}
+                          type="password"
+                          value={segredoEnv}
+                          onChange={(event) => setSegredoEnv(event.target.value)}
+                          autoComplete="off"
+                          className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition-colors focus:border-blue-500"
+                          placeholder="Informe o segredo do Env Vault"
+                        />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="submit"
+                          disabled={desbloqueandoEnvId === env.id}
+                          className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <Unlock size={14} />
+                          {desbloqueandoEnvId === env.id ? 'Desbloqueando...' : 'Desbloquear localmente'}
+                        </button>
+                        <span className="text-xs text-zinc-500">O backend entrega apenas o payload cifrado; a descriptografia ocorre neste navegador.</span>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <h5 className="text-sm font-medium text-zinc-100">Valores desbloqueados localmente</h5>
+                          <p className="mt-1 text-xs text-zinc-500">
+                            {envDesbloqueado.visualizacao.variaveis.length} variáveis em {envDesbloqueado.visualizacao.totalLinhas} linhas. Valores ficam mascarados até serem revelados.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={bloquearEnvDesbloqueado}
+                          className="flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-300 transition-colors hover:border-zinc-500 hover:text-zinc-100"
+                        >
+                          <Lock size={14} />
+                          Bloquear
+                        </button>
+                      </div>
+
+                      <div className="overflow-hidden rounded-lg border border-zinc-800">
+                        {envDesbloqueado.visualizacao.variaveis.map((variavel) => {
+                          const valorEstaRevelado = valoresRevelados.has(variavel.nome);
+                          const valorVisivel = valorEstaRevelado ? variavel.valor : mascararValorEnvVault(variavel.valor);
+                          const copiarId = `${env.id}:${variavel.nome}`;
+
+                          return (
+                            <div key={`${variavel.nome}:${variavel.linha}`} className="grid gap-3 border-b border-zinc-800 p-3 last:border-b-0 md:grid-cols-[minmax(160px,240px)_1fr_auto] md:items-center">
+                              <div>
+                                <div className="break-all font-mono text-xs text-blue-200">{variavel.nome}</div>
+                                <div className="mt-1 text-[11px] text-zinc-600">linha {variavel.linha}</div>
+                              </div>
+                              <code className="min-w-0 break-all rounded bg-zinc-900 px-3 py-2 text-xs text-zinc-200">
+                                {valorVisivel}
+                              </code>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => alternarValorRevelado(variavel.nome)}
+                                  className="rounded-lg border border-zinc-800 p-2 text-zinc-500 transition-colors hover:border-blue-500/40 hover:text-blue-200"
+                                  aria-label={`${valorEstaRevelado ? 'Ocultar' : 'Revelar'} ${variavel.nome}`}
+                                >
+                                  {valorEstaRevelado ? <EyeOff size={14} /> : <Eye size={14} />}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => copiarValorEnv(variavel.valor, copiarId)}
+                                  className="rounded-lg border border-zinc-800 p-2 text-zinc-500 transition-colors hover:border-blue-500/40 hover:text-blue-200"
+                                  aria-label={`Copiar ${variavel.nome}`}
+                                >
+                                  <Copy size={14} />
+                                </button>
+                              </div>
+                              {copiadoId === copiarId && <span className="text-xs text-emerald-400 md:col-start-2">Valor copiado</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {envDesbloqueado.visualizacao.linhasIgnoradas.length > 0 && (
+                        <details className="rounded-lg border border-amber-900/40 bg-amber-950/10 p-3 text-xs text-amber-100">
+                          <summary className="cursor-pointer font-medium">Linhas não exibidas como variáveis</summary>
+                          <pre className="mt-3 overflow-x-auto whitespace-pre-wrap leading-6">
+                            {envDesbloqueado.visualizacao.linhasIgnoradas.map((linhaIgnorada) => `linha ${linhaIgnorada.linha}: ${linhaIgnorada.conteudo}`).join('\n')}
+                          </pre>
+                        </details>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </article>
           );
         })}
@@ -833,7 +1042,7 @@ function EnvVaultPanel({
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
             <h4 className="font-medium text-zinc-100">Nenhum env criptografado neste projeto</h4>
             <p className="mt-2 text-sm leading-6 text-zinc-500">
-              Cadastre pela CLI local para manter o plaintext fora do navegador e do backend.
+              Cadastre pela CLI local. Depois disso, o painel poderá consultar o env com desbloqueio local no navegador.
             </p>
             <pre className="mt-4 overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-xs text-zinc-300">
               {comandoPush}

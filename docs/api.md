@@ -382,7 +382,7 @@ A listagem não retorna `encryptedPayload` nem `recoveryEnvelopes`.
 
 ### GET /workspaces/:workspaceSlug/projects/:projectSlug/env-files/:id
 
-Retorna o arquivo do projeto com a versão criptografada atual e envelopes de recuperação cifrados. A descriptografia continua acontecendo localmente no cliente.
+Retorna o arquivo do projeto com a versão criptografada atual e envelopes de recuperação cifrados. A descriptografia continua acontecendo localmente no cliente: CLI, MCP local autorizado ou navegador do usuário após ele informar o segredo do Env Vault.
 
 ### DELETE /workspaces/:workspaceSlug/projects/:projectSlug/env-files/:id
 

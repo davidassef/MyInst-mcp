@@ -400,6 +400,8 @@ O MyInst ainda não infere automaticamente o projeto remoto pelo diretório atua
 
 O segredo do Env Vault deve ser informado pelo prompt oculto da CLI ou por `MYINST_ENV_VAULT_SECRET` em ambiente local controlado. Não passe segredo na linha do comando e não armazene esse segredo em `~/.myinst/config.json`, README, scripts ou arquivos versionados.
 
+No painel web, a aba Env Vault lista apenas metadados por padrão. Para consulta pontual, clique em `Desbloquear`, informe o segredo local e revele ou copie valores individualmente. A descriptografia acontece no navegador; o segredo e o plaintext não são enviados ao backend. Para restaurar o arquivo no notebook, use `myinst env pull --output ...` na pasta do projeto.
+
 ### MyInst como contexto de agente
 
 Inclua o MyInst no documento de contexto do projeto, como `AGENTS.md`, `CLAUDE.md` ou equivalente. O papel dele é diferente de uma fonte de documentação como `context7`: o MyInst é o vault versionado do seu contexto operacional, e deve materializar arquivos locais do projeto antes de virar base de trabalho recorrente.
