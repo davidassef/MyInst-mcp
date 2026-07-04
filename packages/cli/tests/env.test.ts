@@ -120,6 +120,53 @@ describe('Env Vault CLI', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
+  it('envia headers de 2FA ao baixar payload sensível', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'myinst-env-step-up-'));
+    const origem = join(dir, '.env');
+    const destino = join(dir, '.env.local');
+    await writeFile(origem, 'DATABASE_URL=postgresql://novo\n', 'utf-8');
+    const preparado = await prepararEnvVaultPush({ file: origem, name: 'local', segredo: SEGREDO });
+    const headersDetalhe: Record<string, string> = {};
+
+    const fetchImpl = async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.endsWith('/env-files')) {
+        return new Response(JSON.stringify({
+          data: [{ id: 'env-1', name: 'local', sourcePath: '.env.local' }],
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+
+      Object.assign(headersDetalhe, init?.headers);
+
+      return new Response(JSON.stringify({
+        data: {
+          id: 'env-1',
+          name: 'local',
+          encryptedPayload: preparado.body.encryptedPayload,
+        },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    };
+
+    await baixarEnvVaultFile({
+      config: CONFIG,
+      workspace: 'default',
+      project: 'myinst',
+      name: 'local',
+      output: destino,
+      segredo: SEGREDO,
+      stepUp: { twoFactorCode: '123456' },
+      fetchImpl,
+    });
+
+    expect(headersDetalhe).toMatchObject({
+      Authorization: 'Bearer myinst_test',
+      'x-myinst-2fa-code': '123456',
+    });
+
+    await rm(dir, { recursive: true, force: true });
+  });
+
   it('não grava destino quando segredo está incorreto', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'myinst-env-wrong-secret-'));
     const origem = join(dir, '.env');
@@ -244,9 +291,14 @@ describe('Env Vault CLI', () => {
   });
 
   it('deleta env por nome usando rota dedicada', async () => {
-    const urls: Array<{ url: string; method?: string }> = [];
+    const urls: Array<{ url: string; method?: string; recoveryCode?: string }> = [];
     const fetchImpl = async (input: string | URL | Request, init?: RequestInit) => {
-      urls.push({ url: String(input), method: init?.method });
+      const headers = init?.headers as Record<string, string> | undefined;
+      urls.push({
+        url: String(input),
+        method: init?.method,
+        recoveryCode: headers?.['x-myinst-recovery-code'],
+      });
 
       if (!init?.method) {
         return new Response(JSON.stringify({
@@ -262,12 +314,14 @@ describe('Env Vault CLI', () => {
       workspace: 'default',
       project: 'myinst',
       name: 'local',
+      stepUp: { recoveryCode: 'myinst-2fa-recuperacao' },
       fetchImpl,
     });
 
     expect(urls.at(-1)).toEqual({
       url: 'https://api.myinst.test/api/v1/workspaces/default/projects/myinst/env-files/env-1',
       method: 'DELETE',
+      recoveryCode: 'myinst-2fa-recuperacao',
     });
   });
 });

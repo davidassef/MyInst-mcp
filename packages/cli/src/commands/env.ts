@@ -25,6 +25,8 @@ const RESET = '\x1b[0m';
 interface EnvBaseOptions {
   workspace?: string;
   project?: string;
+  twoFactorCode?: string;
+  recoveryCode?: string;
 }
 
 interface EnvPushOptions extends EnvBaseOptions {
@@ -84,6 +86,7 @@ interface EnvVaultRequestParams {
   workspace: string;
   project: string;
   fetchImpl?: typeof fetch;
+  stepUp?: EnvVaultStepUpOptions;
 }
 
 interface BuscarEnvVaultFileParams extends EnvVaultRequestParams {
@@ -100,6 +103,11 @@ interface BaixarEnvVaultFileParams extends BuscarEnvVaultFileParams {
 interface BaixarEnvVaultFileResult {
   outputPath: string;
   backupPath: string | null;
+}
+
+export interface EnvVaultStepUpOptions {
+  twoFactorCode?: string;
+  recoveryCode?: string;
 }
 
 export async function executarEnvPush(options: EnvPushOptions): Promise<void> {
@@ -119,7 +127,7 @@ export async function executarEnvPush(options: EnvPushOptions): Promise<void> {
 
     const resposta = await fetch(endpointEnvFiles(config, workspace, project), {
       method: 'POST',
-      headers: headersJson(config),
+      headers: headersJson(config, obterStepUpOptions(options)),
       body: JSON.stringify(preparado.body),
     });
 
@@ -152,6 +160,7 @@ export async function executarEnvPull(options: EnvPullOptions): Promise<void> {
       output: options.output,
       overwrite: options.overwrite,
       segredo,
+      stepUp: obterStepUpOptions(options),
     });
 
     console.log(`${VERDE}[SUCCESS] Env materializado:${RESET} ${resultado.outputPath}`);
@@ -203,6 +212,7 @@ export async function executarEnvShow(options: EnvNameOptions): Promise<void> {
       project,
       name: options.name,
       environment: options.environment,
+      stepUp: obterStepUpOptions(options),
     });
 
     console.log(`${VERDE}${env.name}${RESET} ${CINZA}${env.sourcePath}${RESET}`);
@@ -226,6 +236,7 @@ export async function executarEnvDelete(options: EnvNameOptions): Promise<void> 
       project,
       name: options.name,
       environment: options.environment,
+      stepUp: obterStepUpOptions(options),
     });
 
     console.log(`${VERDE}[SUCCESS] Env removido:${RESET} ${options.name}`);
@@ -341,7 +352,7 @@ function selecionarEnvVaultFile(
 
 async function obterEnvVaultFileDetalhado(params: EnvVaultRequestParams & { id: string }): Promise<EnvVaultFileResumo> {
   const resposta = await (params.fetchImpl ?? fetch)(endpointEnvFile(params.config, params.workspace, params.project, params.id), {
-    headers: headersAuth(params.config),
+    headers: headersAuth(params.config, params.stepUp),
   });
 
   if (!resposta.ok) {
@@ -361,7 +372,7 @@ export async function deletarEnvVaultFile(params: BuscarEnvVaultFileParams): Pro
   const env = await buscarEnvVaultFile(params);
   const resposta = await (params.fetchImpl ?? fetch)(endpointEnvFile(params.config, params.workspace, params.project, env.id), {
     method: 'DELETE',
-    headers: headersAuth(params.config),
+    headers: headersAuth(params.config, params.stepUp),
   });
 
   if (!resposta.ok) {
@@ -478,16 +489,41 @@ function endpointEnvFile(config: MyInstConfig, workspace: string, project: strin
   return `${endpointEnvFiles(config, workspace, project)}/${encodeURIComponent(id)}`;
 }
 
-function headersJson(config: MyInstConfig): Record<string, string> {
+function headersJson(config: MyInstConfig, stepUp?: EnvVaultStepUpOptions): Record<string, string> {
   return {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${config.apiKey}`,
+    ...headersStepUp(stepUp),
   };
 }
 
-function headersAuth(config: MyInstConfig): Record<string, string> {
+function headersAuth(config: MyInstConfig, stepUp?: EnvVaultStepUpOptions): Record<string, string> {
   return {
     Authorization: `Bearer ${config.apiKey}`,
+    ...headersStepUp(stepUp),
+  };
+}
+
+function headersStepUp(stepUp?: EnvVaultStepUpOptions): Record<string, string> {
+  const headers: Record<string, string> = {};
+
+  if (stepUp?.twoFactorCode) {
+    headers['x-myinst-2fa-code'] = stepUp.twoFactorCode;
+  }
+
+  if (stepUp?.recoveryCode) {
+    headers['x-myinst-recovery-code'] = stepUp.recoveryCode;
+  }
+
+  return headers;
+}
+
+function obterStepUpOptions(options: EnvBaseOptions): EnvVaultStepUpOptions | undefined {
+  if (!options.twoFactorCode && !options.recoveryCode) return undefined;
+
+  return {
+    twoFactorCode: options.twoFactorCode,
+    recoveryCode: options.recoveryCode,
   };
 }
 

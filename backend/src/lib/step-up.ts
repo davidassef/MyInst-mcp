@@ -7,8 +7,6 @@ import { descriptografarSegredoServidor } from './secret-encryption.js';
 import { verificarCodigoTotp } from './totp.js';
 
 export async function exigirTotpStepUp(request: FastifyRequest, reply: FastifyReply) {
-  if (request.authMethod !== 'jwt') return;
-
   const fator = await obterTotpAtivo(request.user.id);
   if (!fator) return;
 

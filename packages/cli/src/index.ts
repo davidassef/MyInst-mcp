@@ -204,6 +204,8 @@ env
   .requiredOption('-p, --project <slug>', 'Slug do projeto')
   .option('-n, --name <name>', 'Nome lógico do env')
   .option('--environment <name>', 'Ambiente associado')
+  .option('--two-factor-code <code>', 'Código do autenticador para ações sensíveis')
+  .option('--recovery-code <code>', 'Código de recuperação 2FA para ações sensíveis')
   .option('--create-recovery-key', 'Gerar recovery key local e enviar envelope de recuperação cifrado')
   .action(executarEnvPush);
 
@@ -215,6 +217,8 @@ env
   .requiredOption('-p, --project <slug>', 'Slug do projeto')
   .option('--environment <name>', 'Ambiente associado')
   .requiredOption('-o, --output <path>', 'Destino local do arquivo')
+  .option('--two-factor-code <code>', 'Código do autenticador para ações sensíveis')
+  .option('--recovery-code <code>', 'Código de recuperação 2FA para ações sensíveis')
   .option('--overwrite', 'Sobrescrever destino sem criar backup')
   .action(executarEnvPull);
 
@@ -232,6 +236,8 @@ env
   .option('-w, --workspace <slug>', 'Slug do workspace')
   .requiredOption('-p, --project <slug>', 'Slug do projeto')
   .option('--environment <name>', 'Ambiente associado')
+  .option('--two-factor-code <code>', 'Código do autenticador para ações sensíveis')
+  .option('--recovery-code <code>', 'Código de recuperação 2FA para ações sensíveis')
   .action(executarEnvShow);
 
 env
@@ -241,6 +247,8 @@ env
   .option('-w, --workspace <slug>', 'Slug do workspace')
   .requiredOption('-p, --project <slug>', 'Slug do projeto')
   .option('--environment <name>', 'Ambiente associado')
+  .option('--two-factor-code <code>', 'Código do autenticador para ações sensíveis')
+  .option('--recovery-code <code>', 'Código de recuperação 2FA para ações sensíveis')
   .action(executarEnvDelete);
 
 await avisarAtualizacaoDisponivel(MYINST_VERSION);

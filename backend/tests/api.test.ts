@@ -422,6 +422,93 @@ describe('MyInst API', () => {
       expect(permitido.json().data.key).toMatch(/^myinst_/);
     });
 
+    it('exige step-up TOTP em Env Vault mesmo quando a chamada usa API key', async () => {
+      const email2fa = `env-api-key-stepup-${Date.now()}@myinst.dev`;
+      const registro = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/register',
+        payload: { email: email2fa, password: 'senha12345', displayName: 'Usuário Env API Key' },
+      });
+      const token2fa = registro.json().data.token as string;
+      const setup = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/2fa/setup',
+        headers: { authorization: `Bearer ${token2fa}` },
+      });
+      const secret = setup.json().data.secret as string;
+      await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/2fa/verify',
+        headers: { authorization: `Bearer ${token2fa}` },
+        payload: { code: gerarCodigoTotp(secret) },
+      });
+
+      const apiKeyCriada = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/api-keys',
+        headers: {
+          authorization: `Bearer ${token2fa}`,
+          'x-myinst-2fa-code': gerarCodigoTotp(secret),
+        },
+        payload: { name: 'CLI Env Vault', scopes: ['read', 'write'] },
+      });
+      const apiKey2fa = apiKeyCriada.json().data.key as string;
+
+      const bloqueado = await app.inject({
+        method: 'POST',
+        url: '/api/v1/workspaces/default/projects/default/env-files',
+        headers: { authorization: `Bearer ${apiKey2fa}` },
+        payload: {
+          name: '.env.local',
+          sourcePath: '.env.local',
+          encryptedPayload: criarPayloadCriptografadoFake('env-api-key-stepup'),
+          metadata: criarMetadataEnvVault(42),
+        },
+      });
+
+      expect(bloqueado.statusCode).toBe(403);
+      expect(bloqueado.json().error.code).toBe('STEP_UP_REQUIRED');
+
+      const permitido = await app.inject({
+        method: 'POST',
+        url: '/api/v1/workspaces/default/projects/default/env-files',
+        headers: {
+          authorization: `Bearer ${apiKey2fa}`,
+          'x-myinst-2fa-code': gerarCodigoTotp(secret),
+        },
+        payload: {
+          name: '.env.local',
+          sourcePath: '.env.local',
+          encryptedPayload: criarPayloadCriptografadoFake('env-api-key-stepup-ok'),
+          metadata: criarMetadataEnvVault(43),
+        },
+      });
+
+      expect(permitido.statusCode).toBe(201);
+      const envId = permitido.json().data.id as string;
+
+      const detalheBloqueado = await app.inject({
+        method: 'GET',
+        url: `/api/v1/workspaces/default/projects/default/env-files/${envId}`,
+        headers: { authorization: `Bearer ${apiKey2fa}` },
+      });
+
+      expect(detalheBloqueado.statusCode).toBe(403);
+      expect(detalheBloqueado.json().error.code).toBe('STEP_UP_REQUIRED');
+
+      const detalhePermitido = await app.inject({
+        method: 'GET',
+        url: `/api/v1/workspaces/default/projects/default/env-files/${envId}`,
+        headers: {
+          authorization: `Bearer ${apiKey2fa}`,
+          'x-myinst-2fa-code': gerarCodigoTotp(secret),
+        },
+      });
+
+      expect(detalhePermitido.statusCode).toBe(200);
+      expect(detalhePermitido.json().data.encryptedPayload).toBeDefined();
+    });
+
     it('salva envelope de Env Vault da conta sem aceitar segredo em claro', async () => {
       const emailConta = `vault-conta-${Date.now()}@myinst.dev`;
       const registro = await app.inject({
