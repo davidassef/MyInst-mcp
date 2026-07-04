@@ -7,6 +7,7 @@ import { DashboardPage } from './pages/Dashboard';
 import { WorkspacePage } from './pages/Workspace';
 import { ProjetoPage } from './pages/Projeto';
 import { ApiKeysPage } from './pages/ApiKeys';
+import { SecurityPage } from './pages/Security';
 import { ClientProfilesPage } from './pages/ClientProfiles';
 import { ClientProfilePage } from './pages/ClientProfile';
 import { Layout } from './components/Layout';
@@ -36,6 +37,7 @@ export function App() {
         <Route path="client-profiles" element={<ClientProfilesPage />} />
         <Route path="client-profiles/:clientId" element={<ClientProfilePage />} />
         <Route path="api-keys" element={<ApiKeysPage />} />
+        <Route path="security" element={<SecurityPage />} />
       </Route>
     </Routes>
   );

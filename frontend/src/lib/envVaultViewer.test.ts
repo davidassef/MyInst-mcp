@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { criarEnvVaultRecoveryEnvelope, criptografarEnvVault } from '@myinst/shared/env-vault';
+import { abrirEnvVaultRecoveryEnvelope, criarEnvVaultRecoveryEnvelope, criptografarEnvVault } from '@myinst/shared/env-vault';
 import {
   desbloquearEnvVaultParaVisualizacao,
   desbloquearEnvVaultComRecoveryKeyParaVisualizacao,
+  desbloquearEnvVaultComAccountEnvelopeParaVisualizacao,
   mascararValorEnvVault,
   parsearEnvParaVisualizacao,
+  prepararAccountEnvVaultEnvelopeWeb,
   prepararRecoveryEnvelopeEnvVaultWeb,
 } from './envVaultViewer';
 
@@ -116,6 +118,41 @@ describe('envVaultViewer', () => {
     expect(recovery.recoveryKey).toMatch(/^myinst-env-rk_/);
     expect(recovery.envelope.label).toBe('Recovery key web');
     expect(JSON.stringify(recovery)).not.toContain(SEGREDO_TESTE);
+  });
+
+  it('prepara envelope de conta com senha local sem serializar a senha', async () => {
+    const envelope = await prepararAccountEnvVaultEnvelopeWeb({
+      passphrase: 'senha-local-forte-para-env-vault',
+      label: 'Senha do Env Vault',
+    });
+
+    expect(envelope.method).toBe('passphrase');
+    expect(envelope.label).toBe('Senha do Env Vault');
+    expect(envelope.stepUpFactors).toEqual(['totp']);
+    expect(JSON.stringify(envelope)).not.toContain('senha-local-forte-para-env-vault');
+  });
+
+  it('desbloqueia payload usando envelope da conta e senha local', async () => {
+    const envelope = await prepararAccountEnvVaultEnvelopeWeb({
+      passphrase: 'senha-local-forte-para-env-vault',
+      label: 'Senha do Env Vault',
+    });
+    const vaultSecret = await abrirEnvVaultRecoveryEnvelope({
+      envelope,
+      segredoRecuperacao: 'senha-local-forte-para-env-vault',
+    });
+    const payloadCriptografado = await criptografarEnvVault({
+      plaintext: 'TOKEN=valor-local',
+      segredo: vaultSecret,
+    });
+
+    const visualizacao = await desbloquearEnvVaultComAccountEnvelopeParaVisualizacao({
+      encryptedPayload: payloadCriptografado,
+      accountEnvelope: envelope,
+      passphrase: 'senha-local-forte-para-env-vault',
+    });
+
+    expect(visualizacao.variaveis).toEqual([{ nome: 'TOKEN', valor: 'valor-local', linha: 1 }]);
   });
 
   it('mascara valores sem expor tamanho exato quando o usuario ainda nao revelou', () => {

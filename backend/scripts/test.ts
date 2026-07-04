@@ -12,15 +12,17 @@ async function main() {
   const usarBancoExistente = process.env.MYINST_USE_EXISTING_TEST_DB === '1';
 
   if (usarBancoExistente) {
-    process.exit(executarVitest({
+    process.exitCode = executarVitest({
       ...process.env,
       JWT_SECRET: process.env.JWT_SECRET || 'test-secret',
-    }));
+    });
+    return;
   }
 
   const portaHost = await obterPortaLivre();
   const urlBanco = `postgresql://postgres:postgres@127.0.0.1:${portaHost}/myinst_test`;
 
+  removerContainersDeTesteOrfaos();
   pararContainer();
 
   executar('docker', [
@@ -53,11 +55,11 @@ async function main() {
       urlBanco,
     ]);
 
-    process.exit(executarVitest({
+    process.exitCode = executarVitest({
       ...process.env,
       DATABASE_URL: urlBanco,
       JWT_SECRET: process.env.JWT_SECRET || 'test-secret',
-    }));
+    });
   } finally {
     pararContainer();
   }
@@ -127,6 +129,18 @@ function executarVitest(env: NodeJS.ProcessEnv): number {
 
 function pararContainer() {
   spawnSync('docker', ['rm', '-f', nomeContainer], { stdio: 'ignore' });
+}
+
+function removerContainersDeTesteOrfaos() {
+  const resultado = spawnSync('docker', ['ps', '-aq', '--filter', 'name=^/myinst-server-test-'], {
+    encoding: 'utf-8',
+    shell: process.platform === 'win32',
+  });
+
+  const ids = resultado.stdout.trim().split(/\s+/).filter(Boolean);
+  if (ids.length === 0) return;
+
+  spawnSync('docker', ['rm', '-f', ...ids], { stdio: 'ignore', shell: process.platform === 'win32' });
 }
 
 function executar(comando: string, args: string[]) {

@@ -27,6 +27,44 @@ export const criarApiKeySchema = z.object({
   expiresAt: z.string().datetime().optional(),
 });
 
+const codigoTotpSchema = z.string().regex(/^[0-9]{6}$/);
+const codigoRecuperacaoTotpSchema = z.string().min(8).max(120);
+
+export const verificarTotpSetupSchema = z.object({
+  code: codigoTotpSchema,
+}).strict();
+
+export const verificarTotpLoginSchema = z.object({
+  twoFactorToken: z.string().min(16),
+  code: codigoTotpSchema.optional(),
+  recoveryCode: codigoRecuperacaoTotpSchema.optional(),
+}).strict().superRefine((value, ctx) => {
+  if (value.code || value.recoveryCode) return;
+
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ['code'],
+    message: 'Informe o código TOTP ou um código de recuperação.',
+  });
+});
+
+export const desabilitarTotpSchema = z.object({
+  code: codigoTotpSchema.optional(),
+  recoveryCode: codigoRecuperacaoTotpSchema.optional(),
+}).strict().superRefine((value, ctx) => {
+  if (value.code || value.recoveryCode) return;
+
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ['code'],
+    message: 'Informe o código TOTP ou um código de recuperação.',
+  });
+});
+
+export const salvarAccountEnvVaultEnvelopeSchema = z.object({
+  envelope: envVaultRecoveryEnvelopeSchema,
+}).strict();
+
 export const criarWorkspaceSchema = z.object({
   name: z.string().min(1).max(100),
   slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),

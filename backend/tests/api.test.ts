@@ -6,6 +6,7 @@ import { seedPlans } from '../src/db/seed.js';
 import { db } from '../src/db/index.js';
 import { plans, users } from '../src/db/schema.js';
 import { montarUrlOAuthErro, montarUrlOAuthSucesso } from '../src/routes/oauth.js';
+import { gerarCodigoTotp } from '../src/lib/totp.js';
 
 describe('MyInst API', () => {
   let app: Awaited<ReturnType<typeof criarApp>>;
@@ -280,6 +281,221 @@ describe('MyInst API', () => {
 
       expect(res.statusCode).toBe(401);
       expect(res.json().error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('ativa 2FA TOTP, exige segundo fator no login e aceita recovery code uma única vez', async () => {
+      const email2fa = `totp-${Date.now()}@myinst.dev`;
+      const registro = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/register',
+        payload: { email: email2fa, password: 'senha12345', displayName: 'Usuário 2FA' },
+      });
+      const token2fa = registro.json().data.token as string;
+
+      const setup = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/2fa/setup',
+        headers: { authorization: `Bearer ${token2fa}` },
+      });
+
+      expect(setup.statusCode).toBe(201);
+      expect(setup.json().data.secret).toMatch(/^[A-Z2-7]+=*$/);
+      expect(setup.json().data.otpauthUri).toContain('otpauth://totp/MyInst');
+
+      const code = gerarCodigoTotp(setup.json().data.secret);
+      const verify = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/2fa/verify',
+        headers: { authorization: `Bearer ${token2fa}` },
+        payload: { code },
+      });
+
+      expect(verify.statusCode).toBe(200);
+      expect(verify.json().data.recoveryCodes).toHaveLength(8);
+      expect(JSON.stringify(verify.json())).not.toContain(setup.json().data.secret);
+
+      const security = await app.inject({
+        method: 'GET',
+        url: '/api/v1/auth/security',
+        headers: { authorization: `Bearer ${token2fa}` },
+      });
+      expect(security.statusCode).toBe(200);
+      expect(security.json().data.twoFactor.enabled).toBe(true);
+      expect(security.json().data.twoFactor.recoveryCodeCount).toBe(8);
+
+      const login = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/login',
+        payload: { email: email2fa, password: 'senha12345' },
+      });
+
+      expect(login.statusCode).toBe(200);
+      expect(login.json().data.requiresTwoFactor).toBe(true);
+      expect(login.json().data.twoFactorToken).toBeDefined();
+      expect(login.json().data.token).toBeUndefined();
+
+      const login2fa = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/2fa/login',
+        payload: {
+          twoFactorToken: login.json().data.twoFactorToken,
+          code: gerarCodigoTotp(setup.json().data.secret),
+        },
+      });
+
+      expect(login2fa.statusCode).toBe(200);
+      expect(login2fa.json().data.token).toBeDefined();
+
+      const loginRecovery = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/login',
+        payload: { email: email2fa, password: 'senha12345' },
+      });
+      const recoveryCode = verify.json().data.recoveryCodes[0] as string;
+      const recoveryOk = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/2fa/login',
+        payload: {
+          twoFactorToken: loginRecovery.json().data.twoFactorToken,
+          recoveryCode,
+        },
+      });
+
+      expect(recoveryOk.statusCode).toBe(200);
+      expect(recoveryOk.json().data.token).toBeDefined();
+
+      const recoveryReutilizado = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/2fa/login',
+        payload: {
+          twoFactorToken: loginRecovery.json().data.twoFactorToken,
+          recoveryCode,
+        },
+      });
+
+      expect(recoveryReutilizado.statusCode).toBe(401);
+      expect(recoveryReutilizado.json().error.code).toBe('INVALID_2FA_CODE');
+    });
+
+    it('exige step-up TOTP para criar API key quando 2FA está ativo', async () => {
+      const email2fa = `stepup-${Date.now()}@myinst.dev`;
+      const registro = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/register',
+        payload: { email: email2fa, password: 'senha12345', displayName: 'Usuário Step Up' },
+      });
+      const token2fa = registro.json().data.token as string;
+      const setup = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/2fa/setup',
+        headers: { authorization: `Bearer ${token2fa}` },
+      });
+      const secret = setup.json().data.secret as string;
+      await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/2fa/verify',
+        headers: { authorization: `Bearer ${token2fa}` },
+        payload: { code: gerarCodigoTotp(secret) },
+      });
+
+      const bloqueado = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/api-keys',
+        headers: { authorization: `Bearer ${token2fa}` },
+        payload: { name: 'Sem Step Up', scopes: ['read', 'write'] },
+      });
+
+      expect(bloqueado.statusCode).toBe(403);
+      expect(bloqueado.json().error.code).toBe('STEP_UP_REQUIRED');
+
+      const permitido = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/api-keys',
+        headers: {
+          authorization: `Bearer ${token2fa}`,
+          'x-myinst-2fa-code': gerarCodigoTotp(secret),
+        },
+        payload: { name: 'Com Step Up', scopes: ['read', 'write'] },
+      });
+
+      expect(permitido.statusCode).toBe(201);
+      expect(permitido.json().data.key).toMatch(/^myinst_/);
+    });
+
+    it('salva envelope de Env Vault da conta sem aceitar segredo em claro', async () => {
+      const emailConta = `vault-conta-${Date.now()}@myinst.dev`;
+      const registro = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/register',
+        payload: { email: emailConta, password: 'senha12345', displayName: 'Usuário Vault Conta' },
+      });
+      const tokenConta = registro.json().data.token as string;
+      const setup = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/2fa/setup',
+        headers: { authorization: `Bearer ${tokenConta}` },
+      });
+      const secret = setup.json().data.secret as string;
+      await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/2fa/verify',
+        headers: { authorization: `Bearer ${tokenConta}` },
+        payload: { code: gerarCodigoTotp(secret) },
+      });
+
+      const envelope = {
+        method: 'passphrase',
+        label: 'Senha do Env Vault',
+        encryptedVaultSecret: criarPayloadCriptografadoFake('account-vault'),
+        stepUpFactors: ['totp'],
+      };
+
+      const rejeitado = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/env-vault/envelope',
+        headers: {
+          authorization: `Bearer ${tokenConta}`,
+          'x-myinst-2fa-code': gerarCodigoTotp(secret),
+        },
+        payload: {
+          envelope,
+          vaultSecret: 'segredo-em-claro-nao-pode',
+        },
+      });
+
+      expect(rejeitado.statusCode).toBe(400);
+      expect(rejeitado.json().error.code).toBe('VALIDATION_ERROR');
+
+      const salvo = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/env-vault/envelope',
+        headers: {
+          authorization: `Bearer ${tokenConta}`,
+          'x-myinst-2fa-code': gerarCodigoTotp(secret),
+        },
+        payload: { envelope },
+      });
+
+      expect(salvo.statusCode).toBe(201);
+      expect(salvo.json().data.envelopeCount).toBe(1);
+      expect(JSON.stringify(salvo.json())).not.toContain('segredo-em-claro');
+
+      const consulta = await app.inject({
+        method: 'GET',
+        url: '/api/v1/auth/env-vault/envelope',
+        headers: {
+          authorization: `Bearer ${tokenConta}`,
+          'x-myinst-2fa-code': gerarCodigoTotp(secret),
+        },
+      });
+
+      expect(consulta.statusCode).toBe(200);
+      expect(consulta.json().data).toEqual([
+        expect.objectContaining({
+          method: 'passphrase',
+          label: 'Senha do Env Vault',
+        }),
+      ]);
     });
   });
 

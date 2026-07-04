@@ -37,7 +37,7 @@ Cria uma nova conta.
 
 ### POST /auth/login
 
-Autentica e retorna JWT.
+Autentica e retorna JWT. Quando a conta tem 2FA ativo, retorna um token temporário para concluir o segundo fator.
 
 **Body:**
 ```json
@@ -57,13 +57,101 @@ Autentica e retorna JWT.
 }
 ```
 
+**Response com 2FA (200):**
+```json
+{
+  "data": {
+    "user": { "id": "uuid", "email": "...", "displayName": "..." },
+    "requiresTwoFactor": true,
+    "twoFactorToken": "jwt_temporario"
+  }
+}
+```
+
+### POST /auth/2fa/login
+
+Conclui o login iniciado por `/auth/login`.
+
+**Body com TOTP:**
+```json
+{
+  "twoFactorToken": "jwt_temporario",
+  "code": "123456"
+}
+```
+
+**Body com código de recuperação:**
+```json
+{
+  "twoFactorToken": "jwt_temporario",
+  "recoveryCode": "myinst-2fa-..."
+}
+```
+
+### GET /auth/security
+
+Retorna status de 2FA e envelope do Env Vault da conta.
+
+### POST /auth/2fa/setup
+
+Inicia setup TOTP. Retorna `secret` e `otpauthUri` para cadastrar em aplicativo autenticador.
+
+### POST /auth/2fa/verify
+
+Confirma setup TOTP com código de 6 dígitos e retorna códigos de recuperação de uso único. Esses códigos são exibidos apenas uma vez.
+
+### POST /auth/2fa/disable
+
+Desativa 2FA usando código TOTP ou recovery code.
+
+### GET /auth/env-vault/envelope
+
+Lista envelopes cifrados da conta para desbloqueio local do Env Vault. Se a conta tiver 2FA ativo e a autenticação for JWT, envie `x-myinst-2fa-code`.
+
+### POST /auth/env-vault/envelope
+
+Salva ou substitui um envelope de conta do Env Vault. Requer 2FA ativo.
+
+Headers para JWT com 2FA ativo:
+
+```text
+x-myinst-2fa-code: 123456
+```
+
+**Body:**
+```json
+{
+  "envelope": {
+    "method": "passphrase",
+    "label": "Senha do Env Vault",
+    "encryptedVaultSecret": {
+      "version": "env-vault-v1",
+      "algorithm": "AES-GCM",
+      "kdf": {
+        "algorithm": "pbkdf2-sha256",
+        "iterations": 210000,
+        "keyLength": 32,
+        "digest": "sha256"
+      },
+      "salt": "...",
+      "iv": "...",
+      "authTag": "...",
+      "ciphertext": "..."
+    },
+    "stepUpFactors": ["totp"]
+  }
+}
+```
+
+O body não pode conter `vaultSecret`, senha local, recovery key ou plaintext.
+
 ### GET /auth/me
 
 Retorna perfil do usuário autenticado.
 
 ### POST /auth/api-keys
 
-Gera nova API key.
+Gera nova API key. Se a conta tiver 2FA ativo e a autenticação for JWT, envie `x-myinst-2fa-code`.
 
 **Body:**
 ```json

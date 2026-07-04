@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { Boxes, ChevronRight, Home, KeyRound, LogOut, ShieldCheck, Waypoints } from 'lucide-react';
+import { Boxes, ChevronRight, Home, KeyRound, LockKeyhole, LogOut, ShieldCheck, Waypoints } from 'lucide-react';
 import { ContextMenu, type ContextMenuAction } from '@/components/ContextMenu';
 import { ContextMenuRegistryProvider, type ContextMenuDefinition } from '@/components/ContextMenuRegistry';
 import { limparToken } from '@/lib/api';
@@ -97,12 +97,19 @@ export function Layout() {
 
               <div className="space-y-2">
                 <p className="px-2 text-[11px] uppercase tracking-[0.24em] text-slate-600">Conta</p>
-              <NavItem
+                <NavItem
                   to="/api-keys"
                   label="API Keys"
                   hint="Acesso da conta"
                   icon={<KeyRound size={18} />}
                   active={location.pathname.startsWith('/api-keys')}
+                />
+                <NavItem
+                  to="/security"
+                  label="Segurança"
+                  hint="2FA e Env Vault"
+                  icon={<LockKeyhole size={18} />}
+                  active={location.pathname.startsWith('/security')}
                 />
               </div>
             </nav>

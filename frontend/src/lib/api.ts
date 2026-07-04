@@ -65,6 +65,22 @@ export interface EnvVaultRecoveryEnvelope {
   stepUpFactors: Array<'email' | 'totp' | 'passkey' | 'password'>;
 }
 
+export interface AccountEnvVaultEnvelope extends EnvVaultRecoveryEnvelope {
+  id?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SegurancaConta {
+  twoFactor: {
+    enabled: boolean;
+    recoveryCodeCount: number;
+  };
+  envVault: {
+    envelopeCount: number;
+  };
+}
+
 export interface EnvVaultFileResumo {
   id: string;
   name: string;
@@ -89,6 +105,13 @@ export interface CriarEnvVaultFileInput {
 export interface EnvVaultFileDetalhado extends EnvVaultFileResumo {
   encryptedPayload: EnvVaultEncryptedPayload;
   recoveryEnvelopes: EnvVaultRecoveryEnvelope[];
+}
+
+export interface LoginResponse {
+  user: any;
+  token?: string;
+  requiresTwoFactor?: boolean;
+  twoFactorToken?: string;
 }
 
 function normalizarBaseApi(base: string): string {
@@ -118,6 +141,16 @@ export function limparToken() {
 
 export function estaAutenticado(): boolean {
   return !!obterToken();
+}
+
+function montarHeadersStepUp(options?: { twoFactorCode?: string; recoveryCode?: string }): HeadersInit | undefined {
+  if (!options?.twoFactorCode && !options?.recoveryCode) return undefined;
+
+  const headers = new Headers();
+  if (options.twoFactorCode) headers.set('x-myinst-2fa-code', options.twoFactorCode);
+  if (options.recoveryCode) headers.set('x-myinst-recovery-code', options.recoveryCode);
+
+  return headers;
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -161,13 +194,39 @@ export const api = {
     registrar: (body: { email: string; password: string; displayName: string }) =>
       request<{ user: any; token: string }>('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
     login: (body: { email: string; password: string }) =>
-      request<{ user: any; token: string }>('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+      request<LoginResponse>('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+    verificarLoginTotp: (body: { twoFactorToken: string; code?: string; recoveryCode?: string }) =>
+      request<{ user: any; token: string }>('/auth/2fa/login', { method: 'POST', body: JSON.stringify(body) }),
     me: () => request<any>('/auth/me'),
+    seguranca: () => request<SegurancaConta>('/auth/security'),
+    iniciarTotp: () =>
+      request<{ secret: string; otpauthUri: string }>('/auth/2fa/setup', { method: 'POST' }),
+    verificarTotp: (body: { code: string }) =>
+      request<{ enabled: boolean; recoveryCodes: string[] }>('/auth/2fa/verify', { method: 'POST', body: JSON.stringify(body) }),
+    desabilitarTotp: (body: { code?: string; recoveryCode?: string }) =>
+      request<void>('/auth/2fa/disable', { method: 'POST', body: JSON.stringify(body) }),
     listarApiKeys: () => request<any[]>('/auth/api-keys'),
-    criarApiKey: (body: { name: string; scopes: string[] }) =>
-      request<any>('/auth/api-keys', { method: 'POST', body: JSON.stringify(body) }),
+    criarApiKey: (body: { name: string; scopes: string[] }, options?: { twoFactorCode?: string; recoveryCode?: string }) =>
+      request<any>('/auth/api-keys', {
+        method: 'POST',
+        headers: montarHeadersStepUp(options),
+        body: JSON.stringify(body),
+      }),
     deletarApiKey: (id: string) =>
       request<void>(`/auth/api-keys/${id}`, { method: 'DELETE' }),
+    listarEnvVaultEnvelopes: (options?: { twoFactorCode?: string; recoveryCode?: string }) =>
+      request<AccountEnvVaultEnvelope[]>('/auth/env-vault/envelope', {
+        headers: montarHeadersStepUp(options),
+      }),
+    salvarEnvVaultEnvelope: (
+      body: { envelope: EnvVaultRecoveryEnvelope },
+      options?: { twoFactorCode?: string; recoveryCode?: string },
+    ) =>
+      request<{ envelopeCount: number }>('/auth/env-vault/envelope', {
+        method: 'POST',
+        headers: montarHeadersStepUp(options),
+        body: JSON.stringify(body),
+      }),
   },
   workspaces: {
     listar: () => request<any[]>('/workspaces'),
@@ -304,20 +363,27 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
-    obter: (workspaceSlug: string, projetoSlug: string, envId: string) =>
-      request<EnvVaultFileDetalhado>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/env-files/${encodeURIComponent(envId)}`),
+    obter: (workspaceSlug: string, projetoSlug: string, envId: string, options?: { twoFactorCode?: string; recoveryCode?: string }) =>
+      request<EnvVaultFileDetalhado>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/env-files/${encodeURIComponent(envId)}`, {
+        headers: montarHeadersStepUp(options),
+      }),
     adicionarRecoveryEnvelope: (
       workspaceSlug: string,
       projetoSlug: string,
       envId: string,
       body: EnvVaultRecoveryEnvelope,
+      options?: { twoFactorCode?: string; recoveryCode?: string },
     ) =>
       request<EnvVaultFileResumo>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/env-files/${encodeURIComponent(envId)}/recovery-envelopes`, {
         method: 'POST',
+        headers: montarHeadersStepUp(options),
         body: JSON.stringify(body),
       }),
-    deletar: (workspaceSlug: string, projetoSlug: string, envId: string) =>
-      request<void>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/env-files/${encodeURIComponent(envId)}`, { method: 'DELETE' }),
+    deletar: (workspaceSlug: string, projetoSlug: string, envId: string, options?: { twoFactorCode?: string; recoveryCode?: string }) =>
+      request<void>(`/workspaces/${workspaceSlug}/projects/${projetoSlug}/env-files/${encodeURIComponent(envId)}`, {
+        method: 'DELETE',
+        headers: montarHeadersStepUp(options),
+      }),
   },
   tags: {
     listar: () => request<any[]>('/tags'),

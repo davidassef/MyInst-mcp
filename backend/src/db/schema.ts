@@ -71,6 +71,43 @@ export const apiKeys = pgTable('api_keys', {
   index('api_keys_prefix_idx').on(table.keyPrefix),
 ]);
 
+export const userTotpFactors = pgTable('user_totp_factors', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  label: varchar('label', { length: 120 }).default('Aplicativo autenticador').notNull(),
+  secretEncrypted: jsonb('secret_encrypted').notNull(),
+  enabledAt: timestamp('enabled_at', { withTimezone: true }),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('user_totp_factors_user_idx').on(table.userId),
+]);
+
+export const userRecoveryCodes = pgTable('user_recovery_codes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  codeHash: varchar('code_hash', { length: 255 }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('user_recovery_codes_user_idx').on(table.userId),
+]);
+
+export const accountEnvVaultEnvelopes = pgTable('account_env_vault_envelopes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  method: varchar('method', { length: 40 }).notNull(),
+  label: varchar('label', { length: 120 }).notNull(),
+  encryptedVaultSecret: jsonb('encrypted_vault_secret').notNull(),
+  stepUpFactors: text('step_up_factors').array().default([]).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('account_env_vault_envelopes_user_label_idx').on(table.userId, table.label),
+  index('account_env_vault_envelopes_user_idx').on(table.userId),
+]);
+
 export const workspaces = pgTable('workspaces', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),

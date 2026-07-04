@@ -4,6 +4,7 @@ import { ArrowLeft, Plus, FileText, Trash2, Save, Search, Folder, FolderPlus, X,
 import { api, type ChatDetalhado, type ChatMensagem, type ChatResumo, type EnvVaultFileResumo } from '@/lib/api';
 import { montarComandoEnvVaultPull, montarComandoEnvVaultPush } from '@/lib/envVaultCommands';
 import {
+  desbloquearEnvVaultComAccountEnvelopeParaVisualizacao,
   desbloquearEnvVaultComRecoveryKeyParaVisualizacao,
   desbloquearEnvVaultParaVisualizacao,
   mascararValorEnvVault,
@@ -71,7 +72,7 @@ interface ProjectStateItem {
 }
 
 type AbaProjeto = 'conteudo' | 'memorias' | 'decisoes' | 'sessoes' | 'chats' | 'env-vault';
-type MetodoDesbloqueioEnvVault = 'segredo' | 'recovery';
+type MetodoDesbloqueioEnvVault = 'segredo' | 'recovery' | 'conta';
 
 export function ProjetoPage() {
   const { workspaceSlug, slug } = useParams<{ workspaceSlug: string; slug: string }>();
@@ -341,13 +342,16 @@ export function ProjetoPage() {
     return true;
   }
 
-  async function deletarEnvVaultFile(env: EnvVaultFileResumo): Promise<boolean> {
+  async function deletarEnvVaultFile(
+    env: EnvVaultFileResumo,
+    options?: { twoFactorCode?: string; recoveryCode?: string },
+  ): Promise<boolean> {
     if (!workspaceSlug || !slug) return false;
 
     const confirmado = window.confirm(`Remover o env criptografado "${env.name}" do projeto?`);
     if (!confirmado) return false;
 
-    await api.envVault.deletar(workspaceSlug, slug, env.id);
+    await api.envVault.deletar(workspaceSlug, slug, env.id, options);
     setEnvVaultFiles((atuais) => atuais.filter((item) => item.id !== env.id));
     return true;
   }
@@ -723,7 +727,7 @@ function EnvVaultPanel({
   workspaceSlug: string;
   projectSlug: string;
   envs: EnvVaultFileResumo[];
-  onDeleteEnv: (env: EnvVaultFileResumo) => Promise<boolean>;
+  onDeleteEnv: (env: EnvVaultFileResumo, options?: { twoFactorCode?: string; recoveryCode?: string }) => Promise<boolean>;
   onUpdateEnv: (env: EnvVaultFileResumo) => void;
 }) {
   const [copiadoId, setCopiadoId] = useState<string | null>(null);
@@ -736,6 +740,8 @@ function EnvVaultPanel({
   } | null>(null);
   const [segredoEnv, setSegredoEnv] = useState('');
   const [recoveryKeyEnv, setRecoveryKeyEnv] = useState('');
+  const [senhaContaEnv, setSenhaContaEnv] = useState('');
+  const [codigoStepUpEnv, setCodigoStepUpEnv] = useState('');
   const [metodoDesbloqueio, setMetodoDesbloqueio] = useState<MetodoDesbloqueioEnvVault>('segredo');
   const [segredoConfiguracaoRecovery, setSegredoConfiguracaoRecovery] = useState('');
   const [configurandoRecoveryEnvId, setConfigurandoRecoveryEnvId] = useState<string | null>(null);
@@ -779,6 +785,8 @@ function EnvVaultPanel({
     setErroEnv('');
     setSegredoEnv('');
     setRecoveryKeyEnv('');
+    setSenhaContaEnv('');
+    setCodigoStepUpEnv('');
     setSegredoConfiguracaoRecovery('');
     setValoresRevelados(new Set());
     setEnvDesbloqueado(null);
@@ -809,10 +817,25 @@ function EnvVaultPanel({
       return;
     }
 
+    if (metodoDesbloqueio === 'conta' && !senhaContaEnv.trim()) {
+      setErroEnv('Informe a senha local do Env Vault cadastrada em Conta > Segurança.');
+      return;
+    }
+
+    if (metodoDesbloqueio === 'conta' && !codigoStepUpEnv.trim()) {
+      setErroEnv('Informe o código do autenticador para acessar o envelope da conta.');
+      return;
+    }
+
     setDesbloqueandoEnvId(envSelecionado.id);
 
     try {
-      const envDetalhado = await api.envVault.obter(workspaceSlug, projectSlug, envSelecionado.id);
+      const envDetalhado = await api.envVault.obter(
+        workspaceSlug,
+        projectSlug,
+        envSelecionado.id,
+        criarStepUpOptions(),
+      );
       const visualizacao = await desbloquearEnvVaultDetalhado(envDetalhado, metodoDesbloqueio);
 
       setEnvDesbloqueado({
@@ -823,6 +846,8 @@ function EnvVaultPanel({
       setValoresRevelados(new Set());
       setSegredoEnv('');
       setRecoveryKeyEnv('');
+      setSenhaContaEnv('');
+      setCodigoStepUpEnv('');
     } catch {
       setEnvDesbloqueado(null);
       setErroEnv('Não foi possível desbloquear o env. Verifique o segredo local ou a recovery key e tente novamente.');
@@ -846,7 +871,12 @@ function EnvVaultPanel({
     setConfigurandoRecoveryEnvId(envSelecionado.id);
 
     try {
-      const envDetalhado = await api.envVault.obter(workspaceSlug, projectSlug, envSelecionado.id);
+      const envDetalhado = await api.envVault.obter(
+        workspaceSlug,
+        projectSlug,
+        envSelecionado.id,
+        criarStepUpOptions(),
+      );
       await desbloquearEnvVaultParaVisualizacao({
         encryptedPayload: envDetalhado.encryptedPayload,
         secret: segredoConfiguracaoRecovery,
@@ -860,6 +890,7 @@ function EnvVaultPanel({
         projectSlug,
         envSelecionado.id,
         recovery.envelope,
+        criarStepUpOptions(),
       );
 
       onUpdateEnv(envAtualizado);
@@ -881,6 +912,7 @@ function EnvVaultPanel({
     setEnvDesbloqueado(null);
     setSegredoEnv('');
     setRecoveryKeyEnv('');
+    setSenhaContaEnv('');
     setValoresRevelados(new Set());
   }
 
@@ -905,7 +937,7 @@ function EnvVaultPanel({
     setRecoveryGerado(null);
 
     try {
-      await onDeleteEnv(env);
+      await onDeleteEnv(env, criarStepUpOptions());
     } catch (err) {
       setErroEnv(err instanceof Error ? err.message : 'Erro ao remover env.');
     } finally {
@@ -924,6 +956,21 @@ function EnvVaultPanel({
       });
     }
 
+    if (metodo === 'conta') {
+      const envelopesConta = await api.auth.listarEnvVaultEnvelopes(criarStepUpOptions());
+      const accountEnvelope = envelopesConta.find((envelope) => envelope.method === 'passphrase');
+
+      if (!accountEnvelope) {
+        throw new Error('env_sem_envelope_conta');
+      }
+
+      return desbloquearEnvVaultComAccountEnvelopeParaVisualizacao({
+        encryptedPayload: envDetalhado.encryptedPayload,
+        accountEnvelope,
+        passphrase: senhaContaEnv,
+      });
+    }
+
     const recoveryEnvelope = envDetalhado.recoveryEnvelopes.find((envelope) => envelope.method === 'recovery_key');
 
     if (!recoveryEnvelope) {
@@ -935,6 +982,12 @@ function EnvVaultPanel({
       recoveryEnvelope,
       recoveryKey: recoveryKeyEnv,
     });
+  }
+
+  function criarStepUpOptions() {
+    return codigoStepUpEnv.trim()
+      ? { twoFactorCode: codigoStepUpEnv.trim() }
+      : undefined;
   }
 
   const comandoPush = montarComandoEnvVaultPush({
@@ -950,7 +1003,7 @@ function EnvVaultPanel({
         <div>
           <h3 className="text-xl font-semibold text-zinc-100">Env Vault</h3>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-zinc-500">
-            Arquivos .env criptografados por projeto. O painel desbloqueia no navegador com o segredo do Env Vault ou com uma recovery key cadastrada para este env; o segredo, a recovery key e o plaintext não são enviados ao servidor.
+            Arquivos .env criptografados por projeto. O painel desbloqueia no navegador com o segredo do Env Vault, recovery key ou envelope da conta; senha local, recovery key e plaintext não são enviados ao servidor.
           </p>
         </div>
         <button
@@ -964,7 +1017,7 @@ function EnvVaultPanel({
       </div>
 
       <div className="rounded-xl border border-blue-900/40 bg-blue-950/10 p-4 text-sm leading-6 text-blue-100">
-        O segredo local é criado no uso da CLI, não é a senha da sua conta MyInst. Se quiser consultar pelo painel sem lembrar o segredo principal, abra o env uma vez com esse segredo e gere uma recovery key para guardar fora do MyInst.
+        Cadastre o envelope em Conta &gt; Segurança para consultar envs pelo painel com senha local e código do autenticador. O segredo direto e a recovery key continuam disponíveis para restauração e operação local.
       </div>
 
       <pre className="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-xs leading-6 text-zinc-300">
@@ -1065,6 +1118,18 @@ function EnvVaultPanel({
                             <KeyRound size={14} />
                             Recovery key
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => setMetodoDesbloqueio('conta')}
+                            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                              metodoDesbloqueio === 'conta'
+                                ? 'border-cyan-500 bg-cyan-600/20 text-cyan-200'
+                                : 'border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'
+                            }`}
+                          >
+                            <ShieldCheck size={14} />
+                            Envelope da conta
+                          </button>
                         </div>
 
                         {metodoDesbloqueio === 'segredo' ? (
@@ -1082,7 +1147,7 @@ function EnvVaultPanel({
                               placeholder="Segredo criado no myinst env push/pull"
                             />
                           </div>
-                        ) : (
+                        ) : metodoDesbloqueio === 'recovery' ? (
                           <div>
                             <label htmlFor={`env-recovery-${env.id}`} className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
                               Recovery key deste env
@@ -1097,7 +1162,38 @@ function EnvVaultPanel({
                               placeholder="myinst-env-rk_..."
                             />
                           </div>
+                        ) : (
+                          <div>
+                            <label htmlFor={`env-account-passphrase-${env.id}`} className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
+                              Senha local do Env Vault
+                            </label>
+                            <input
+                              id={`env-account-passphrase-${env.id}`}
+                              type="password"
+                              value={senhaContaEnv}
+                              onChange={(event) => setSenhaContaEnv(event.target.value)}
+                              autoComplete="off"
+                              className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition-colors focus:border-cyan-500"
+                              placeholder="Cadastrada em Conta > Segurança"
+                            />
+                          </div>
                         )}
+
+                        <div>
+                          <label htmlFor={`env-step-up-${env.id}`} className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
+                            Código do autenticador
+                          </label>
+                          <input
+                            id={`env-step-up-${env.id}`}
+                            type="text"
+                            value={codigoStepUpEnv}
+                            onChange={(event) => setCodigoStepUpEnv(event.target.value)}
+                            autoComplete="one-time-code"
+                            inputMode="numeric"
+                            className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none transition-colors focus:border-cyan-500"
+                            placeholder="Obrigatório quando 2FA estiver ativo"
+                          />
+                        </div>
 
                         <div className="flex flex-wrap items-center gap-2">
                           <button

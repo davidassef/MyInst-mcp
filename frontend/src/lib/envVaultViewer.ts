@@ -3,6 +3,7 @@ import {
   criarEnvVaultRecoveryEnvelope,
   descriptografarEnvVault,
   gerarRecoveryKeyEnvVault,
+  gerarSegredoVaultEnvVault,
 } from '@myinst/shared/env-vault';
 import type { EnvVaultEncryptedPayload, EnvVaultRecoveryEnvelope } from './api';
 
@@ -59,6 +60,26 @@ export async function desbloquearEnvVaultComRecoveryKeyParaVisualizacao({
   });
 }
 
+export async function desbloquearEnvVaultComAccountEnvelopeParaVisualizacao({
+  encryptedPayload,
+  accountEnvelope,
+  passphrase,
+}: {
+  encryptedPayload: EnvVaultEncryptedPayload;
+  accountEnvelope: EnvVaultRecoveryEnvelope;
+  passphrase: string;
+}): Promise<EnvVaultVisualizacao> {
+  const vaultSecret = await abrirEnvVaultRecoveryEnvelope({
+    envelope: accountEnvelope,
+    segredoRecuperacao: passphrase,
+  });
+
+  return desbloquearEnvVaultParaVisualizacao({
+    encryptedPayload,
+    secret: vaultSecret,
+  });
+}
+
 export async function prepararRecoveryEnvelopeEnvVaultWeb({
   vaultSecret,
   recoveryKey,
@@ -81,6 +102,22 @@ export async function prepararRecoveryEnvelopeEnvVaultWeb({
     recoveryKey: recoveryKeyGerada,
     envelope,
   };
+}
+
+export async function prepararAccountEnvVaultEnvelopeWeb({
+  passphrase,
+  label = 'Senha do Env Vault',
+}: {
+  passphrase: string;
+  label?: string;
+}): Promise<EnvVaultRecoveryEnvelope> {
+  return criarEnvVaultRecoveryEnvelope({
+    vaultSecret: gerarSegredoVaultEnvVault(),
+    segredoRecuperacao: passphrase,
+    method: 'passphrase',
+    label,
+    stepUpFactors: ['totp'],
+  });
 }
 
 export function parsearEnvParaVisualizacao(plaintext: string): EnvVaultVisualizacao {

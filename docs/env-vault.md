@@ -44,6 +44,19 @@ O backend pode armazenar envelopes de recuperação. Cada envelope contém somen
 
 Se o usuário perder todos os fatores criptográficos, o backend não deve conseguir restaurar o plaintext. O caminho correto é resetar o Env Vault daquele projeto.
 
+## 2FA e envelope da conta
+
+O fluxo principal para consulta pelo painel fica em `Conta > Segurança`:
+
+1. ative o 2FA com aplicativo autenticador;
+2. guarde os códigos de recuperação exibidos uma única vez;
+3. cadastre uma senha local do Env Vault;
+4. informe o código TOTP para salvar o envelope da conta.
+
+O painel gera um segredo de vault no navegador e o cifra com a senha local informada. O backend armazena apenas o envelope cifrado em `account_env_vault_envelopes`. O 2FA é usado como step-up para ações sensíveis, mas não descriptografa `.env` sozinho.
+
+Operações sensíveis feitas pelo painel com JWT exigem `x-myinst-2fa-code` quando a conta tem 2FA ativo. Chamadas com API key continuam válidas para CLI/MCP, pois a API key já é o fator operacional local.
+
 ## CLI
 
 Execute os comandos na raiz do projeto que contém o arquivo `.env`. A pasta atual define o arquivo local lido por `--file` ou escrito por `--output`; o projeto remoto é definido por `--workspace` e `--project`.
@@ -61,7 +74,7 @@ myinst env delete --workspace meus-projetos --project myinst --name local --envi
 
 `--workspace` e `--project` devem ser informados explicitamente neste beta. O MyInst ainda não infere automaticamente o projeto remoto pelo diretório atual, por nome de pasta ou por Git remote. Isso evita gravar segredos no projeto errado. Um manifesto local como `.myinst/project.json` pode ser adotado no futuro, mas não deve ser assumido no fluxo atual.
 
-`--project` é obrigatório para impedir gravação em projeto genérico. O segredo pode vir de `MYINST_ENV_VAULT_SECRET` ou do prompt local oculto. Prefira o prompt oculto para uso interativo. Evite informar segredo na mesma linha do comando para não vazar em histórico, logs ou listagem de processos. Para criar envelope com uma recovery key já existente, use `MYINST_ENV_VAULT_RECOVERY_KEY`.
+`--project` é obrigatório para impedir gravação em projeto genérico. O segredo pode vir do envelope da conta no painel, de uma recovery key por env, de `MYINST_ENV_VAULT_SECRET` ou do prompt local oculto conforme o client suportado. Prefira o prompt oculto para uso interativo. Use `MYINST_ENV_VAULT_SECRET` apenas em automação local controlada. Evite informar segredo na mesma linha do comando para não vazar em histórico, logs ou listagem de processos. Para criar envelope com uma recovery key já existente, use `MYINST_ENV_VAULT_RECOVERY_KEY`.
 
 Se houver mais de um env com o mesmo `--name`, informe `--environment` em `pull`, `show` e `delete`. `sourcePath` é tratado como nome de arquivo seguro, não como caminho absoluto local.
 
@@ -81,6 +94,7 @@ Ao clicar em `Desbloquear`, o painel busca o `encryptedPayload` por rota dedicad
 
 - `Segredo do Env Vault`: usa o segredo criado no `myinst env push/pull`. Esse segredo não é a senha da conta MyInst.
 - `Recovery key`: usa um envelope de recuperação já cadastrado para aquele env.
+- `Envelope da conta`: usa o envelope cadastrado em `Conta > Segurança`, exige 2FA ativo e senha local do Env Vault no navegador.
 
 Para cadastrar uma recovery key pelo painel, abra o env, informe o segredo atual uma vez em `Configurar recovery key` e clique em `Gerar recovery key`. O navegador valida o segredo, gera a recovery key e envia ao backend somente o envelope cifrado do segredo de vault. A recovery key é exibida uma única vez; guarde fora do MyInst.
 
@@ -98,6 +112,13 @@ GET    /api/v1/workspaces/:workspaceSlug/projects/:projectSlug/env-files
 GET    /api/v1/workspaces/:workspaceSlug/projects/:projectSlug/env-files/:id
 POST   /api/v1/workspaces/:workspaceSlug/projects/:projectSlug/env-files/:id/recovery-envelopes
 DELETE /api/v1/workspaces/:workspaceSlug/projects/:projectSlug/env-files/:id
+GET    /api/v1/auth/security
+POST   /api/v1/auth/2fa/setup
+POST   /api/v1/auth/2fa/verify
+POST   /api/v1/auth/2fa/login
+POST   /api/v1/auth/2fa/disable
+GET    /api/v1/auth/env-vault/envelope
+POST   /api/v1/auth/env-vault/envelope
 ```
 
 Requisitos mínimos:

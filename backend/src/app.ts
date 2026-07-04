@@ -29,10 +29,18 @@ export async function criarApp(configuracao: ConfiguracaoAmbiente = carregarAmbi
       : {
           redact: [
             'req.headers.authorization',
+            'req.headers.x-myinst-2fa-code',
+            'req.headers.x-myinst-recovery-code',
+            'req.body.code',
             'req.body.password',
+            'req.body.recoveryCode',
+            'req.body.twoFactorToken',
             'req.body.token',
             'req.body.key',
+            'res.body.data.recoveryCodes',
+            'res.body.data.secret',
             'res.body.data.token',
+            'res.body.data.twoFactorToken',
             'res.body.data.key',
           ],
         },
@@ -41,7 +49,7 @@ export async function criarApp(configuracao: ConfiguracaoAmbiente = carregarAmbi
   await app.register(helmet);
   await app.register(cors, {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-myinst-2fa-code', 'x-myinst-recovery-code'],
     origin: (origin, callback) => {
       if (!origin) {
         callback(null, true);

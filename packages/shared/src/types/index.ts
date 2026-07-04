@@ -3,6 +3,7 @@ import type {
   registrarUsuarioSchema,
   loginSchema,
   criarApiKeySchema,
+  desabilitarTotpSchema,
   criarWorkspaceSchema,
   atualizarWorkspaceSchema,
   criarProjetoSchema,
@@ -21,13 +22,20 @@ import type {
   adicionarEnvVaultRecoveryEnvelopeSchema,
   envVaultFileMetadataSchema,
   resumirChatSessionSchema,
+  salvarAccountEnvVaultEnvelopeSchema,
   syncPullSchema,
   syncPushSchema,
+  verificarTotpLoginSchema,
+  verificarTotpSetupSchema,
 } from '../schemas/index.js';
 
 export type RegistrarUsuarioInput = z.infer<typeof registrarUsuarioSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CriarApiKeyInput = z.infer<typeof criarApiKeySchema>;
+export type VerificarTotpSetupInput = z.infer<typeof verificarTotpSetupSchema>;
+export type VerificarTotpLoginInput = z.infer<typeof verificarTotpLoginSchema>;
+export type DesabilitarTotpInput = z.infer<typeof desabilitarTotpSchema>;
+export type SalvarAccountEnvVaultEnvelopeInput = z.infer<typeof salvarAccountEnvVaultEnvelopeSchema>;
 export type CriarWorkspaceInput = z.infer<typeof criarWorkspaceSchema>;
 export type AtualizarWorkspaceInput = z.infer<typeof atualizarWorkspaceSchema>;
 export type CriarProjetoInput = z.infer<typeof criarProjetoSchema>;

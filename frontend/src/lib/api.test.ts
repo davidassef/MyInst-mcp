@@ -321,3 +321,85 @@ describe('api.envVault', () => {
     });
   });
 });
+
+describe('api.auth.seguranca', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    storage.clear();
+  });
+
+  it('inicia e confirma setup TOTP pelos endpoints da conta', async () => {
+    localStorage.setItem('myinst_token', 'token-local');
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({
+          data: {
+            secret: 'JBSWY3DPEHPK3PXP',
+            otpauthUri: 'otpauth://totp/MyInst:teste@example.com?secret=JBSWY3DPEHPK3PXP&issuer=MyInst',
+          },
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { recoveryCodes: ['myinst-2fa-abc'] } }),
+      } as Response);
+
+    const setup = await api.auth.iniciarTotp();
+    const verify = await api.auth.verificarTotp({ code: '123456' });
+
+    expect(setup.secret).toBe('JBSWY3DPEHPK3PXP');
+    expect(verify.recoveryCodes).toEqual(['myinst-2fa-abc']);
+    expect(fetchMock).toHaveBeenNthCalledWith(1, '/api/v1/auth/2fa/setup', {
+      method: 'POST',
+      headers: expect.any(Headers),
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/v1/auth/2fa/verify', {
+      method: 'POST',
+      body: JSON.stringify({ code: '123456' }),
+      headers: expect.any(Headers),
+    });
+  });
+
+  it('salva envelope de Env Vault da conta sem enviar segredo em claro', async () => {
+    localStorage.setItem('myinst_token', 'token-local');
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({ data: { envelopeCount: 1 } }),
+    } as Response);
+
+    await api.auth.salvarEnvVaultEnvelope({
+      envelope: {
+        method: 'passphrase',
+        label: 'Senha do Env Vault',
+        encryptedVaultSecret: {
+          version: 'env-vault-v1',
+          algorithm: 'AES-GCM',
+          kdf: {
+            algorithm: 'pbkdf2-sha256',
+            iterations: 210000,
+            keyLength: 32,
+            digest: 'sha256',
+          },
+          salt: 'AAAAAAAAAAAAAAAAAAAAAA',
+          iv: 'AAAAAAAAAAAAAAAA',
+          authTag: 'AAAAAAAAAAAAAAAAAAAAAA',
+          ciphertext: 'BBBBBBBB',
+        },
+        stepUpFactors: ['totp'],
+      },
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string);
+    expect(body).not.toHaveProperty('vaultSecret');
+    expect(body).not.toHaveProperty('passphrase');
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/auth/env-vault/envelope', {
+      method: 'POST',
+      body: expect.any(String),
+      headers: expect.any(Headers),
+    });
+  });
+});

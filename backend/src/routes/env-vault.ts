@@ -7,6 +7,7 @@ import { envVaultFiles, envVaultFileVersions, envVaultRecoveryEnvelopes, project
 import { autenticar } from '../middleware/auth.js';
 import { validar } from '../middleware/validation.js';
 import { resolverWorkspaceDoUsuario } from '../lib/workspaces.js';
+import { exigirTotpStepUp } from '../lib/step-up.js';
 
 const AMBIENTE_PADRAO = 'default';
 
@@ -26,17 +27,17 @@ export async function envVaultRoutes(app: FastifyInstance) {
 
   app.post(
     '/workspaces/:workspaceSlug/projects/:projectSlug/env-files',
-    { preHandler: [validar(criarEnvVaultFileSchema)] },
+    { preHandler: [exigirTotpStepUp, validar(criarEnvVaultFileSchema)] },
     async (request, reply) => criarEnvVaultFile(request, reply),
   );
 
   app.post(
     '/workspaces/:workspaceSlug/projects/:projectSlug/env-files/:envId/recovery-envelopes',
-    { preHandler: [validar(adicionarEnvVaultRecoveryEnvelopeSchema)] },
+    { preHandler: [exigirTotpStepUp, validar(adicionarEnvVaultRecoveryEnvelopeSchema)] },
     async (request, reply) => adicionarRecoveryEnvelope(request, reply),
   );
 
-  app.get('/workspaces/:workspaceSlug/projects/:projectSlug/env-files/:envId', async (request, reply) => {
+  app.get('/workspaces/:workspaceSlug/projects/:projectSlug/env-files/:envId', { preHandler: [exigirTotpStepUp] }, async (request, reply) => {
     const contexto = await resolverContextoProjeto(request);
     if (!contexto) return responderProjetoNaoEncontrado(reply);
 
@@ -46,7 +47,7 @@ export async function envVaultRoutes(app: FastifyInstance) {
     return { data: env };
   });
 
-  app.delete('/workspaces/:workspaceSlug/projects/:projectSlug/env-files/:envId', async (request, reply) => {
+  app.delete('/workspaces/:workspaceSlug/projects/:projectSlug/env-files/:envId', { preHandler: [exigirTotpStepUp] }, async (request, reply) => {
     const contexto = await resolverContextoProjeto(request);
     if (!contexto) return responderProjetoNaoEncontrado(reply);
 

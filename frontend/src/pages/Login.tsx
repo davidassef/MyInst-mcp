@@ -106,6 +106,9 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [twoFactorToken, setTwoFactorToken] = useState('');
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [usarRecoveryCode, setUsarRecoveryCode] = useState(false);
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
   const returnUrlRef = useRef<string | null>(null);
@@ -140,11 +143,30 @@ export function LoginPage() {
     setCarregando(true);
 
     try {
+      if (twoFactorToken) {
+        const resultado = await api.auth.verificarLoginTotp({
+          twoFactorToken,
+          ...(usarRecoveryCode ? { recoveryCode: twoFactorCode } : { code: twoFactorCode }),
+        });
+        salvarToken(resultado.token);
+        navigate(returnUrlRef.current || '/', { replace: true });
+        return;
+      }
+
       if (modo === 'registro') {
         const resultado = await api.auth.registrar({ email, password, displayName });
         salvarToken(resultado.token);
       } else {
         const resultado = await api.auth.login({ email, password });
+        if (resultado.requiresTwoFactor && resultado.twoFactorToken) {
+          setTwoFactorToken(resultado.twoFactorToken);
+          return;
+        }
+
+        if (!resultado.token) {
+          throw new Error('Login incompleto. Tente novamente.');
+        }
+
         salvarToken(resultado.token);
       }
 
@@ -226,6 +248,31 @@ export function LoginPage() {
                 )}
               />
 
+              {twoFactorToken && (
+                <>
+                  <CampoRotulo
+                    label={usarRecoveryCode ? 'Código de recuperação' : 'Código do autenticador'}
+                    input={(
+                      <input
+                        type="text"
+                        value={twoFactorCode}
+                        onChange={(e) => setTwoFactorCode(e.target.value)}
+                        className="vault-input"
+                        inputMode={usarRecoveryCode ? 'text' : 'numeric'}
+                        required
+                      />
+                    )}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setUsarRecoveryCode((valorAtual) => !valorAtual)}
+                    className="text-sm text-cyan-200 transition hover:text-white"
+                  >
+                    {usarRecoveryCode ? 'Usar aplicativo autenticador' : 'Usar código de recuperação'}
+                  </button>
+                </>
+              )}
+
               {erro && (
                 <div className="rounded-2xl border border-red-400/20 bg-red-500/8 px-4 py-3 text-sm text-red-200">
                   {erro}
@@ -284,6 +331,11 @@ export function LoginPage() {
           setPassword={setPassword}
           erro={erro}
           carregando={carregando}
+          twoFactorToken={twoFactorToken}
+          twoFactorCode={twoFactorCode}
+          setTwoFactorCode={setTwoFactorCode}
+          usarRecoveryCode={usarRecoveryCode}
+          setUsarRecoveryCode={setUsarRecoveryCode}
           onSubmit={handleSubmit}
         />
       </div>
@@ -450,6 +502,11 @@ interface LoginCardProps {
   setPassword: (password: string) => void;
   erro: string;
   carregando: boolean;
+  twoFactorToken: string;
+  twoFactorCode: string;
+  setTwoFactorCode: (code: string) => void;
+  usarRecoveryCode: boolean;
+  setUsarRecoveryCode: (usarRecoveryCode: boolean) => void;
   onSubmit: (e: React.FormEvent) => void;
 }
 
@@ -464,6 +521,11 @@ function LoginCard({
   setPassword,
   erro,
   carregando,
+  twoFactorToken,
+  twoFactorCode,
+  setTwoFactorCode,
+  usarRecoveryCode,
+  setUsarRecoveryCode,
   onSubmit,
 }: LoginCardProps) {
   return (
@@ -524,6 +586,31 @@ function LoginCard({
             />
           )}
         />
+
+        {twoFactorToken && (
+          <>
+            <CampoRotulo
+              label={usarRecoveryCode ? 'Código de recuperação' : 'Código do autenticador'}
+              input={(
+                <input
+                  type="text"
+                  value={twoFactorCode}
+                  onChange={(e) => setTwoFactorCode(e.target.value)}
+                  className="vault-input"
+                  inputMode={usarRecoveryCode ? 'text' : 'numeric'}
+                  required
+                />
+              )}
+            />
+            <button
+              type="button"
+              onClick={() => setUsarRecoveryCode(!usarRecoveryCode)}
+              className="text-sm text-cyan-200 transition hover:text-white"
+            >
+              {usarRecoveryCode ? 'Usar aplicativo autenticador' : 'Usar código de recuperação'}
+            </button>
+          </>
+        )}
 
         {erro && (
           <div className="rounded-2xl border border-red-400/20 bg-red-500/8 px-4 py-3 text-sm text-red-200">
