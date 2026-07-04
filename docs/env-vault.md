@@ -48,10 +48,12 @@ Se o usuário perder todos os fatores criptográficos, o backend não deve conse
 
 O fluxo principal para consulta pelo painel fica em `Conta > Segurança`:
 
-1. ative o 2FA com aplicativo autenticador;
+1. ative o 2FA pelo assistente com QR Code em aplicativo autenticador;
 2. guarde os códigos de recuperação exibidos uma única vez;
 3. cadastre uma senha local do Env Vault;
 4. informe o código TOTP para salvar o envelope da conta.
+
+O assistente mostra o QR Code TOTP, mantém a chave manual como fallback, confere o código de 6 dígitos antes de ativar a conta e exibe os códigos de recuperação somente após a confirmação.
 
 O painel gera um segredo de vault no navegador e o cifra com a senha local informada. O backend armazena apenas o envelope cifrado em `account_env_vault_envelopes`. O 2FA é usado como step-up para ações sensíveis, mas não descriptografa `.env` sozinho.
 

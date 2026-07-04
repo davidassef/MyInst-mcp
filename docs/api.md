@@ -94,7 +94,7 @@ Retorna status de 2FA e envelope do Env Vault da conta.
 
 ### POST /auth/2fa/setup
 
-Inicia setup TOTP. Retorna `secret` e `otpauthUri` para cadastrar em aplicativo autenticador.
+Inicia setup TOTP. Retorna `secret` e `otpauthUri`; o painel usa `otpauthUri` para renderizar o QR Code e mantém `secret` como fallback de cadastro manual.
 
 ### POST /auth/2fa/verify
 

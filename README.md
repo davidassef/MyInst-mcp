@@ -398,7 +398,7 @@ myinst env pull --workspace meus-projetos --project myinst --name local --enviro
 
 O MyInst ainda não infere automaticamente o projeto remoto pelo diretório atual. A pasta atual define qual arquivo local será lido por `--file` ou escrito por `--output`; `--workspace` e `--project` definem onde o envelope criptografado será salvo no vault. Se você executar o comando fora da pasta correta, `--file .env` pode apontar para outro arquivo.
 
-Para uso pelo painel, configure antes `Conta > Segurança`: ative o 2FA em aplicativo autenticador e cadastre a senha local do Env Vault. O navegador gera um envelope de conta cifrado e envia ao backend somente esse envelope; a senha local, o segredo do vault e o plaintext do `.env` não saem do browser.
+Para uso pelo painel, configure antes `Conta > Segurança`: o assistente exibe um QR Code para adicionar o MyInst no aplicativo autenticador, confere o código de 6 dígitos e só então mostra os códigos de recuperação. Depois cadastre a senha local do Env Vault. O navegador gera um envelope de conta cifrado e envia ao backend somente esse envelope; a senha local, o segredo do vault e o plaintext do `.env` não saem do browser.
 
 Na CLI, o segredo do Env Vault ainda pode ser informado pelo prompt oculto ou por `MYINST_ENV_VAULT_SECRET` em ambiente local controlado. Use essa variável apenas como fallback de automação. Não passe segredo na linha do comando e não armazene esse segredo em `~/.myinst/config.json`, README, scripts ou arquivos versionados. Esse segredo não é a senha da conta MyInst.
 
